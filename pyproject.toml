@@ -1,0 +1,33 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "zksnake"
+version = "0.1.0"
+dependencies = [
+  "py_ecc>=6.0.0",
+]
+requires-python = ">=3.8"
+authors = [
+  {name = "Merricx", email = "imam@merri.cx"},
+]
+maintainers = [
+  {name = "Merricx", email = "imam@merri.cx"},
+]
+description = "zkSNARKs in Python"
+readme = "README.md"
+license = {file = "LICENSE.txt"}
+keywords = ["cryptography", "zksnark", "zkp", "r1cs", "zk-snarks"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Python",
+  "Intended Audience :: Science/Research",
+  "Topic :: Security :: Cryptography"
+]
+
+
+[project.urls]
+Homepage = "https://github.com/merricx/zksnake"
+Repository = "https://github.com/merricx/zksnake.git"
+"Bug Tracker" = "https://github.com/merricx/zksnake/issues"
