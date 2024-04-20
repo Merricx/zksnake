@@ -1,24 +1,30 @@
 # zksnake
 
-Python implementation of zk-SNARKs
+Python implementation of zk-SNARKs (Zero Knowledge Succint Non-interactive ARgument of Knowledge).
 
-## Installation
+## Security
 
-```
-pip3 install zksnake
-```
+> [!WARNING] **This library is intended to be used as proof of concept, prototyping, and educational purpose only. It is NOT production-ready library!**
+
+That being said, this library aims to be as correct as possible to standard practice in the real-world implementation. If you find vulnerability or incorrectness from this project, feel free to report it privately or via [Github Issues](https://github.com/Merricx/zksnake/issues).
 
 ## Proving schemes and curves
 
-zksnake currently support the following zk-SNARKs:
+zksnake currently only support **Groth16** proving scheme with `BN254` and `BLS12-381` as supported curves. More proving schemes will be implemented in the future (hopefully).
 
-- Groth16
-- ???
+## Installation
 
-with the following curves:
+Requirements: **Python >= 3.8**
 
-- BN254
-- BLS12-381
+```
+pip install zksnake
+```
+
+Additionally, if you have [flint](https://flintlib.org/) installed, you can use the following command to make zksnake use flint backend (via `python-flint`) to significantly improve the performance of the Polynomial arithmetic operation.
+
+```
+pip install zksnake[flint]
+```
 
 ## Usage
 
@@ -57,11 +63,10 @@ prover_key, verifier_key = setup.generate()
 from zksnake.groth16.prover import Prover
 from zksnake.groth16.verifier import Verifier
 
-witness = cs.solve({'x': 3}, 35)
-public_witness, private_witness = witness[:2], witness[2:]
+public_witness, private_witness = cs.solve({'x': 3}, 35)
 
 prover = Prover(qap, prover_key)
-proof = prover.prove(private_witness, public_witness)
+proof = prover.prove(public_witness, private_witness)
 
 verifier = Verifier(verifier_key)
 assert verifier.verify(proof, public_witness)

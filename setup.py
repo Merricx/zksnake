@@ -136,6 +136,7 @@ setup(
     #
     # Similar to `install_requires` above, these must be valid existing
     # projects.
+    extras_require={"flint": ["python-flint>=0.6.0"]},
     # If there are data files included in your packages that need to be
     # installed, specify them here.
     # Entry points. The following would provide a command called `sample` which
