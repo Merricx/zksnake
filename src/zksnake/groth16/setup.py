@@ -1,7 +1,7 @@
 """Trusted setup module of Groth16 protocol"""
 
 from ..qap import QAP
-from ..optimized_polynomial import PolynomialRing
+from ..polynomial import PolynomialRing
 from ..ecc import EllipticCurve
 from .prover import ProvingKey
 from .verifier import VerifyingKey
@@ -46,11 +46,11 @@ class Setup:
         delta_G2 = G2 * delta
 
         L = [
-            [j * alpha % self.order for j in self.qap.U[i]]
+            [j * beta % self.order for j in self.qap.U[i]]
             for i in range(len(self.qap.U))
         ]
         R = [
-            [j * beta % self.order for j in self.qap.V[i]]
+            [j * alpha % self.order for j in self.qap.V[i]]
             for i in range(len(self.qap.V))
         ]
         O = self.qap.W

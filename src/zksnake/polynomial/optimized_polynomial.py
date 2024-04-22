@@ -4,7 +4,7 @@ from flint import (
     fmpz_mod_poly_ctx,
     fmpz_mod_ctx,
 )
-from .ecc import Curve
+from ..ecc import Curve
 
 
 class PolynomialRing:
@@ -118,8 +118,13 @@ class PolynomialRing:
             raise TypeError(f"Invalid argument: {point}")
 
 
+cached_lagrange_factors = {}
+
+
 def lagrange_polynomial(x, w, p):
-    """Return Lagrange interpolating polynomial through points `(x, w)` over Fp"""
+    """
+    Return Lagrange interpolating polynomial through points `(x, w)` over Fp
+    """
     M = len(x)
     p_ctx = fmpz_mod_ctx(p)
     P = fmpz_mod_poly_ctx(p_ctx)
@@ -127,20 +132,46 @@ def lagrange_polynomial(x, w, p):
     poly = P([0])
     for j in range(M):
         pt = P([w[j]])
-        for k in range(M):
-            if k == j:
-                continue
+        res_product = P([1])
 
-            fac = x[j] - x[k]
-            divided_poly = [-x[k], 1]
-            res = []
-            for c in divided_poly:
-                res.append(c * pow(fac, -1, p) % p)
+        if j in cached_lagrange_factors:
+            res_product = cached_lagrange_factors[j]
+        else:
+            for k in range(M):
+                if k == j:
+                    continue
 
-            pt *= P(res)
-        poly += pt
+                fac = p_ctx(x[j] - x[k])
+                divided_poly = [p_ctx(-x[k]), p_ctx(1)]
+                res = []
+                for c in divided_poly:
+                    res.append(c / fac)
+
+                res_product *= P(res)
+
+            cached_lagrange_factors[j] = res_product
+
+        poly += pt * res_product
 
     if not poly:
         poly = [0]
 
     return PolynomialRing(poly, p)
+
+
+def vanishing_polynomial(degree: int, p: int):
+    """Generate polynomial `T = (x - 1) * (x - 2) * (x - 3) ... (x - n)`"""
+    p_ctx = fmpz_mod_ctx(p)
+    P = fmpz_mod_poly_ctx(p_ctx)
+    poly = P([1])
+    for i in range(1, degree + 1):
+        poly *= P([-i, 1])
+
+    return PolynomialRing(poly, p)
+
+
+def clear_cache():
+    """Clear all lagrange dividend cache"""
+    global cached_lagrange_factors  # pylint: disable=global-statement
+    del cached_lagrange_factors
+    cached_lagrange_factors = {}

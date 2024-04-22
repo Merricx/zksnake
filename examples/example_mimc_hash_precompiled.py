@@ -3,9 +3,7 @@ import json
 from mimc import eqs, h
 from zksnake.r1cs import ConstraintSystem
 
-from zksnake.groth16.setup import Setup
-from zksnake.groth16.prover import Prover
-from zksnake.groth16.verifier import Verifier
+from zksnake.groth16 import Setup, Prover, Verifier
 
 if __name__ == "__main__":
 
@@ -22,9 +20,9 @@ if __name__ == "__main__":
     )
 
     print(
-        "Note that this will take a while to finish. It is strongly recommended to run this via pypy!"
+        "Note that this will take a while to finish. It is strongly recommended to run this with FLINT installed!"
     )
-    qap = cs.compile(parallel=True)
+    qap = cs.compile()
 
     compiled = {"U": qap.U, "V": qap.V, "W": qap.W, "T": qap.T.coeffs()}
     open("compiled_mimc.json", "w").write(json.dumps(compiled))

@@ -26,6 +26,8 @@ classifiers = [
   "Topic :: Security :: Cryptography"
 ]
 
+[project.optional-dependencies]
+flint = ["python-flint>=0.6.0"]
 
 [project.urls]
 Homepage = "https://github.com/merricx/zksnake"

@@ -61,15 +61,15 @@ class ProvingKey:
         target_G1,
         k_delta_G1,
     ):
-        self.alpha1 = alpha_G1
-        self.beta1 = beta_G1
-        self.beta2 = beta_G2
-        self.delta1 = delta_G1
-        self.delta2 = delta_G2
-        self.tau1 = tau_G1
-        self.tau2 = tau_G2
-        self.target1 = target_G1
-        self.kdelta1 = k_delta_G1
+        self.alpha_1 = alpha_G1
+        self.beta_1 = beta_G1
+        self.beta_2 = beta_G2
+        self.delta_1 = delta_G1
+        self.delta_2 = delta_G2
+        self.tau_1 = tau_G1
+        self.tau_2 = tau_G2
+        self.target_1 = target_G1
+        self.kdelta_1 = k_delta_G1
 
     def from_hex(self, s: str):
         pass
@@ -99,9 +99,9 @@ class Prover:
         """
         Prove statement from QAP by providing public and private witness
         """
-        assert len(self.key.kdelta1) == len(
+        assert len(self.key.kdelta_1) == len(
             private_witness
-        ), "Length of kdelta1 and private_witness must be equal"
+        ), "Length of kdelta_1 and private_witness must be equal"
 
         r = get_random_int(self.order - 1)
         s = get_random_int(self.order - 1)
@@ -111,13 +111,13 @@ class Prover:
         except ValueError as exc:
             raise ValueError("Failed to evaluate with the given witness") from exc
 
-        A = V(self.key.tau1) + self.key.alpha1 + (self.key.delta1 * r)
-        B1 = U(self.key.tau1) + self.key.beta1 + (self.key.delta1 * s)
-        B2 = U(self.key.tau2) + self.key.beta2 + (self.key.delta2 * s)
-        HT = H(self.key.target1)
+        A = U(self.key.tau_1) + self.key.alpha_1 + (self.key.delta_1 * r)
+        B1 = V(self.key.tau_1) + self.key.beta_1 + (self.key.delta_1 * s)
+        B2 = V(self.key.tau_2) + self.key.beta_2 + (self.key.delta_2 * s)
+        HT = H(self.key.target_1)
 
         delta_witness = [
-            point * scalar for point, scalar in zip(self.key.kdelta1, private_witness)
+            point * scalar for point, scalar in zip(self.key.kdelta_1, private_witness)
         ]
         sum_delta_witness = delta_witness[0]
         for k in delta_witness[1:]:
@@ -128,7 +128,7 @@ class Prover:
             + sum_delta_witness
             + (A * s)
             + (B1 * r)
-            + (-self.key.delta1 * (r * s % self.order))
+            + (-self.key.delta_1 * (r * s % self.order))
         )
 
         return Proof(A, B2, C)

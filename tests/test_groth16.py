@@ -1,10 +1,9 @@
 import pytest
 
-from zksnake.qap import QAP
 from zksnake.ecc import EllipticCurve
-from zksnake.groth16.prover import Prover, Proof
-from zksnake.groth16.setup import Setup
-from zksnake.groth16.verifier import Verifier
+from zksnake.polynomial import vanishing_polynomial
+from zksnake.qap import QAP
+from zksnake.groth16 import Prover, Proof, Setup, Verifier
 
 
 @pytest.fixture
@@ -90,7 +89,7 @@ def test_groth16_bn128(qap_data_bn128):
     qap.V = qap_data_bn128["V"]
     qap.W = qap_data_bn128["W"]
     qap.n_public = 2
-    qap.generate_vanishing_polynomial(2)
+    qap.T = vanishing_polynomial(2, qap.p)
 
     setup = Setup(qap)
     pk, vk = setup.generate()
@@ -113,7 +112,7 @@ def test_groth16_bls12_381(qap_data_bls12_381):
     qap.V = qap_data_bls12_381["V"]
     qap.W = qap_data_bls12_381["W"]
     qap.n_public = 2
-    qap.generate_vanishing_polynomial(2)
+    qap.T = vanishing_polynomial(2, qap.p)
 
     setup = Setup(qap, "BLS12_381")
     pk, vk = setup.generate()

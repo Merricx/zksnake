@@ -2,9 +2,11 @@ import pytest
 
 from zksnake.symbolic import Symbol
 from zksnake.r1cs import ConstraintSystem
+from zksnake.polynomial import clear_cache
 
 
 def test_basic_r1cs_bn128():
+    clear_cache()
     x = Symbol("x")
     y = Symbol("y")
     v1 = Symbol("v1")
@@ -22,6 +24,7 @@ def test_basic_r1cs_bn128():
 
 
 def test_basic_r1cs_bls12_381():
+    clear_cache()
     x = Symbol("x")
     y = Symbol("y")
     v1 = Symbol("v1")
@@ -31,9 +34,9 @@ def test_basic_r1cs_bls12_381():
     cs.add(y - 5 - x == v1 * x)
     cs.set_public(y)
 
-    pub, priv = cs.solve({"x": 3}, 35)
-
     qap = cs.compile()
+
+    pub, priv = cs.solve({"x": 3}, 35)
 
     qap.evaluate_witness(pub + priv)
 
@@ -61,3 +64,29 @@ def test_r1cs_big_constraint():
     pub, priv = cs.solve({"inp": 2}, 2**n_power)
 
     qap.evaluate_witness(pub + priv)
+
+
+def test_unused_public_input():
+
+    x = Symbol("x")
+    y = Symbol("y")
+    v1 = Symbol("v1")
+    unused = Symbol("unused")
+
+    cs = ConstraintSystem(["x", "unused"], "y")
+    cs.add(v1 == x * x)
+    cs.add(y - 5 - x == v1 * x)
+    cs.set_public(unused)
+    cs.set_public(y)
+
+    pub, priv = cs.solve({"x": 3, "unused": 1337}, 35)
+
+    qap = cs.compile()
+
+    qap.evaluate_witness(pub + priv)
+
+
+# def test_x():
+
+#     cs = ConstraintSystem(["y", "z"], "x")
+#     cs.add()

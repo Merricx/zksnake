@@ -1,4 +1,4 @@
-from .ecc import Curve
+from ..ecc import Curve
 
 
 class PolynomialRing:
@@ -176,23 +176,49 @@ class PolynomialRing:
             raise TypeError(f"Invalid argument: {point}")
 
 
+cached_lagrange_factors = {}
+
+
 def lagrange_polynomial(x, w, p):
     """Return Lagrange interpolating polynomial through points `(x, w)` over Fp"""
     M = len(x)
     poly = PolynomialRing([0], p)
     for j in range(M):
         pt = PolynomialRing([w[j]], p)
-        for k in range(M):
-            if k == j:
-                continue
+        res_product = PolynomialRing([1], p)
 
-            fac = x[j] - x[k]
-            divided_poly = [-x[k], 1]
-            res = []
-            for c in divided_poly:
-                res.append(c * pow(fac, -1, p) % p)
+        if j in cached_lagrange_factors:
+            res_product = cached_lagrange_factors[j]
+        else:
+            for k in range(M):
+                if k == j:
+                    continue
 
-            pt *= PolynomialRing(res, p)
-        poly += pt
+                fac = x[j] - x[k]
+                divided_poly = [-x[k], 1]
+                res = []
+                for c in divided_poly:
+                    res.append(c * pow(fac, -1, p) % p)
+
+                res_product *= PolynomialRing(res, p)
+
+            cached_lagrange_factors[j] = res_product
+
+        poly += pt * res_product
 
     return poly
+
+
+def vanishing_polynomial(degree: int, p: int):
+    """Generate polynomial `T = (x - 1) * (x - 2) * (x - 3) ... (x - n)`"""
+    poly = PolynomialRing([1], p)
+    for i in range(1, degree + 1):
+        poly *= PolynomialRing([-i, 1], p)
+
+    return poly
+
+
+def clear_cache():
+    """Clear all lagrange dividend cache"""
+    global cached_lagrange_factors  # pylint: disable=global-statement
+    cached_lagrange_factors = {}

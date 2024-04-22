@@ -161,6 +161,18 @@ class ConstraintSystem:
 
         return all(satisfied_constraints)
 
+    def __add_dummy_constraints(self):
+        """
+        Add dummy constraints to prevent proof malleability from unused public input
+        See: https://geometry.xyz/notebook/groth16-malleability
+        """
+        for public in self.public:
+            if public not in self.vars:
+                var = Symbol(public)
+                eq = 0 == var * 0
+                self.constraints.append(eq)
+                self.__add_var(eq)
+
     def compile(self, parallel=False) -> QAP:
         """
         Compile R1CS into Quadratic Arithmetic Program (QAP)
@@ -168,7 +180,9 @@ class ConstraintSystem:
         Returns:
             qap: QAP object of the constraint system
         """
+        self.__add_dummy_constraints()
         witness = self.__get_witness_vector()
+
         row_length = len(witness)
         A, B, C = [], [], []
 
@@ -214,7 +228,7 @@ class ConstraintSystem:
             C.append(c)
 
         qap = QAP(self.p)
-        qap.from_r1cs(A, B, C, len(self.public) + 1, parallel)
+        qap.from_r1cs(A, B, C, len(self.public) + 1)
 
         return qap
 
@@ -229,6 +243,7 @@ class ConstraintSystem:
         Returns:
             witness: Tuple of (public_witness, private_witness)
         """
+        self.__add_dummy_constraints()
         witness = self.__get_witness_vector()
         if not self.evaluate(input_values, output_value):
             raise ValueError("Evaluated constraints are not satisfied with given input")

@@ -4,11 +4,9 @@ import time
 from mimc import eqs, h
 from zksnake.r1cs import ConstraintSystem
 from zksnake.qap import QAP
-from zksnake.optimized_polynomial import PolynomialRing
+from zksnake.polynomial import PolynomialRing
 
-from zksnake.groth16.setup import Setup
-from zksnake.groth16.prover import Prover
-from zksnake.groth16.verifier import Verifier
+from zksnake.groth16 import Setup, Prover, Verifier
 
 
 cs = ConstraintSystem(["secret"], "h")
@@ -33,9 +31,11 @@ qap.W = qap_data["W"]
 qap.T = PolynomialRing(qap_data["T"], cs.p)
 qap.n_public = len(public_witness)
 
-
+start = time.time()
 setup = Setup(qap)
 pkey, vkey = setup.generate()
+end = time.time() - start
+print(f"Setup time: {end}s")
 
 prover = Prover(qap, pkey)
 verifier = Verifier(vkey)

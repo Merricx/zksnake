@@ -1,9 +1,7 @@
 from zksnake.symbolic import Symbol
 from zksnake.r1cs import ConstraintSystem
 
-from zksnake.groth16.setup import Setup
-from zksnake.groth16.prover import Prover
-from zksnake.groth16.verifier import Verifier
+from zksnake.groth16 import Setup, Prover, Verifier
 
 p = Symbol("p")
 q = Symbol("q")
