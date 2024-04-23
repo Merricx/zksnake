@@ -1,3 +1,4 @@
+from typing import Union
 from .symbolic import Symbol, Equation, symeval
 from .ecc import EllipticCurve
 from .qap import QAP
@@ -6,7 +7,7 @@ from .qap import QAP
 class ConstraintSystem:
 
     def __init__(
-        self, inputs: list[str] | list[Symbol], output: str | Symbol, curve="BN128"
+        self, inputs: Union[list[str], list[Symbol]], output: Union[str, Symbol], curve="BN128"
     ):
         self.vars = {}
         self.constraints = []
@@ -107,7 +108,7 @@ class ConstraintSystem:
         self.constraints.append(eq)
         self.__add_var(eq)
 
-    def set_public(self, public_vars: str | Symbol | list[str] | list[Symbol]):
+    def set_public(self, public_vars: Union[str, Symbol, list[str], list[Symbol]]):
         """
         Set variable(s) in the constraint system to be public.
 

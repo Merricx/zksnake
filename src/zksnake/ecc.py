@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Union
 from py_ecc import optimized_bls12_381, optimized_bn128
 from py_ecc.fields.optimized_field_elements import FQ, FQ2
 from py_ecc.fields import (
@@ -65,9 +66,9 @@ class EllipticCurve:
 class Curve:
     def __init__(
         self,
-        x: int | tuple[int],
-        y: int | tuple[int],
-        z: int | tuple[int],
+        x: Union[int, tuple[int]],
+        y: Union[int, tuple[int]],
+        z: Union[int, tuple[int]],
         crv: str,
         verify=True,
     ):

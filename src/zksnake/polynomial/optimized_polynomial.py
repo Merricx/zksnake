@@ -4,6 +4,7 @@ from flint import (
     fmpz_mod_poly_ctx,
     fmpz_mod_ctx,
 )
+from typing import Union
 from ..ecc import Curve
 
 
@@ -109,7 +110,7 @@ class PolynomialRing:
 
         return total
 
-    def __call__(self, point: int | list[Curve]) -> int:
+    def __call__(self, point: Union[int, list[Curve]]) -> int:
         if isinstance(point, int):
             return self.__eval(point)
         elif isinstance(point, list):
