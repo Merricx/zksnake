@@ -23,7 +23,7 @@ class QAP:
         poly_list = []
 
         for i in range(len(m[0])):
-            # print(index, i, len(m[0]))
+
             x = [0] * len(m)
             y = [0] * len(m)
 
@@ -31,6 +31,8 @@ class QAP:
                 x[j] = (j + 1) % self.p
                 y[j] = m[j][i]
 
+            # Instead recalculate the interpolation
+            # we lookup the result from the cache
             if tuple(x + y) in interpolation_cache:
                 coeff = interpolation_cache[tuple(x + y)]
             else:
@@ -58,7 +60,7 @@ class QAP:
         self.n_public = n_public
 
         poly_m = [[]] * 3
-        processes = []
+
         for i, m in enumerate(mat):
             self._r1cs_to_qap_reduction(m, poly_m, i)
 

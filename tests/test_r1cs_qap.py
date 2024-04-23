@@ -84,9 +84,3 @@ def test_unused_public_input():
     qap = cs.compile()
 
     qap.evaluate_witness(pub + priv)
-
-
-# def test_x():
-
-#     cs = ConstraintSystem(["y", "z"], "x")
-#     cs.add()

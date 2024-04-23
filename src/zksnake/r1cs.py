@@ -173,7 +173,7 @@ class ConstraintSystem:
                 self.constraints.append(eq)
                 self.__add_var(eq)
 
-    def compile(self, parallel=False) -> QAP:
+    def compile(self) -> QAP:
         """
         Compile R1CS into Quadratic Arithmetic Program (QAP)
 

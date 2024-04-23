@@ -176,7 +176,7 @@ class PolynomialRing:
             raise TypeError(f"Invalid argument: {point}")
 
 
-cached_lagrange_factors = {}
+cached_lagrange_multipliers = {}
 
 
 def lagrange_polynomial(x, w, p):
@@ -187,8 +187,8 @@ def lagrange_polynomial(x, w, p):
         pt = PolynomialRing([w[j]], p)
         res_product = PolynomialRing([1], p)
 
-        if j in cached_lagrange_factors:
-            res_product = cached_lagrange_factors[j]
+        if j in cached_lagrange_multipliers:
+            res_product = cached_lagrange_multipliers[j]
         else:
             for k in range(M):
                 if k == j:
@@ -202,7 +202,7 @@ def lagrange_polynomial(x, w, p):
 
                 res_product *= PolynomialRing(res, p)
 
-            cached_lagrange_factors[j] = res_product
+            cached_lagrange_multipliers[j] = res_product
 
         poly += pt * res_product
 
@@ -219,6 +219,6 @@ def vanishing_polynomial(degree: int, p: int):
 
 
 def clear_cache():
-    """Clear all lagrange dividend cache"""
-    global cached_lagrange_factors  # pylint: disable=global-statement
-    cached_lagrange_factors = {}
+    """Clear all lagrange multiplier cache"""
+    global cached_lagrange_multipliers  # pylint: disable=global-statement
+    cached_lagrange_multipliers = {}

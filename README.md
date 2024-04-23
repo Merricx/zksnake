@@ -171,4 +171,4 @@ Prove time: 16.348512887954712
 Verify time: 0.3562588691711426
 ```
 
-*There is no significant difference *when using **_pypy+flint_** due to the poor performance of pypy when using ctypes. See: https://www.pypy.org/posts/2018/09/inside-cpyext-why-emulating-cpython-c-8083064623681286567.html*
+_There is no significant difference when using **pypy+flint** due to the poor performance of pypy when using flint_
