@@ -1,4 +1,5 @@
 from typing import Union
+from joblib import Parallel, delayed
 from ..ecc import Curve
 
 
@@ -161,7 +162,9 @@ class PolynomialRing:
     def __eval_with_ecc(self, curves: list[Curve]) -> Curve:
         """Evaluate the polynomial over Elliptic Curve points"""
         assert len(curves) == len(self.coeffs())
-        result = [point * coeff for point, coeff in zip(curves, self.coeffs())]
+        result = Parallel(n_jobs=-1)(
+            delayed(lambda a,b: a*b)(point, coeff) for point, coeff in zip(curves, self.coeffs())
+        )
         total = result[0]
         for c in result[1:]:
             total += c

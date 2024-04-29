@@ -6,6 +6,7 @@ build-backend = "hatchling.build"
 name = "zksnake"
 version = "0.1.0"
 dependencies = [
+  "joblib>=1.4.0",
   "py_ecc>=6.0.0",
 ]
 requires-python = ">=3.8"

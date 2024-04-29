@@ -1,3 +1,5 @@
+from joblib import Parallel, delayed
+
 from ..ecc import EllipticCurve, CurvePointSize
 from ..qap import QAP
 from ..utils import get_random_int
@@ -116,9 +118,10 @@ class Prover:
         B2 = V(self.key.tau_2) + self.key.beta_2 + (self.key.delta_2 * s)
         HT = H(self.key.target_1)
 
-        delta_witness = [
-            point * scalar for point, scalar in zip(self.key.kdelta_1, private_witness)
-        ]
+        delta_witness = Parallel(n_jobs=-1)(
+            delayed(lambda point,scalar: point*scalar)(point, scalar)
+            for point, scalar in zip(self.key.kdelta_1, private_witness)
+        )
         sum_delta_witness = delta_witness[0]
         for k in delta_witness[1:]:
             sum_delta_witness += k

@@ -1,4 +1,5 @@
 """Trusted setup module of Groth16 protocol"""
+from joblib import Parallel, delayed
 
 from ..qap import QAP
 from ..polynomial import PolynomialRing
@@ -67,21 +68,32 @@ class Setup:
         t = self.qap.T(tau)
 
         power_of_tau = [pow(tau, i, self.order) for i in range(self.qap.T.degree())]
-        tau_G1 = [G1 * power_of_tau[i] for i in range(self.qap.T.degree())]
-        tau_G2 = [G2 * power_of_tau[i] for i in range(self.qap.T.degree())]
+        tau_G1 = Parallel(n_jobs=-1)(
+            delayed(lambda x: G1*x)(power_of_tau[i]) for i in range(self.qap.T.degree())
+        )
+        tau_G2 = Parallel(n_jobs=-1)(
+            delayed(lambda x: G2*x)(power_of_tau[i]) for i in range(self.qap.T.degree())
+        )
 
-        tau_div_delta = [
-            (power_of_tau[i] * t) * inv_delta % self.order
+        o = self.order
+        tau_div_delta = Parallel(n_jobs=-1)(
+            delayed(lambda x: x*t * inv_delta % o)(power_of_tau[i])
             for i in range(self.qap.T.degree() - 1)
-        ]
+        )
 
-        target_G1 = [G1 * i for i in tau_div_delta]
+        target_G1 = Parallel(n_jobs=-1)(
+            delayed(lambda x: G1*x)(i) for i in tau_div_delta
+        )
 
         k_gamma = [k * inv_gamma for k in K[: self.qap.n_public]]
         k_delta = [k * inv_delta for k in K[self.qap.n_public :]]
 
-        k_gamma_G1 = [G1 * k for k in k_gamma]
-        k_delta_G1 = [G1 * k for k in k_delta]
+        k_gamma_G1 = Parallel(n_jobs=-1)(
+            delayed(lambda x: G1*x)(k) for k in k_gamma
+        )
+        k_delta_G1 = Parallel(n_jobs=-1)(
+            delayed(lambda x: G1*x)(k) for k in k_delta
+        )
 
         pkey = ProvingKey(
             alpha_G1,

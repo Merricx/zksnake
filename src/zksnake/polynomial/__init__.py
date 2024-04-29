@@ -1,7 +1,7 @@
 import os
 
 try:
-    if os.environ.get("ZKSNAKE_FLINT", False):
+    if os.environ.get("ZKSNAKE_FLINT", True):
         from .optimized_polynomial import *
     else:
         from .polynomial import *
