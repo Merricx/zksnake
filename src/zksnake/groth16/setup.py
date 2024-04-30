@@ -6,7 +6,7 @@ from ..polynomial import PolynomialRing
 from ..ecc import EllipticCurve
 from .prover import ProvingKey
 from .verifier import VerifyingKey
-from ..utils import get_random_int
+from ..utils import get_random_int, get_n_jobs
 
 
 class Setup:
@@ -68,30 +68,30 @@ class Setup:
         t = self.qap.T(tau)
 
         power_of_tau = [pow(tau, i, self.order) for i in range(self.qap.T.degree())]
-        tau_G1 = Parallel(n_jobs=-1)(
+        tau_G1 = Parallel(n_jobs=get_n_jobs())(
             delayed(lambda x: G1*x)(power_of_tau[i]) for i in range(self.qap.T.degree())
         )
-        tau_G2 = Parallel(n_jobs=-1)(
+        tau_G2 = Parallel(n_jobs=get_n_jobs())(
             delayed(lambda x: G2*x)(power_of_tau[i]) for i in range(self.qap.T.degree())
         )
 
         o = self.order
-        tau_div_delta = Parallel(n_jobs=-1)(
+        tau_div_delta = Parallel(n_jobs=get_n_jobs())(
             delayed(lambda x: x*t * inv_delta % o)(power_of_tau[i])
             for i in range(self.qap.T.degree() - 1)
         )
 
-        target_G1 = Parallel(n_jobs=-1)(
+        target_G1 = Parallel(n_jobs=get_n_jobs())(
             delayed(lambda x: G1*x)(i) for i in tau_div_delta
         )
 
         k_gamma = [k * inv_gamma for k in K[: self.qap.n_public]]
         k_delta = [k * inv_delta for k in K[self.qap.n_public :]]
 
-        k_gamma_G1 = Parallel(n_jobs=-1)(
+        k_gamma_G1 = Parallel(n_jobs=get_n_jobs())(
             delayed(lambda x: G1*x)(k) for k in k_gamma
         )
-        k_delta_G1 = Parallel(n_jobs=-1)(
+        k_delta_G1 = Parallel(n_jobs=get_n_jobs())(
             delayed(lambda x: G1*x)(k) for k in k_delta
         )
 

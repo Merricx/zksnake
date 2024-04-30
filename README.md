@@ -6,7 +6,7 @@ Python implementation of zk-SNARKs (Zero Knowledge Succint Non-interactive ARgum
 
 <!-- prettier-ignore-start -->
 > [!WARNING] 
-**This library is intended to be used as proof of concept, prototyping, and educational purpose only. It is NOT security audited and NOT production-ready library!**
+**This library is intended to be used as proof of concept, prototyping, and educational purpose only. It is NOT fully tested and NOT production-ready library!**
 <!-- prettier-ignore-end -->
 
 That being said, this library aims to be as correct as possible to standard practice in the real-world implementation. If you find vulnerability, incorrectness, or something to improve from this project, feel free to raise it via [Github Issues](https://github.com/Merricx/zksnake/issues) or privately.
@@ -17,7 +17,7 @@ zksnake currently only support **Groth16** proving scheme with `BN254` and `BLS1
 
 ## Installation
 
-Requirements: **Python >= 3.8**
+Requirements: **Python >= 3.9**
 
 ```
 pip install zksnake

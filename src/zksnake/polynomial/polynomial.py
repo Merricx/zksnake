@@ -1,7 +1,8 @@
 from typing import Union
 from joblib import Parallel, delayed
 from ..ecc import Curve
-
+from ..ntt import get_primitive_root
+from ..utils import get_n_jobs
 
 class PolynomialRing:
     def __init__(self, coeffs, p):
@@ -162,7 +163,7 @@ class PolynomialRing:
     def __eval_with_ecc(self, curves: list[Curve]) -> Curve:
         """Evaluate the polynomial over Elliptic Curve points"""
         assert len(curves) == len(self.coeffs())
-        result = Parallel(n_jobs=-1)(
+        result = Parallel(n_jobs=get_n_jobs())(
             delayed(lambda a,b: a*b)(point, coeff) for point, coeff in zip(curves, self.coeffs())
         )
         total = result[0]
@@ -214,10 +215,11 @@ def lagrange_polynomial(x, w, p):
 
 
 def vanishing_polynomial(degree: int, p: int):
-    """Generate polynomial `T = (x - 1) * (x - 2) * (x - 3) ... (x - n)`"""
+    """Generate polynomial `T = (x - w^0) * (x - w^1) * (x - w^2) ... (x - w^n)`"""
     poly = PolynomialRing([1], p)
+    omega = get_primitive_root(degree, p)
     for i in range(1, degree + 1):
-        poly *= PolynomialRing([-i, 1], p)
+        poly *= PolynomialRing([-pow(omega, i, p), 1], p)
 
     return poly
 

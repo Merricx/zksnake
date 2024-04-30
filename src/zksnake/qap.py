@@ -1,12 +1,10 @@
+from joblib import Parallel, delayed
 from .polynomial import (
     PolynomialRing,
-    lagrange_polynomial,
     vanishing_polynomial,
-    clear_cache,
 )
-
-interpolation_cache = {}
-
+from .ntt import build_omega, CPU_INTT
+from .utils import get_n_jobs
 
 class QAP:
 
@@ -22,29 +20,21 @@ class QAP:
     def _r1cs_to_qap_reduction(self, m, poly_m, index):
         poly_list = []
 
+        ys = []
+        next_power_2 = 1 << (len(m) - 1).bit_length()
+
+        _, omega_inv_list = build_omega(next_power_2, self.p)
         for i in range(len(m[0])):
-
-            x = [0] * len(m)
-            y = [0] * len(m)
-
+            y = [0] * next_power_2
             for j in range(len(m)):
-                x[j] = (j + 1) % self.p
                 y[j] = m[j][i]
+            
+            ys.append(y)
 
-            # Instead recalculate the interpolation
-            # we lookup the result from the cache
-            if tuple(x + y) in interpolation_cache:
-                coeff = interpolation_cache[tuple(x + y)]
-            else:
-                poly = lagrange_polynomial(x, y, self.p)
-                coeff = poly.coeffs()
-
-                if len(coeff) < len(x):
-                    coeff += [0] * (len(x) - len(coeff))
-
-                interpolation_cache[tuple(x + y)] = coeff
-
-            poly_list.append(coeff)
+        poly_list = Parallel(n_jobs=get_n_jobs())(
+            delayed(CPU_INTT)(y, omega_inv_list, self.p)
+            for y in ys
+        )
 
         poly_m[index] = poly_list
 
@@ -67,9 +57,6 @@ class QAP:
         self.U, self.V, self.W = poly_m[0], poly_m[1], poly_m[2]
         self.T = vanishing_polynomial(len(poly_m[0][0]), self.p)
 
-        # Clear all caches
-        interpolation_cache.clear()
-        clear_cache()
 
     def evaluate_witness(self, witness: list):
         """

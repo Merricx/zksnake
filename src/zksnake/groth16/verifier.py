@@ -2,7 +2,7 @@ from joblib import Parallel, delayed
 
 from ..ecc import EllipticCurve
 from .prover import Proof
-
+from ..utils import get_n_jobs
 
 class VerifyingKey:
     def __init__(self, alpha_G1, beta_G2, gamma_G2, delta_G2, IC):
@@ -40,7 +40,7 @@ class Verifier:
             public_witness
         ), "Length of IC and public_witness must be equal"
 
-        gamma_witness = Parallel(n_jobs=-1)(
+        gamma_witness = Parallel(n_jobs=get_n_jobs())(
             delayed(lambda point,scalar: point*scalar)(point, scalar)
             for point, scalar in zip(self.key.ic, public_witness)
         )
@@ -55,7 +55,7 @@ class Verifier:
             (self.key.delta_2, proof.C)
         ]
 
-        result = Parallel(n_jobs=-1)(
+        result = Parallel(n_jobs=get_n_jobs())(
             delayed(self.E.pairing)(a,b) for a,b in pairings
         )
 
