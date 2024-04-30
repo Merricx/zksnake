@@ -6,6 +6,7 @@ from .polynomial import (
 from .ntt import build_omega, CPU_INTT
 from .utils import get_n_jobs
 
+
 class QAP:
 
     def __init__(self, p):
@@ -28,12 +29,11 @@ class QAP:
             y = [0] * next_power_2
             for j in range(len(m)):
                 y[j] = m[j][i]
-            
+
             ys.append(y)
 
         poly_list = Parallel(n_jobs=get_n_jobs())(
-            delayed(CPU_INTT)(y, omega_inv_list, self.p)
-            for y in ys
+            delayed(CPU_INTT)(y, omega_inv_list, self.p) for y in ys
         )
 
         poly_m[index] = poly_list
@@ -56,7 +56,6 @@ class QAP:
 
         self.U, self.V, self.W = poly_m[0], poly_m[1], poly_m[2]
         self.T = vanishing_polynomial(len(poly_m[0][0]), self.p)
-
 
     def evaluate_witness(self, witness: list):
         """

@@ -94,81 +94,38 @@ The benchmark was done in Macbook Pro M1.
 ```bash
 $ python3 benchmarks/benchmark_script.py
 
-64 constraints
-==================================================
-Compile time: 0.04321098327636719
-Setup time: 2.715744972229004
-Prove time: 2.3567428588867188
-Verify time: 1.152388095855713
-
 128 constraints
 ==================================================
-Compile time: 0.22516584396362305
-Setup time: 5.3968610763549805
-Prove time: 4.7566611766815186
-Verify time: 1.1188290119171143
+Compile time: 0.4393479824066162
+Setup time: 1.9054968357086182
+Prove time: 1.0913739204406738
+Verify time: 0.3241112232208252
 
 256 constraints
 ==================================================
-Compile time: 1.4860730171203613
-Setup time: 10.739224910736084
-Prove time: 9.844039916992188
-Verify time: 1.1289052963256836
+Compile time: 0.40540003776550293
+Setup time: 2.68823504447937
+Prove time: 2.3178298473358154
+Verify time: 0.3243279457092285
 
 512 constraints
 ==================================================
-Compile time: 10.893564939498901
-Setup time: 21.713908910751343
-Prove time: 20.50622296333313
-Verify time: 1.1291019916534424
+Compile time: 1.0385169982910156
+Setup time: 5.441917896270752
+Prove time: 5.0203351974487305
+Verify time: 0.4261047840118408
 
 1024 constraints
 ==================================================
-Compile time: 86.04900884628296
-Setup time: 43.996793031692505
-Prove time: 42.76715803146362
-Verify time: 1.1460270881652832
+Compile time: 4.324009895324707
+Setup time: 11.5020751953125
+Prove time: 10.160172939300537
+Verify time: 0.333420991897583
+
+2048 constraints
+==================================================
+Compile time: 15.53832483291626
+Setup time: 26.138340711593628
+Prove time: 21.955264806747437
+Verify time: 0.3329911231994629
 ```
-
-#### pypy
-
-```bash
-$ pypy3 benchmarks/benchmark_script.py
-
-64 constraints
-==================================================
-Compile time: 0.1528301239013672
-Setup time: 1.1552870273590088
-Prove time: 0.8961300849914551
-Verify time: 0.4104440212249756
-
-128 constraints
-==================================================
-Compile time: 0.6283810138702393
-Setup time: 2.052640914916992
-Prove time: 1.7928578853607178
-Verify time: 0.3657200336456299
-
-256 constraints
-==================================================
-Compile time: 3.1380980014801025
-Setup time: 4.144614934921265
-Prove time: 3.8131330013275146
-Verify time: 0.36926913261413574
-
-512 constraints
-==================================================
-Compile time: 20.172559022903442
-Setup time: 8.932054042816162
-Prove time: 7.920897006988525
-Verify time: 0.44397997856140137
-
-1024 constraints
-==================================================
-Compile time: 136.3906991481781
-Setup time: 18.820957899093628
-Prove time: 16.348512887954712
-Verify time: 0.3562588691711426
-```
-
-_There is no significant difference when using **pypy+flint** due to the poor performance of pypy when using flint_

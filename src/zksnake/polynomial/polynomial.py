@@ -4,6 +4,7 @@ from ..ecc import Curve
 from ..ntt import get_primitive_root
 from ..utils import get_n_jobs
 
+
 class PolynomialRing:
     def __init__(self, coeffs, p):
         """
@@ -164,7 +165,8 @@ class PolynomialRing:
         """Evaluate the polynomial over Elliptic Curve points"""
         assert len(curves) == len(self.coeffs())
         result = Parallel(n_jobs=get_n_jobs())(
-            delayed(lambda a,b: a*b)(point, coeff) for point, coeff in zip(curves, self.coeffs())
+            delayed(lambda a, b: a * b)(point, coeff)
+            for point, coeff in zip(curves, self.coeffs())
         )
         total = result[0]
         for c in result[1:]:

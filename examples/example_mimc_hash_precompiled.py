@@ -19,9 +19,6 @@ if __name__ == "__main__":
         1037254799353855871006189384309576393135431139055333626960622147300727796413,
     )
 
-    print(
-        "Note that this will take a while to finish. It is strongly recommended to run this with FLINT installed!"
-    )
     qap = cs.compile()
 
     compiled = {"U": qap.U, "V": qap.V, "W": qap.W, "T": qap.T.coeffs()}

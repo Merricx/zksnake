@@ -119,7 +119,7 @@ class Prover:
         HT = H(self.key.target_1)
 
         delta_witness = Parallel(n_jobs=get_n_jobs())(
-            delayed(lambda point,scalar: point*scalar)(point, scalar)
+            delayed(lambda point, scalar: point * scalar)(point, scalar)
             for point, scalar in zip(self.key.kdelta_1, private_witness)
         )
         sum_delta_witness = delta_witness[0]

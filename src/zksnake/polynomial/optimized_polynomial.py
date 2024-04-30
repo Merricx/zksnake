@@ -1,4 +1,5 @@
 from typing import Union
+
 # pylint: disable=no-name-in-module
 from flint import (
     fmpz_mod_poly,
@@ -9,6 +10,7 @@ from joblib import Parallel, delayed
 from ..ecc import Curve
 from ..ntt import get_primitive_root
 from ..utils import get_n_jobs
+
 
 class PolynomialRing:
     def __init__(self, arg, p):
@@ -105,7 +107,7 @@ class PolynomialRing:
     def __eval_with_ecc(self, curves: list[Curve]) -> Curve:
         """Evaluate the polynomial over Elliptic Curve points"""
         result = Parallel(n_jobs=get_n_jobs())(
-            delayed(lambda a,b: a*b)(point, coeff)
+            delayed(lambda a, b: a * b)(point, coeff)
             for point, coeff in zip(curves, self.coeffs())
         )
         total = result[0]
@@ -159,6 +161,7 @@ def lagrange_polynomial(x, w, p):
         poly = [0]
 
     return PolynomialRing(poly, p)
+
 
 def clear_cache():
     """Clear all lagrange multiplier cache"""

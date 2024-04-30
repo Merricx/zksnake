@@ -7,8 +7,9 @@ def get_random_int(n_max):
     rand = random.SystemRandom()
     return rand.randint(1, n_max)
 
+
 def get_n_jobs():
-    check_env = os.environ.get('ZKSNAKE_PARALLEL_CPU')
+    check_env = os.environ.get("ZKSNAKE_PARALLEL_CPU")
     if check_env:
         return int(check_env)
     else:
