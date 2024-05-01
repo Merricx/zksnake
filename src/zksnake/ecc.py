@@ -130,6 +130,9 @@ class Curve:
 
     def __repr__(self) -> str:
         return self.__str__()
+    
+    def is_zero(self) -> bool:
+        return self.curve.is_inf(self.point)
 
     def hex(self) -> str:
         x, y = self.curve.normalize(self.point)
@@ -148,3 +151,11 @@ class Curve:
             )
         else:
             raise TypeError(f"Unknown field element type: {type(x)} and {type(y)}")
+
+def multiexp(g, e):
+    """
+    Perform Multi-Scalar-Multiplication (MSM)
+    to compute sum of g[i] * e[i] where g is
+    Elliptic Curve point and e is scalar
+    from Polynomial coefficients
+    """

@@ -53,7 +53,7 @@ def run(n_power):
     return time_results
 
 
-n_constraint = [128, 256, 512, 1024, 2048]
+n_constraint = [256, 512, 1024, 2048, 4096]
 
 results = []
 for i in n_constraint:

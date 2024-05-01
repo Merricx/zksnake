@@ -3,7 +3,7 @@ from .polynomial import (
     PolynomialRing,
     vanishing_polynomial,
 )
-from .ntt import build_omega, CPU_INTT
+from .ntt import build_omega, CPU_INTT, clear_ntt_cache
 from .utils import get_n_jobs
 
 
@@ -57,6 +57,8 @@ class QAP:
         self.U, self.V, self.W = poly_m[0], poly_m[1], poly_m[2]
         self.T = vanishing_polynomial(len(poly_m[0][0]), self.p)
 
+        clear_ntt_cache()
+
     def evaluate_witness(self, witness: list):
         """
         Evaluate QAP with witness vector. Incorrect witness value will raise an error.
@@ -72,7 +74,6 @@ class QAP:
         for m in (self.U, self.V, self.W):
             result = []
             # dot product of <witness> . [poly_list]
-
             for i in range(len(m[0])):
                 result += [sum(witness[j] * m[j][i] for j in range(len(witness)))]
 

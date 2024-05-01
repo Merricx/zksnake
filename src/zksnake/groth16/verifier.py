@@ -1,12 +1,19 @@
 from joblib import Parallel, delayed
 
-from ..ecc import EllipticCurve
+from ..ecc import EllipticCurve, Curve
 from .prover import Proof
 from ..utils import get_n_jobs
 
 
 class VerifyingKey:
-    def __init__(self, alpha_G1, beta_G2, gamma_G2, delta_G2, IC):
+    def __init__(
+            self,
+            alpha_G1: Curve,
+            beta_G2: Curve,
+            gamma_G2: Curve,
+            delta_G2: Curve,
+            IC: list[Curve]
+        ):
         self.alpha_1 = alpha_G1
         self.beta_2 = beta_G2
         self.gamma_2 = gamma_G2

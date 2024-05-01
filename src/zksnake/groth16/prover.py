@@ -1,6 +1,6 @@
 from joblib import Parallel, delayed
 
-from ..ecc import EllipticCurve, CurvePointSize
+from ..ecc import EllipticCurve, CurvePointSize, Curve
 from ..qap import QAP
 from ..utils import get_random_int, get_n_jobs
 
@@ -53,15 +53,15 @@ class Proof:
 class ProvingKey:
     def __init__(
         self,
-        alpha_G1,
-        beta_G1,
-        beta_G2,
-        delta_G1,
-        delta_G2,
-        tau_G1,
-        tau_G2,
-        target_G1,
-        k_delta_G1,
+        alpha_G1: Curve,
+        beta_G1: Curve,
+        beta_G2: Curve,
+        delta_G1: Curve,
+        delta_G2: Curve,
+        tau_G1: Curve,
+        tau_G2: Curve,
+        target_G1: Curve,
+        k_delta_G1: list[Curve],
     ):
         self.alpha_1 = alpha_G1
         self.beta_1 = beta_G1
@@ -96,6 +96,9 @@ class Prover:
         self.key = key
         self.E = EllipticCurve(curve)
         self.order = self.E.curve.curve_order
+
+        if key.delta_1.is_zero() or key.delta_2.is_zero():
+            raise ValueError("Key delta_1 or delta_2 is zero element!")
 
     def prove(self, public_witness: list, private_witness: list) -> Proof:
         """

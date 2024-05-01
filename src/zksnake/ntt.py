@@ -1,8 +1,12 @@
 """
 Stockham NTT algorithm
-which is much faster than recursive NTT with divide-and-conquer
 Source: https://github.com/pdroalves/fft_ntt_comparison/blob/master/stockham/stockham_ntt.py
 """
+from tempfile import TemporaryDirectory
+from joblib import Memory
+
+temp_dir = TemporaryDirectory('zksnake_cache')
+memory = Memory(temp_dir.name, verbose=0)
 
 is_power2 = lambda n: (n & (n - 1)) == 0
 
@@ -43,7 +47,7 @@ def CPU_NTT(data, w, p):
         Ns = Ns * R
     return a
 
-
+@memory.cache(ignore=['wInv', 'p'])
 def CPU_INTT(data, wInv, p):
 
     ninv = pow(len(data), -1, p)
@@ -93,3 +97,6 @@ def NTT(R, v, p):
 
 def expand(idxL, N1, N2):
     return (idxL // N1) * N1 * N2 + (idxL % N1)
+
+def clear_ntt_cache():
+    memory.clear(warn=False)

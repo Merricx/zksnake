@@ -9,7 +9,7 @@ Python implementation of zk-SNARKs (Zero Knowledge Succint Non-interactive ARgum
 **This library is intended to be used as proof of concept, prototyping, and educational purpose only. It is NOT fully tested and NOT production-ready library!**
 <!-- prettier-ignore-end -->
 
-That being said, this library aims to be as correct as possible to standard practice in the real-world implementation. If you find vulnerability, incorrectness, or something to improve from this project, feel free to raise it via [Github Issues](https://github.com/Merricx/zksnake/issues) or privately.
+That being said, this library aims to be as correct as possible to standard practice in the real-world implementation. If you find security vulnerability, incorrectness, or something to improve from this project, feel free to raise it via [Github Issues](https://github.com/Merricx/zksnake/issues) or privately.
 
 ## Proving schemes and curves
 
@@ -76,20 +76,13 @@ assert verifier.verify(proof, public_witness)
 
 ## Performance
 
-We all know that Python is very slow and so this library. Therefore, to significantly improve the performance, it is recommended that you use one of these two options:
+We all know that Python is very slow and so this library. So, it cannot handle big constraints really well (above 10K constraints). Nevertheless, this library tries its best to achieve high performance by utilizing parallel computation, recomputation caching, and using [FLINT](https://flintlib.org/) as a backend for Polynomial arithmetic operation. 
 
-- Use flint backend (`pip install zksnake[flint]`)
-- Use [`pypy`](https://www.pypy.org/) runtime to run the script
-
-Flint backend will improve the R1CS compilation speed while pypy will improve overall performance in setup, proving, and verifying.
-
-By default, zksnake will always use flint. If it is not installed (along with `python-flint`) then it will fallback to naive implementation.
+Note that currently, running zksnake via pypy is slightly slower than Cpython.
 
 ### Benchmark
 
-The benchmark was done in Macbook Pro M1.
-
-#### Cpython + flint
+The benchmark was done in Macbook M1 Pro (10 cores @ 3.2 GHz).
 
 ```bash
 $ python3 benchmarks/benchmark_script.py
