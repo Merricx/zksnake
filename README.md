@@ -2,14 +2,10 @@
 
 Python implementation of zk-SNARKs (Zero Knowledge Succint Non-interactive ARgument of Knowledge).
 
-## Security
-
 <!-- prettier-ignore-start -->
 > [!WARNING] 
 **This library is intended to be used as proof of concept, prototyping, and educational purpose only. It is NOT fully tested and NOT production-ready library!**
 <!-- prettier-ignore-end -->
-
-That being said, this library aims to be as correct as possible to standard practice in the real-world implementation. If you find security vulnerability, incorrectness, or something to improve from this project, feel free to raise it via [Github Issues](https://github.com/Merricx/zksnake/issues) or privately.
 
 ## Proving schemes and curves
 
@@ -20,13 +16,15 @@ zksnake currently only support **Groth16** proving scheme with `BN254` and `BLS1
 Requirements: **Python >= 3.9**
 
 ```
-pip install zksnake
-```
-
-Optionally, you can use the following command to make zksnake use [FLINT](https://flintlib.org/) backend (via `python-flint`) to significantly improve the performance (see [Performance](#performance)).
-
-```
 pip install zksnake[flint]
+```
+
+It is recommended to use `[flint]` to make zksnake use [FLINT](https://flintlib.org/) backend (via `python-flint`) to significantly improve the performance (see [Performance](#performance)).
+
+If somehow the FLINT installation fails, you can use the following command to fallback to naive implementation (significantly slower):
+
+```
+pip install zksnake
 ```
 
 ## Usage
@@ -65,60 +63,63 @@ prover_key, verifier_key = setup.generate()
 ```python
 from zksnake.groth16 import Prover, Verifier
 
+# solve the constraint system
 public_witness, private_witness = cs.solve({'x': 3}, 35)
 
+# proving
 prover = Prover(qap, prover_key)
 proof = prover.prove(public_witness, private_witness)
 
+# verification
 verifier = Verifier(verifier_key)
 assert verifier.verify(proof, public_witness)
 ```
 
 ## Performance
 
-We all know that Python is very slow and so this library. So, it cannot handle big constraints really well (above 10K constraints). Nevertheless, this library tries its best to achieve high performance by utilizing parallel computation, recomputation caching, and using [FLINT](https://flintlib.org/) as a backend for Polynomial arithmetic operation. 
+We all know that Python is very slow and so this library. So, it cannot handle big constraints really well (above 10K constraints). Nevertheless, this library tries its best to achieve high performance by utilizing parallel computation, recomputation caching, and using [FLINT](https://flintlib.org/) as a backend for Polynomial arithmetic operation.
 
 Note that currently, running zksnake via pypy is slightly slower than Cpython.
 
 ### Benchmark
 
-The benchmark was done in Macbook M1 Pro (10 cores @ 3.2 GHz).
+The benchmark was done in Macbook M1 Pro (8 cores).
 
 ```bash
 $ python3 benchmarks/benchmark_script.py
 
-128 constraints
-==================================================
-Compile time: 0.4393479824066162
-Setup time: 1.9054968357086182
-Prove time: 1.0913739204406738
-Verify time: 0.3241112232208252
-
 256 constraints
 ==================================================
-Compile time: 0.40540003776550293
-Setup time: 2.68823504447937
-Prove time: 2.3178298473358154
-Verify time: 0.3243279457092285
+Compile time: 0.6396217346191406
+Setup time: 3.0364649295806885
+Prove time: 2.202207088470459
+Verify time: 0.3272390365600586
 
 512 constraints
 ==================================================
-Compile time: 1.0385169982910156
-Setup time: 5.441917896270752
-Prove time: 5.0203351974487305
-Verify time: 0.4261047840118408
+Compile time: 0.8920221328735352
+Setup time: 4.902499198913574
+Prove time: 4.415348052978516
+Verify time: 0.3332400321960449
 
 1024 constraints
 ==================================================
-Compile time: 4.324009895324707
-Setup time: 11.5020751953125
-Prove time: 10.160172939300537
-Verify time: 0.333420991897583
+Compile time: 3.3228960037231445
+Setup time: 10.271549224853516
+Prove time: 9.695584058761597
+Verify time: 0.33088111877441406
 
 2048 constraints
 ==================================================
-Compile time: 15.53832483291626
-Setup time: 26.138340711593628
-Prove time: 21.955264806747437
-Verify time: 0.3329911231994629
+Compile time: 10.464536190032959
+Setup time: 24.079060077667236
+Prove time: 21.201593160629272
+Verify time: 0.33314990997314453
+
+4096 constraints
+==================================================
+Compile time: 44.15011692047119
+Setup time: 63.6544508934021
+Prove time: 50.83850812911987
+Verify time: 0.3527970314025879
 ```
