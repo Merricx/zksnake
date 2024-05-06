@@ -1,10 +1,6 @@
-from joblib import Parallel, delayed
-from .polynomial import (
-    PolynomialRing,
-    vanishing_polynomial,
-)
-from .ntt import build_omega, CPU_INTT, clear_ntt_cache
-from .utils import get_n_jobs
+from .polynomial import PolynomialRing, ifft
+
+fft_cache = {}
 
 
 class QAP:
@@ -13,7 +9,6 @@ class QAP:
         self.U = []
         self.V = []
         self.W = []
-        self.T = PolynomialRing([0], p)
         self.n_public = 0
 
         self.p = p
@@ -21,20 +16,20 @@ class QAP:
     def _r1cs_to_qap_reduction(self, m, poly_m, index):
         poly_list = []
 
-        ys = []
         next_power_2 = 1 << (len(m) - 1).bit_length()
 
-        _, omega_inv_list = build_omega(next_power_2, self.p)
         for i in range(len(m[0])):
             y = [0] * next_power_2
             for j in range(len(m)):
                 y[j] = m[j][i]
 
-            ys.append(y)
+            if tuple(y) not in fft_cache:
+                poly = ifft(y, self.p)
+                fft_cache[tuple(y)] = poly
+            else:
+                poly = fft_cache[tuple(y)]
 
-        poly_list = Parallel(n_jobs=get_n_jobs())(
-            delayed(CPU_INTT)(y, omega_inv_list, self.p) for y in ys
-        )
+            poly_list.append(poly)
 
         poly_m[index] = poly_list
 
@@ -43,8 +38,8 @@ class QAP:
         Parse QAP from R1CS matrices
 
         Args:
-            A, B, C: Matrix A,B,C from R1CS compile result
-            n_public: Number of public variables in R1CS
+            A, B, C: matrix A,B,C from R1CS compile result
+            n_public: number of public variables in R1CS
         """
         mat = (A, B, C)
         self.n_public = n_public
@@ -55,19 +50,18 @@ class QAP:
             self._r1cs_to_qap_reduction(m, poly_m, i)
 
         self.U, self.V, self.W = poly_m[0], poly_m[1], poly_m[2]
-        self.T = vanishing_polynomial(len(poly_m[0][0]), self.p)
 
-        clear_ntt_cache()
+        fft_cache.clear()
 
     def evaluate_witness(self, witness: list):
         """
         Evaluate QAP with witness vector. Incorrect witness value will raise an error.
 
         Args:
-            witness: Witness vector (public+private) to be evaluated
+            witness: witness vector (public+private) to be evaluated
 
         Return:
-            U, V, W, H: Resulting polynomials to be proved
+            U, V, W, H: resulting polynomials to be proved
         """
 
         poly_m = []
@@ -81,7 +75,8 @@ class QAP:
 
         U, V, W = poly_m[0], poly_m[1], poly_m[2]
 
-        H, remainder = (U * V - W) / self.T
+        UVW = U * V - W
+        H, remainder = UVW.divide_by_vanishing_poly()
         if not remainder.is_zero():
             raise ValueError("(U * V - W) / T did not divide to zero")
 

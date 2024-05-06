@@ -7,12 +7,15 @@ from .qap import QAP
 class ConstraintSystem:
 
     def __init__(
-        self, inputs: Union[list[str], list[Symbol]], output: Union[str, Symbol], curve="BN128"
+        self,
+        inputs: Union[list[str], list[Symbol]],
+        output: Union[str, Symbol],
+        curve="BN128",
     ):
         self.vars = {}
         self.constraints = []
         self.public = []
-        self.p = EllipticCurve(curve).curve.curve_order
+        self.p = EllipticCurve(curve).order
 
         if inputs and isinstance(inputs[0], Symbol):
             self.inputs = [x.name for x in inputs]
@@ -103,7 +106,7 @@ class ConstraintSystem:
         Add new constraint to the system.
 
         Args:
-            eq: Equation to be added to the constraint system
+            eq: equation to be added to the constraint system
         """
         self.constraints.append(eq)
         self.__add_var(eq)
@@ -113,7 +116,7 @@ class ConstraintSystem:
         Set variable(s) in the constraint system to be public.
 
         Args:
-            public_vars: One or more variables in `str` or `Symbol` which will be made public
+            public_vars: one or more variables in `str` or `Symbol` which will be made public
         """
         if isinstance(public_vars, list):
             for var in public_vars:
@@ -238,11 +241,11 @@ class ConstraintSystem:
         Evaluate the constraint system with given inputs and output
 
         Args:
-            input_values: Mapping of input variables and values
-            output_value: Output value of the equation
+            input_values: dict mapping of input variables and values
+            output_value: output value of the equation
 
         Returns:
-            witness: Tuple of (public_witness, private_witness)
+            witness: tuple of (public_witness, private_witness)
         """
         self.__add_dummy_constraints()
         witness = self.__get_witness_vector()
