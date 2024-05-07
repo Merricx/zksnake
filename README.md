@@ -71,7 +71,7 @@ assert verifier.verify(proof, public_witness)
 
 It is difficult to achieve high performance due to the nature of Python and there are still many unoptimized code that can be improved in the current implementation.
 
-Nevertheless, this library tries its best to achieve high performance as possible by utilizing Rust bindings from [pyo3](https://github.com/PyO3/pyo3) as a backend for all primitives computation from (arkworks-rs/algebra)[https://github.com/arkworks-rs/algebra] libraries. It also uses parallel and caching in the Python code where it possible.
+Nevertheless, this library tries its best to achieve high performance as possible by utilizing Rust bindings from [pyo3](https://github.com/PyO3/pyo3) as a backend for all primitives computation from [arkworks-rs/algebra](https://github.com/arkworks-rs/algebra) libraries. It also uses parallel and caching in the Python code where it possible.
 
 Note that running zksnake via pypy is slightly slower than Cpython.
 
