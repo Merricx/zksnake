@@ -16,14 +16,6 @@ zksnake currently only support **Groth16** proving scheme with `BN254` and `BLS1
 Requirements: **Python >= 3.9**
 
 ```
-pip install zksnake[flint]
-```
-
-It is recommended to use `[flint]` to make zksnake use [FLINT](https://flintlib.org/) backend (via `python-flint`) to significantly improve the performance (see [Performance](#performance)).
-
-If somehow the FLINT installation fails, you can use the following command to fallback to naive implementation (significantly slower):
-
-```
 pip install zksnake
 ```
 
@@ -77,9 +69,11 @@ assert verifier.verify(proof, public_witness)
 
 ## Performance
 
-We all know that Python is very slow and so this library. So, it cannot handle big constraints really well (above 10K constraints). Nevertheless, this library tries its best to achieve high performance by utilizing parallel computation, recomputation caching, and using [FLINT](https://flintlib.org/) as a backend for Polynomial arithmetic operation.
+It is difficult to achieve high performance due to the nature of Python and there are still many unoptimized code that can be improved in the current implementation.
 
-Note that currently, running zksnake via pypy is slightly slower than Cpython.
+Nevertheless, this library tries its best to achieve high performance as possible by utilizing Rust bindings from [pyo3](https://github.com/PyO3/pyo3) as a backend for all primitives computation from (arkworks-rs/algebra)[https://github.com/arkworks-rs/algebra] libraries. It also uses parallel and caching in the Python code where it possible.
+
+Note that running zksnake via pypy is slightly slower than Cpython.
 
 ### Benchmark
 
@@ -90,36 +84,36 @@ $ python3 benchmarks/benchmark_script.py
 
 256 constraints
 ==================================================
-Compile time: 0.6396217346191406
-Setup time: 3.0364649295806885
-Prove time: 2.202207088470459
-Verify time: 0.3272390365600586
+Compile time: 0.03383898735046387
+Setup time: 0.24071812629699707
+Prove time: 0.10752201080322266
+Verify time: 0.0019559860229492188
 
 512 constraints
 ==================================================
-Compile time: 0.8920221328735352
-Setup time: 4.902499198913574
-Prove time: 4.415348052978516
-Verify time: 0.3332400321960449
+Compile time: 0.14043331146240234
+Setup time: 0.4345536231994629
+Prove time: 0.23484110832214355
+Verify time: 0.0019159317016601562
 
 1024 constraints
 ==================================================
-Compile time: 3.3228960037231445
-Setup time: 10.271549224853516
-Prove time: 9.695584058761597
-Verify time: 0.33088111877441406
+Compile time: 0.5702369213104248
+Setup time: 1.2666420936584473
+Prove time: 0.6734471321105957
+Verify time: 0.001953125
 
 2048 constraints
 ==================================================
-Compile time: 10.464536190032959
-Setup time: 24.079060077667236
-Prove time: 21.201593160629272
-Verify time: 0.33314990997314453
+Compile time: 2.5771420001983643
+Setup time: 4.66642689704895
+Prove time: 2.2481582164764404
+Verify time: 0.0019867420196533203
 
 4096 constraints
 ==================================================
-Compile time: 44.15011692047119
-Setup time: 63.6544508934021
-Prove time: 50.83850812911987
-Verify time: 0.3527970314025879
+Compile time: 12.788572072982788
+Setup time: 18.284850120544434
+Prove time: 9.09992504119873
+Verify time: 0.0021409988403320312
 ```

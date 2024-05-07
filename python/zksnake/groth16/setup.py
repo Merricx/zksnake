@@ -49,21 +49,16 @@ class Setup:
 
         degree = len(self.qap.U[0])
 
-        L = [
-            [j * beta % self.order for j in self.qap.U[i]]
-            for i in range(len(self.qap.U))
-        ]
-        R = [
-            [j * alpha % self.order for j in self.qap.V[i]]
-            for i in range(len(self.qap.V))
-        ]
+        L = self.qap.U
+        R = self.qap.V
         O = self.qap.W
 
         K = []
         for i in range(len(O)):
             k_list = []
+            # TODO: Slow!
             for j in range(len(O[i])):
-                k_list.append((L[i][j] + R[i][j] + O[i][j]) % self.order)
+                k_list.append((L[i][j] * beta + R[i][j] * alpha + O[i][j]) % self.order)
 
             poly = PolynomialRing(k_list, self.order)
             K.append(poly(tau))

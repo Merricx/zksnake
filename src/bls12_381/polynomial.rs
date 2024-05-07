@@ -4,7 +4,10 @@ use ark_poly::{
     GeneralEvaluationDomain, Polynomial,
 };
 use num_bigint::BigUint;
-use pyo3::{exceptions::PyRuntimeError, prelude::*};
+use pyo3::{
+    exceptions::{PyRuntimeError, PyValueError},
+    prelude::*,
+};
 
 #[pyclass]
 #[derive(Clone, Debug, PartialEq)]
@@ -159,7 +162,8 @@ pub fn ifft(evals: Vec<BigUint>) -> PyResult<Vec<BigUint>> {
 
 #[pyfunction]
 pub fn evaluate_vanishing_polynomial(n: usize, tau: BigUint) -> PyResult<BigUint> {
-    let domain: GeneralEvaluationDomain<Fr> = EvaluationDomain::new(n).unwrap();
+    let domain: GeneralEvaluationDomain<Fr> = EvaluationDomain::new(n)
+        .ok_or_else(|| PyValueError::new_err("Domain size is too large"))?;
 
     let result = EvaluationDomain::evaluate_vanishing_polynomial(&domain, Fr::from(tau));
     Ok(result.into())

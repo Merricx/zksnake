@@ -2,11 +2,10 @@ import pytest
 
 from zksnake.symbolic import Symbol
 from zksnake.r1cs import ConstraintSystem
-from zksnake.polynomial import clear_cache
 
 
 def test_basic_r1cs_bn128():
-    clear_cache()
+
     x = Symbol("x")
     y = Symbol("y")
     v1 = Symbol("v1")
@@ -24,7 +23,7 @@ def test_basic_r1cs_bn128():
 
 
 def test_basic_r1cs_bls12_381():
-    clear_cache()
+
     x = Symbol("x")
     y = Symbol("y")
     v1 = Symbol("v1")

@@ -141,12 +141,12 @@ class Prover:
             + self.key.beta_2
             + (self.key.delta_2 * s)
         )
-        HT = self.E.multiexp(self.key.target_1, H.coeffs())
+        HZ = self.E.multiexp(self.key.target_1, H.coeffs())
 
         sum_delta_witness = self.E.multiexp(self.key.kdelta_1, private_witness)
 
         C = (
-            HT
+            HZ
             + sum_delta_witness
             + (A * s)
             + (B1 * r)

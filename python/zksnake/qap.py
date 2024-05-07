@@ -1,3 +1,5 @@
+from zksnake._algebra import array  # pylint: disable=no-name-in-module
+
 from .polynomial import PolynomialRing, ifft
 
 fft_cache = {}
@@ -16,10 +18,8 @@ class QAP:
     def _r1cs_to_qap_reduction(self, m, poly_m, index):
         poly_list = []
 
-        next_power_2 = 1 << (len(m) - 1).bit_length()
-
         for i in range(len(m[0])):
-            y = [0] * next_power_2
+            y = [0] * len(m)
             for j in range(len(m)):
                 y[j] = m[j][i]
 
@@ -66,15 +66,12 @@ class QAP:
 
         poly_m = []
         for m in (self.U, self.V, self.W):
-            result = []
-            # dot product of <witness> . [poly_list]
-            for i in range(len(m[0])):
-                result += [sum(witness[j] * m[j][i] for j in range(len(witness)))]
-
+            result = array.dot_product(witness, m, self.p)
             poly_m.append(PolynomialRing(result, self.p))
 
         U, V, W = poly_m[0], poly_m[1], poly_m[2]
 
+        # H = (U * V - W) / Z
         UVW = U * V - W
         H, remainder = UVW.divide_by_vanishing_poly()
         if not remainder.is_zero():

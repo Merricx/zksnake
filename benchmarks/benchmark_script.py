@@ -9,7 +9,6 @@ def run(n_power):
 
     time_results = []
 
-    start = time.time()
     v = []
     inp = Symbol("inp")
     out = Symbol("out")
@@ -25,8 +24,8 @@ def run(n_power):
     cs.add(out == v[n_power - 2])
     cs.set_public(out)
 
+    start = time.time()
     qap = cs.compile()
-
     end = time.time() - start
     time_results.append(end)
 
@@ -46,7 +45,7 @@ def run(n_power):
 
     start = time.time()
     verifier = Verifier(vk)
-    verifier.verify(proof, pub)
+    assert verifier.verify(proof, pub)
     end = time.time() - start
     time_results.append(end)
 

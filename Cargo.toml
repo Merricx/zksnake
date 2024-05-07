@@ -15,7 +15,7 @@ ark-ff = "0.4.2"
 ark-poly = "0.4.2"
 ark-std = "0.4.0"
 bincode = "1.3.3"
-num-bigint = "*"
+num-bigint = "0.4.5"
 pyo3 = {version = "0.20.0", features = ["num-bigint"] }
 rayon = "1.10.0"
 serde = {version="1.0.200", features = ["derive"]}

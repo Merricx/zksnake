@@ -1,3 +1,4 @@
+mod array;
 mod bls12_381;
 mod bn254;
 use pyo3::prelude::*;
@@ -97,11 +98,22 @@ fn register_polynomial_module(py: Python, parent_module: &PyModule) -> PyResult<
     Ok(())
 }
 
+fn register_array_module(py: Python, parent_module: &PyModule) -> PyResult<()> {
+    let array_module = PyModule::new(py, "array")?;
+    array_module.add_function(wrap_pyfunction!(array::dot_product, array_module)?)?;
+    array_module.add_function(wrap_pyfunction!(array::transpose, array_module)?)?;
+
+    parent_module.add_submodule(array_module)?;
+
+    Ok(())
+}
+
 /// A Python module implemented in Rust.
 #[pymodule]
 fn _algebra(_py: Python, m: &PyModule) -> PyResult<()> {
     register_bn254_module(_py, m)?;
     register_bls12_381_module(_py, m)?;
     register_polynomial_module(_py, m)?;
+    register_array_module(_py, m)?;
     Ok(())
 }
