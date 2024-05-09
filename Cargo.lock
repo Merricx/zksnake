@@ -51,6 +51,7 @@ dependencies = [
  "hashbrown",
  "itertools",
  "num-traits",
+ "rayon",
  "zeroize",
 ]
 
@@ -70,6 +71,7 @@ dependencies = [
  "num-bigint",
  "num-traits",
  "paste",
+ "rayon",
  "rustc_version",
  "zeroize",
 ]
@@ -108,6 +110,7 @@ dependencies = [
  "ark-std",
  "derivative",
  "hashbrown",
+ "rayon",
 ]
 
 [[package]]
@@ -141,6 +144,7 @@ checksum = "94893f1e0c6eeab764ade8dc4c0db24caf4fe7cbbaafc0eba0a9030f447b5185"
 dependencies = [
  "num-traits",
  "rand",
+ "rayon",
 ]
 
 [[package]]

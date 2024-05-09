@@ -38,7 +38,7 @@ class QAP:
         Parse QAP from R1CS matrices
 
         Args:
-            A, B, C: matrix A,B,C from R1CS compile result
+            A, B, C: matrix A,B,C from R1CS
             n_public: number of public variables in R1CS
         """
         mat = (A, B, C)
@@ -72,9 +72,9 @@ class QAP:
         U, V, W = poly_m[0], poly_m[1], poly_m[2]
 
         # H = (U * V - W) / Z
-        UVW = U * V - W
-        H, remainder = UVW.divide_by_vanishing_poly()
+        HZ = U * V - W
+        H, remainder = HZ.divide_by_vanishing_poly()
         if not remainder.is_zero():
-            raise ValueError("(U * V - W) / T did not divide to zero")
+            raise ValueError("(U * V - W) did not divided by Z to zero")
 
         return U, V, W, H

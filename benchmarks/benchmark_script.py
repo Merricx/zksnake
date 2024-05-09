@@ -15,7 +15,7 @@ def run(n_power):
     for i in range(n_power - 1):
         v.append(Symbol(f"v{i}"))
 
-    cs = ConstraintSystem([inp], "out")
+    cs = ConstraintSystem([inp], ["out"])
 
     cs.add(v[0] == inp * inp)
     for i in range(1, n_power - 1):
@@ -29,7 +29,7 @@ def run(n_power):
     end = time.time() - start
     time_results.append(end)
 
-    pub, priv = cs.solve({"inp": 2}, 2**n_power)
+    pub, priv = cs.solve({"inp": 2}, {"out": 2**n_power})
 
     start = time.time()
     setup = Setup(qap)

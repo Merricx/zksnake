@@ -39,7 +39,7 @@ class Symbol:
         if isinstance(self, Symbol) and isinstance(other, int):
             return Equation(other, self)
 
-        raise ValueError("Invalid constraint")
+        return Equation(self, other)
 
     def __add__(self, other):
         if isinstance(other, Symbol) and other.is_negative:
@@ -304,7 +304,7 @@ def symeval(stmt: Symbol, var_map: dict, p: int):
             right = variables[k] if not rhs.is_negative else -variables[k]
 
             if right is None:
-                raise ValueError(f"Value of {lhs} is not found in variable mapping")
+                raise ValueError(f"Value of {rhs} is not found in variable mapping")
         else:
             right = rhs
 
@@ -321,3 +321,39 @@ def symeval(stmt: Symbol, var_map: dict, p: int):
         variables[key] = result
 
     return variables[str(stmt)]
+
+
+def get_unassigned_var(stmt: Symbol, var_map: dict):
+    """
+    Get the first depth of unassigned VAR and return its coefficient
+
+    Example:
+    Given `x*3 + 5`, return `x` with `3` as coefficent
+    """
+    stack = stmt.stack[:]
+    __push_stack(stmt, stack)
+
+    coeff = 1
+
+    first_found = None
+
+    for eq in stack:
+        _, op, lhs, rhs = eq
+
+        if isinstance(lhs, Symbol) and lhs.op == "VAR":
+            if var_map[lhs.name] is None:
+                first_found = lhs
+                if isinstance(rhs, int) and op == "MUL":
+                    coeff = rhs
+
+                return first_found, coeff
+
+        if isinstance(rhs, Symbol) and rhs.op == "VAR":
+            if var_map[rhs.name] is None:
+                first_found = rhs
+                if isinstance(lhs, int) and op == "MUL":
+                    coeff = lhs
+
+                return first_found, coeff
+
+    return first_found, coeff

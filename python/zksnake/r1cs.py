@@ -1,7 +1,8 @@
 from typing import Union
-from .symbolic import Symbol, Equation, symeval
+from .symbolic import Symbol, Equation, symeval, get_unassigned_var
 from .ecc import EllipticCurve
 from .qap import QAP
+from .parser import R1CSReader
 
 
 class ConstraintSystem:
@@ -9,7 +10,7 @@ class ConstraintSystem:
     def __init__(
         self,
         inputs: Union[list[str], list[Symbol]],
-        output: Union[str, Symbol],
+        outputs: Union[list[str], list[Symbol]],
         curve="BN128",
     ):
         self.vars = {}
@@ -22,12 +23,15 @@ class ConstraintSystem:
         else:
             self.inputs = inputs
 
-        if isinstance(output, Symbol):
-            self.output = output.name
+        if outputs and isinstance(outputs[0], Symbol):
+            self.outputs = [x.name for x in outputs]
         else:
-            self.output = output
+            self.outputs = outputs
 
-    def __add_var(self, eq):
+        # outputs always public
+        self.set_public(outputs)
+
+    def __add_var(self, eq: Symbol):
         if isinstance(eq, int):
             return
 
@@ -86,10 +90,10 @@ class ConstraintSystem:
             v for v in self.vars if v in self.inputs and v not in self.public
         ]
         intermediate_vars = [
-            v for v in self.vars if v not in self.inputs and v != self.output
+            v for v in self.vars if v not in self.inputs and v not in self.outputs
         ]
 
-        return [1] + public_input + [self.output] + private_input + intermediate_vars
+        return [1] + self.outputs + public_input + private_input + intermediate_vars
 
     def __evaluate_witness_vector(self, witness):
         w = []
@@ -133,7 +137,79 @@ class ConstraintSystem:
         else:
             raise TypeError(f"Invalid type of {public_vars}")
 
-    def evaluate(self, input_values: dict, output_value: int) -> bool:
+    def __consume_constraint_stack(self, constraints_stack: list):
+        skipped_constraints = []
+        for constraint in constraints_stack:
+
+            left = constraint.left
+            right = constraint.right
+
+            try:
+                original_left = left
+                coeff = 1
+                if isinstance(left, Symbol) and left.op != "VAR":
+                    target, coeff = get_unassigned_var(left, self.vars)
+
+                    if target:
+                        left = target
+
+                if isinstance(left, Symbol) and left.op == "VAR":
+                    evaluated_right = symeval(right, self.vars, self.p)
+                    if self.vars[left.name] is None:
+                        # assign the value to variable in the lhs
+                        # by moving known values in lhs to rhs
+                        # and add/subtract to the evaluation of rhs
+
+                        self.vars[left.name] = 0
+                        diff = symeval(original_left, self.vars, self.p)
+
+                        inv_coeff = pow(coeff, -1, self.p)
+                        val_1 = (evaluated_right - diff) * inv_coeff % self.p
+                        val_2 = (evaluated_right + diff) * inv_coeff % self.p
+
+                        self.vars[left.name] = val_1
+                        check = symeval(original_left, self.vars, self.p)
+                        if check != evaluated_right:
+                            self.vars[left.name] = val_2
+
+                            check = symeval(original_left, self.vars, self.p)
+                            assert (
+                                check == evaluated_right
+                            ), f"{check} != {evaluated_right}"
+
+                    else:
+                        # variable in the lhs already assigned, check the equality instead
+                        evaluated_left = self.vars[left.name]
+
+                        assert (
+                            evaluated_left == evaluated_right
+                        ), f"{evaluated_left} != {evaluated_right}"
+                elif isinstance(left, int):
+                    # no variable assignment, with lhs being constant integer
+                    evaluated_right = symeval(right, self.vars, self.p)
+
+                    assert (
+                        evaluated_left == evaluated_right
+                    ), f"{evaluated_left} != {evaluated_right}"
+                else:
+                    # no variable assignment, directly check if lhs == rhs hold
+                    evaluated_left = symeval(left, self.vars, self.p)
+                    evaluated_right = symeval(right, self.vars, self.p)
+
+                    assert (
+                        evaluated_left == evaluated_right
+                    ), f"{evaluated_left} != {evaluated_right}"
+            except ValueError:
+                skipped_constraints.append(constraint)
+
+        if skipped_constraints and len(skipped_constraints) == len(constraints_stack):
+            raise ValueError(
+                f"There is more than one unknown value at : {skipped_constraints[0]}"
+            )
+
+        return skipped_constraints
+
+    def evaluate(self, input_values: dict, output_values: dict) -> bool:
         """Evaluate the constraint system with given inputs and output"""
 
         if len(input_values) != len(self.inputs):
@@ -142,28 +218,25 @@ class ConstraintSystem:
         for inp in self.inputs:
             self.vars[inp] = input_values.get(inp, 0) % self.p
 
-        self.vars[self.output] = output_value % self.p
+        # for out in self.outputs:
+        #     self.vars[out] = output_values.get(out, 0) % self.p
 
-        satisfied_constraints = []
-        for constraint in self.constraints:
+        constraints_stack = self.constraints[:]
 
-            left = constraint.left
-            right = constraint.right
+        while True:
+            remaining = self.__consume_constraint_stack(constraints_stack)
+            constraints_stack = remaining
 
-            if isinstance(left, Symbol) and left.op == "VAR":
-                self.vars[left.name] = symeval(right, self.vars, self.p)
-            elif isinstance(left, int):
-                evaluated_right = symeval(right, self.vars, self.p)
-                satisfied_constraints.append(left % self.p == evaluated_right)
-            else:
-                evaluated_left = symeval(left, self.vars, self.p)
-                evaluated_right = symeval(right, self.vars, self.p)
+            if not remaining:
+                break
 
-                satisfied_constraints.append(evaluated_left == evaluated_right)
+        for out in output_values:
+            output_value = output_values[out]
+            assert (
+                output_value % self.p == self.vars[out]
+            ), f"{output_value} != {self.vars[out]}"
 
-        satisfied_constraints.append(output_value % self.p == self.vars[self.output])
-
-        return all(satisfied_constraints)
+        return True
 
     def __add_dummy_constraints(self):
         """
@@ -249,6 +322,7 @@ class ConstraintSystem:
         """
         self.__add_dummy_constraints()
         witness = self.__get_witness_vector()
+        print(witness)
         if not self.evaluate(input_values, output_value):
             raise ValueError("Evaluated constraints are not satisfied with given input")
 
@@ -256,8 +330,27 @@ class ConstraintSystem:
 
         return w[: len(self.public) + 1], w[len(self.public) + 1 :]
 
-    def from_file(self, filepath):
-        pass
+    @classmethod
+    def from_file(cls, r1csfile: str, symfile: str = None):
+
+        reader = R1CSReader(r1csfile, symfile)
+        result = reader.read()
+
+        output_offset = result["header"]["n_pub_out"] + 1
+        public_offset = output_offset + result["header"]["n_pub_in"]
+        private_offset = public_offset + result["header"]["n_priv_in"]
+        outputs = result["wires"][1:output_offset]
+        public_inputs = result["wires"][output_offset:public_offset]
+        private_inputs = result["wires"][public_offset:private_offset]
+
+        cs = ConstraintSystem(public_inputs + private_inputs, outputs)
+        cs.set_public(public_inputs)
+
+        for constraint in result["constraints"]:
+            # print(constraint)
+            cs.add(constraint)
+
+        return cs
 
     def to_file(self, filepath):
-        pass
+        raise NotImplementedError
