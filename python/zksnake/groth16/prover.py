@@ -143,7 +143,10 @@ class Prover:
         )
         HZ = self.E.multiexp(self.key.target_1, H.coeffs())
 
-        sum_delta_witness = self.E.multiexp(self.key.kdelta_1, private_witness)
+        if len(private_witness) > 0:
+            sum_delta_witness = self.E.multiexp(self.key.kdelta_1, private_witness)
+        else:  # all inputs are public
+            sum_delta_witness = self.E.G1() * 0
 
         C = (
             HZ

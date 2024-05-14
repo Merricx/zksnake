@@ -12,10 +12,10 @@ n = Symbol("n")
 
 # prove that we know p and q such that n == p*q
 cs = ConstraintSystem(["p", "q"], ["n"])
-cs.add(v0 == 1 / (p - 1))  # make sure p != 1
-cs.add(v1 == 1 / (q - 1))  # make sure q != 1
-cs.add(v2 == p * q)
-cs.add(n == v2)
+cs.add_constraint(v0 == 1 / (p - 1))  # make sure p != 1
+cs.add_constraint(v1 == 1 / (q - 1))  # make sure q != 1
+cs.add_constraint(v2 == p * q)
+cs.add_constraint(n == v2)
 
 cs.set_public(n)  # value of n is public knowledge
 

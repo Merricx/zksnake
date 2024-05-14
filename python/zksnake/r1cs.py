@@ -1,22 +1,22 @@
-from typing import Union
+from __future__ import annotations
+
+from typing import Any, Union, Callable
 from .symbolic import Symbol, Equation, symeval, get_unassigned_var
 from .ecc import EllipticCurve
 from .qap import QAP
 from .parser import R1CSReader
 
 
-class ConstraintSystem:
-
+class BaseConstraint:
     def __init__(
         self,
         inputs: Union[list[str], list[Symbol]],
         outputs: Union[list[str], list[Symbol]],
-        curve="BN128",
     ):
         self.vars = {}
+        self.hints = {}
         self.constraints = []
         self.public = []
-        self.p = EllipticCurve(curve).order
 
         if inputs and isinstance(inputs[0], Symbol):
             self.inputs = [x.name for x in inputs]
@@ -41,6 +41,127 @@ class ConstraintSystem:
         else:
             self.__add_var(eq.left)
             self.__add_var(eq.right)
+
+    def add_constraint(self, eq: Equation):
+        """
+        Add new constraint to the system.
+
+        Args:
+            eq: equation to be added to the constraint system
+        """
+        self.constraints.append(eq)
+        self.__add_var(eq)
+
+    def add_template(
+        self,
+        template: BaseConstraint,
+        inputs: dict,
+        outputs: dict,
+    ):
+        """
+        Add constraints from ConstraintTemplate
+
+        Args:
+            template: ConstraintTemplate object
+            inputs: input dictionary of template
+            outputs: output dictionary of template
+        """
+        template_prefix = template.__class__.__name__
+
+        # inject input constraints
+        for key, value in inputs.items():
+            if isinstance(value, Symbol):
+                value = value.name
+
+            if key in template.inputs:
+                eq = Symbol(f"{template_prefix}.{key}") == Symbol(value)
+                self.add_constraint(eq)
+
+        # inject constraints from template
+        for constraint in template.constraints:
+            self.add_constraint(constraint)
+
+        # inject output constraints
+        for key, value in outputs.items():
+            if isinstance(value, Symbol):
+                value = value.name
+
+            if key in template.outputs:
+                eq = Symbol(f"{template_prefix}.{key}") == Symbol(value)
+                self.add_constraint(eq)
+
+    def add_hint(self, func: Callable, target: Union[Symbol, str], args: Any = None):
+        """
+        Add hint function to pre-define variable value outside constraints evaluation
+        """
+        target = target if isinstance(target, str) else target.name
+        self.hints[target] = (func, args)
+
+    def set_public(self, public_vars: Union[str, Symbol, list[str], list[Symbol]]):
+        """
+        Set variable(s) in the constraint system to be public.
+
+        Args:
+            public_vars: one or more variables in `str` or `Symbol` which will be made public
+        """
+        if isinstance(public_vars, list):
+            for var in public_vars:
+                if isinstance(var, str):
+                    self.public += [var]
+                elif isinstance(var, Symbol):
+                    self.public += [var.name]
+                else:
+                    raise TypeError(f"Invalid type of {var}")
+        elif isinstance(public_vars, str):
+            self.public += [public_vars]
+        elif isinstance(public_vars, Symbol):
+            self.public += [public_vars.name]
+        else:
+            raise TypeError(f"Invalid type of {public_vars}")
+
+
+class ConstraintTemplate(BaseConstraint):
+
+    def __intercept_var(self, eq: Union[Symbol, int]):
+        if isinstance(eq, int):
+            return
+
+        if eq.op == "VAR":
+            prefix = self.__class__.__name__
+            if not eq.name.startswith(prefix + "."):
+                eq.name = f"{prefix}.{eq.name}"
+        else:
+            self.__intercept_var(eq.left)
+            self.__intercept_var(eq.right)
+
+    def add_constraint(self, eq: Equation):
+        self.__intercept_var(eq)
+        return super().add_constraint(eq)
+
+    def main(self, *args, **kwds):
+        raise NotImplementedError()
+
+    def __call__(self, *args, **kwds: Any):
+        self.constraints = []
+        self.main(*args, **kwds)
+
+        return self
+
+
+class ConstraintSystem(BaseConstraint):
+
+    def __init__(
+        self,
+        inputs: Union[list[str], list[Symbol]],
+        outputs: Union[list[str], list[Symbol]],
+        curve="BN128",
+    ):
+        self.p = EllipticCurve(curve).order
+        super().__init__(inputs, outputs)
+
+    # pylint: disable=unused-private-member
+    def __add_var(self, eq: Symbol):
+        self._BaseConstraint__add_var(eq)  # pylint: disable=no-member
 
     def __transform(self, eq, witness, vec, is_neg=False):
 
@@ -105,38 +226,6 @@ class ConstraintSystem:
 
         return w
 
-    def add(self, eq: Equation):
-        """
-        Add new constraint to the system.
-
-        Args:
-            eq: equation to be added to the constraint system
-        """
-        self.constraints.append(eq)
-        self.__add_var(eq)
-
-    def set_public(self, public_vars: Union[str, Symbol, list[str], list[Symbol]]):
-        """
-        Set variable(s) in the constraint system to be public.
-
-        Args:
-            public_vars: one or more variables in `str` or `Symbol` which will be made public
-        """
-        if isinstance(public_vars, list):
-            for var in public_vars:
-                if isinstance(var, str):
-                    self.public += [var]
-                elif isinstance(var, Symbol):
-                    self.public += [var.name]
-                else:
-                    raise TypeError(f"Invalid type of {var}")
-        elif isinstance(public_vars, str):
-            self.public += [public_vars]
-        elif isinstance(public_vars, Symbol):
-            self.public += [public_vars.name]
-        else:
-            raise TypeError(f"Invalid type of {public_vars}")
-
     def __consume_constraint_stack(self, constraints_stack: list):
         skipped_constraints = []
         for constraint in constraints_stack:
@@ -144,14 +233,54 @@ class ConstraintSystem:
             left = constraint.left
             right = constraint.right
 
+            if isinstance(left, Symbol) and isinstance(right, Symbol):
+                # if lhs is single assigned var, swap lhs and rhs
+                if left.op == "VAR" and self.vars[left.name]:
+                    left, right = right, left
+
+                # if lhs is multiple vars but all assigned and rhs is not, swap lhs and rhs
+                elif (
+                    not get_unassigned_var(left, self.vars)[0]
+                    and get_unassigned_var(right, self.vars)[0]
+                ):
+                    left, right = right, left
+
             try:
                 original_left = left
                 coeff = 1
-                if isinstance(left, Symbol) and left.op != "VAR":
+                multiplier = 1
+                if isinstance(left, Symbol) and left.op not in ["VAR", "MUL"]:
+                    # Assign c in the form of c + v1 + v2 ... = (a)*(b)
                     target, coeff = get_unassigned_var(left, self.vars)
 
                     if target:
                         left = target
+
+                elif isinstance(left, Symbol) and left.op == "MUL":
+                    # Assign a/b in the form of (a)*(b) = c + v1 + v2 ...
+                    target, coeff = get_unassigned_var(left, self.vars)
+
+                    if target:
+                        l = left.left
+                        r = left.right
+
+                        target_l, coeff_l = get_unassigned_var(l, self.vars)
+                        target_r, coeff_r = get_unassigned_var(r, self.vars)
+
+                        if target_l and not target_r:
+                            target = target_l
+                            coeff = coeff_l
+                            left = target
+                            multiplier = pow(symeval(r, self.vars, self.p), -1, self.p)
+
+                        elif not target_l and target_r:
+                            target = target_r
+                            coeff = coeff_r
+                            left = target
+                            multiplier = pow(symeval(l, self.vars, self.p), -1, self.p)
+
+                        else:
+                            raise ValueError()
 
                 if isinstance(left, Symbol) and left.op == "VAR":
                     evaluated_right = symeval(right, self.vars, self.p)
@@ -164,8 +293,12 @@ class ConstraintSystem:
                         diff = symeval(original_left, self.vars, self.p)
 
                         inv_coeff = pow(coeff, -1, self.p)
-                        val_1 = (evaluated_right - diff) * inv_coeff % self.p
-                        val_2 = (evaluated_right + diff) * inv_coeff % self.p
+                        val_1 = (
+                            (evaluated_right - diff) * inv_coeff * multiplier % self.p
+                        )
+                        val_2 = (
+                            (evaluated_right + diff) * inv_coeff * multiplier % self.p
+                        )
 
                         self.vars[left.name] = val_1
                         check = symeval(original_left, self.vars, self.p)
@@ -185,12 +318,55 @@ class ConstraintSystem:
                             evaluated_left == evaluated_right
                         ), f"{evaluated_left} != {evaluated_right}"
                 elif isinstance(left, int):
-                    # no variable assignment, with lhs being constant integer
+                    # lhs is constant integer, check if there is unassigned var in rhs
+
+                    l = right.left
+                    r = right.right
+
+                    # check both unassigned in l * r in case both of them is same var
+                    target_l, coeff_l = get_unassigned_var(l, self.vars)
+                    target_r, coeff_r = get_unassigned_var(r, self.vars)
+
+                    if (target_l and not target_r) or (not target_l and target_r):
+                        target = target_l or target_r
+                        coeff = coeff_l or coeff_r
+
+                        self.vars[target.name] = 0
+
+                        eval_l = (
+                            l if isinstance(l, int) else symeval(l, self.vars, self.p)
+                        )
+                        eval_r = (
+                            r if isinstance(r, int) else symeval(r, self.vars, self.p)
+                        )
+
+                        if not target_l:
+                            eval_known = eval_l
+                            eval_unknown = eval_r
+                        if not target_r:
+                            eval_known = eval_r
+                            eval_unknown = eval_l
+
+                        # 0 == (x+l) * (y+r)
+                        # l == -x
+                        if left == 0:
+                            self.vars[target.name] = 0 - eval_unknown
+
+                        # c == (x+l) * r
+                        # l == c * r^(-1) - x
+                        else:
+                            self.vars[target.name] = (
+                                left * pow(eval_known, -1, self.p) % self.p
+                            )
+                    # both of them are unassigned var, skip for now
+                    elif target_l and target_r:
+                        raise ValueError()
+
                     evaluated_right = symeval(right, self.vars, self.p)
 
                     assert (
-                        evaluated_left == evaluated_right
-                    ), f"{evaluated_left} != {evaluated_right}"
+                        left % self.p == evaluated_right
+                    ), f"{left % self.p} != {evaluated_right}, {right}"
                 else:
                     # no variable assignment, directly check if lhs == rhs hold
                     evaluated_left = symeval(left, self.vars, self.p)
@@ -198,7 +374,8 @@ class ConstraintSystem:
 
                     assert (
                         evaluated_left == evaluated_right
-                    ), f"{evaluated_left} != {evaluated_right}"
+                    ), f"{evaluated_left} != {evaluated_right}, {constraint}"
+
             except ValueError:
                 skipped_constraints.append(constraint)
 
@@ -209,21 +386,39 @@ class ConstraintSystem:
 
         return skipped_constraints
 
-    def evaluate(self, input_values: dict, output_values: dict) -> bool:
-        """Evaluate the constraint system with given inputs and output"""
+    def __consume_hint(self):
 
+        for target, hint in self.hints.items():
+            func, args = hint
+
+            if self.vars[target] is None:
+                evaluated_args = []
+                for arg in args:
+                    if isinstance(arg, Symbol) and self.vars.get(arg.name) is None:
+                        break
+                    elif (
+                        isinstance(arg, Symbol) and self.vars.get(arg.name) is not None
+                    ):
+                        evaluated_args.append(self.vars[arg.name])
+                    else:
+                        evaluated_args.append(arg)
+                else:
+                    result = func(*evaluated_args)
+                    self.vars[target] = int(result) % self.p
+
+    def evaluate(self, input_values: dict, output_values: dict = None) -> bool:
+        """Evaluate the constraint system with given inputs and output"""
+        output_values = output_values or {}
         if len(input_values) != len(self.inputs):
             raise ValueError("Length of input values differ with input variables")
 
         for inp in self.inputs:
             self.vars[inp] = input_values.get(inp, 0) % self.p
 
-        # for out in self.outputs:
-        #     self.vars[out] = output_values.get(out, 0) % self.p
-
         constraints_stack = self.constraints[:]
 
         while True:
+            self.__consume_hint()
             remaining = self.__consume_constraint_stack(constraints_stack)
             constraints_stack = remaining
 
@@ -247,8 +442,7 @@ class ConstraintSystem:
             if public not in self.vars:
                 var = Symbol(public)
                 eq = 0 == var * 0
-                self.constraints.append(eq)
-                self.__add_var(eq)
+                self.add_constraint(eq)
 
     def compile(self) -> QAP:
         """
@@ -309,7 +503,7 @@ class ConstraintSystem:
 
         return qap
 
-    def solve(self, input_values: dict, output_value: int) -> list:
+    def solve(self, input_values: dict, output_value: dict = None) -> list:
         """
         Evaluate the constraint system with given inputs and output
 
@@ -322,7 +516,7 @@ class ConstraintSystem:
         """
         self.__add_dummy_constraints()
         witness = self.__get_witness_vector()
-        print(witness)
+
         if not self.evaluate(input_values, output_value):
             raise ValueError("Evaluated constraints are not satisfied with given input")
 
@@ -344,11 +538,13 @@ class ConstraintSystem:
         private_inputs = result["wires"][public_offset:private_offset]
 
         cs = ConstraintSystem(public_inputs + private_inputs, outputs)
+        for wire in result["wires"][private_offset:]:
+            cs.__add_var(wire)
+
         cs.set_public(public_inputs)
 
         for constraint in result["constraints"]:
-            # print(constraint)
-            cs.add(constraint)
+            cs.add_constraint(constraint)
 
         return cs
 

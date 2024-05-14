@@ -2,9 +2,6 @@ from enum import Enum
 
 from zksnake._algebra import ec_bn254, ec_bls12_381  # pylint: disable=no-name-in-module
 
-PointG1 = ec_bn254.PointG1
-PointG2 = ec_bn254.PointG2
-
 
 class CurveType(Enum):
     BN128 = ec_bn254
@@ -56,8 +53,12 @@ class EllipticCurve:
         Perform EC multiplication in parallel batch
         where g is Elliptic Curve point(s) and s is scalars
         """
+
         if not isinstance(g, list):
             g = [g] * len(s)
+
+        if len(g) == 0:
+            return []
 
         if isinstance(g[0], self.curve.PointG1):
             return self.curve.batch_multi_scalar_g1(g, s)

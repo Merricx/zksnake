@@ -56,7 +56,7 @@ class Setup:
         K = []
         for i in range(len(O)):
             k_list = []
-            # TODO: Slow!
+            # TODO: Slow! Need to refactor this implementation
             for j in range(len(O[i])):
                 k_list.append((L[i][j] * beta + R[i][j] * alpha + O[i][j]) % self.order)
 

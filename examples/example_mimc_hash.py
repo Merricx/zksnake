@@ -9,7 +9,7 @@ from zksnake.groth16 import Setup, Prover, Verifier
 cs = ConstraintSystem(["secret"], ["h"])
 
 for eq in eqs:
-    cs.add(eq)
+    cs.add_constraint(eq)
 
 cs.set_public("h")
 

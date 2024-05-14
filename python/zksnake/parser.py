@@ -27,10 +27,10 @@ class R1CSReader:
 
     def __read_symfile(self, file):
         csv_reader = csv.reader(file, delimiter=",")
-        self.symbol_map["0"] = 1
+        self.symbol_map["0"] = (0, 1)
         for row in csv_reader:
-            label, _, _, name = row
-            self.symbol_map[label] = name
+            label, index, _, name = row
+            self.symbol_map[label] = (index, name)
 
     def __read_header(self):
 
@@ -130,7 +130,7 @@ class R1CSReader:
                         current_rhs_wire_id = wire_id
                         assigned_wire_id.append(wire_id)
                         if c:
-                            c -= rhs_c_multiplier * rhs_c
+                            c += rhs_c_multiplier * rhs_c
                         else:
                             c = rhs_c_multiplier * rhs_c
 
@@ -138,7 +138,7 @@ class R1CSReader:
                         rhs_c_multiplier = factor
                     else:
                         if c:
-                            c -= factor * sym
+                            c += factor * sym
                         else:
                             c = factor * sym
                 else:
@@ -166,23 +166,33 @@ class R1CSReader:
 
     def __construct_constraints(self):
 
-        public_inputs = [Symbol(f"pub{i+1}") for i in range(self.header["n_pub_in"])]
-        private_inputs = [Symbol(f"priv{i+1}") for i in range(self.header["n_priv_in"])]
-        outputs = [Symbol(f"out{i+1}") for i in range(self.header["n_pub_out"])]
-
-        n_intermediate = self.header["n_wires"] - (
-            self.header["n_pub_in"]
-            + self.header["n_priv_in"]
-            + self.header["n_pub_out"]
-            + 1
-        )
-        intermediate_vars = [Symbol(f"v{i+1}") for i in range(n_intermediate)]
-
-        self.wires = [1] + outputs + public_inputs + private_inputs + intermediate_vars
-
         if self.symbol_map:
-            for index, wire in enumerate(self.wires[1:]):
-                wire.name = self.symbol_map[str(self.wire_label_map[index + 1])]
+            self.wires = [1] + [None] * (self.header["n_wires"] - 1)
+            for i, (_, value) in enumerate(self.symbol_map.items()):
+                index, name = value
+                index = int(index)
+                if index > 0:
+                    self.wires[index] = Symbol(name)
+        else:
+            public_inputs = [
+                Symbol(f"pub{i+1}") for i in range(self.header["n_pub_in"])
+            ]
+            private_inputs = [
+                Symbol(f"priv{i+1}") for i in range(self.header["n_priv_in"])
+            ]
+            outputs = [Symbol(f"out{i+1}") for i in range(self.header["n_pub_out"])]
+
+            n_intermediate = self.header["n_wires"] - (
+                self.header["n_pub_in"]
+                + self.header["n_priv_in"]
+                + self.header["n_pub_out"]
+                + 1
+            )
+            intermediate_vars = [Symbol(f"v{i+1}") for i in range(n_intermediate)]
+
+            self.wires = (
+                [1] + outputs + public_inputs + private_inputs + intermediate_vars
+            )
 
         for constraint in self.raw_constraints:
             self.__read_constraint_section(constraint)

@@ -32,21 +32,32 @@ y = Symbol('y')
 v1 = Symbol('v1')
 
 # solution to: y == x**3 + x + 5
-cs = ConstraintSystem(['x'], 'y')
-cs.add(v1 == x*x)
-cs.add(y - 5 - x == v1*x)
+cs = ConstraintSystem(['x'], ['y'])
+cs.add_constraint(v1 == x*x)
+cs.add_constraint(y - 5 - x == v1*x)
 cs.set_public(y)
 
 qap = cs.compile()
 ```
+
+Alternatively, you can import the constraints from [Circom](https://github.com/iden3/circom) compiled r1cs file:
+
+```python
+from zksnake.r1cs import ConstraintSystem
+
+cs = ConstraintSystem.from_file("circuit.r1cs", "circuit.sym")
+qap = cs.compile()
+```
+
+Note that some constraints that quite complex or expensive cannot just be imported directly (eg. one linear constraint with multiple unknown variables) and require you to add "hint" function manually to pre-define the variable value.
 
 ### Trusted setup phase
 
 ```python
 from zksnake.groth16 import Setup
 
+# one time setup
 setup = Setup(qap)
-
 prover_key, verifier_key = setup.generate()
 ```
 
@@ -56,7 +67,7 @@ prover_key, verifier_key = setup.generate()
 from zksnake.groth16 import Prover, Verifier
 
 # solve the constraint system
-public_witness, private_witness = cs.solve({'x': 3}, 35)
+public_witness, private_witness = cs.solve({'x': 3}, {'y': 35})
 
 # proving
 prover = Prover(qap, prover_key)

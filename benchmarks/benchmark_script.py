@@ -17,11 +17,11 @@ def run(n_power):
 
     cs = ConstraintSystem([inp], ["out"])
 
-    cs.add(v[0] == inp * inp)
+    cs.add_constraint(v[0] == inp * inp)
     for i in range(1, n_power - 1):
-        cs.add(v[i] == v[i - 1] * inp)
+        cs.add_constraint(v[i] == v[i - 1] * inp)
 
-    cs.add(out == v[n_power - 2])
+    cs.add_constraint(out == v[n_power - 2])
     cs.set_public(out)
 
     start = time.time()

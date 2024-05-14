@@ -282,6 +282,9 @@ def symeval(stmt: Symbol, var_map: dict, p: int):
         Non-mapped variable will raise IndexError.
         p: Prime modulus to be used in the arithmetic operation
     """
+    if isinstance(stmt, int):
+        return stmt % p
+
     variables = deepcopy(var_map)
 
     stack = stmt.stack[:]
@@ -310,17 +313,21 @@ def symeval(stmt: Symbol, var_map: dict, p: int):
 
         result = 0
         if op == "ADD":
+            key = str(lhs + rhs)
             result = (left + right) % p
         elif op == "SUB":
+            key = str(lhs - rhs)
             result = (left - right) % p
         elif op == "MUL":
+            key = str(lhs * rhs)
             result = left * right % p
         elif op == "DIV":
+            key = str(lhs / rhs)
             result = left * pow(right, -1, p) % p
 
         variables[key] = result
 
-    return variables[str(stmt)]
+    return variables[str(stmt)] % p
 
 
 def get_unassigned_var(stmt: Symbol, var_map: dict):
@@ -330,6 +337,13 @@ def get_unassigned_var(stmt: Symbol, var_map: dict):
     Example:
     Given `x*3 + 5`, return `x` with `3` as coefficent
     """
+    if isinstance(stmt, int):
+        return None, None
+
+    if isinstance(stmt, Symbol) and stmt.op == "VAR":
+        if var_map[stmt.name] is None:
+            return stmt, 1
+
     stack = stmt.stack[:]
     __push_stack(stmt, stack)
 
@@ -355,5 +369,8 @@ def get_unassigned_var(stmt: Symbol, var_map: dict):
                     coeff = lhs
 
                 return first_found, coeff
+
+    if not first_found:
+        coeff = None
 
     return first_found, coeff

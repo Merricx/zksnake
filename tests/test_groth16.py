@@ -2,6 +2,7 @@ import pytest
 
 from zksnake.ecc import EllipticCurve
 from zksnake.qap import QAP
+from zksnake.r1cs import ConstraintSystem
 from zksnake.groth16 import Prover, Proof, Setup, Verifier
 
 
@@ -121,6 +122,37 @@ def test_groth16_bls12_381(qap_data_bls12_381):
     proof = prover.prove(pub, priv)
 
     verifier = Verifier(vk, "BLS12_381")
+    assert verifier.verify(proof, pub)
+
+
+def test_groth16_from_circom():
+
+    cs = ConstraintSystem.from_file(
+        "./tests/stub/test_poseidon.r1cs", "./tests/stub/test_poseidon.sym"
+    )
+
+    pub, priv = cs.solve(
+        {
+            "main.a": 1,
+            "main.b": 2,
+            "main.c": 3,
+        },
+        {
+            "main.h": 6542985608222806190361240322586112750744169038454362455181422643027100751666
+        },
+    )
+
+    qap = cs.compile()
+
+    setup = Setup(qap)
+
+    pkey, vkey = setup.generate()
+
+    prover = Prover(qap, pkey)
+    verifier = Verifier(vkey)
+
+    proof = prover.prove(pub, priv)
+
     assert verifier.verify(proof, pub)
 
 
