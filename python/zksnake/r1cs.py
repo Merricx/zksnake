@@ -14,6 +14,7 @@ class BaseConstraint:
         outputs: Union[list[str], list[Symbol]],
     ):
         self.vars = {}
+        self.temp_vars = []
         self.hints = {}
         self.constraints = []
         self.public = []
@@ -90,7 +91,13 @@ class BaseConstraint:
                 eq = Symbol(f"{template_prefix}.{key}") == Symbol(value)
                 self.add_constraint(eq)
 
-    def add_hint(self, func: Callable, target: Union[Symbol, str], args: Any = None):
+        # inject hints
+        for target, value in template.hints.items():
+            self.hints[target] = value
+
+    def add_hint(
+        self, func: Callable[[Any], int], target: Union[Symbol, str], args: Any = None
+    ):
         """
         Add hint function to pre-define variable value outside constraints evaluation
         """
@@ -211,13 +218,18 @@ class ConstraintSystem(BaseConstraint):
             v for v in self.vars if v in self.inputs and v not in self.public
         ]
         intermediate_vars = [
-            v for v in self.vars if v not in self.inputs and v not in self.outputs
+            v
+            for v in self.vars
+            if v not in self.inputs
+            and v not in self.outputs
+            and v not in self.temp_vars
         ]
 
         return [1] + self.outputs + public_input + private_input + intermediate_vars
 
     def __evaluate_witness_vector(self, witness):
         w = []
+
         for v in witness:
             if isinstance(v, str):
                 w.append(self.vars[v] % self.p)
@@ -235,7 +247,7 @@ class ConstraintSystem(BaseConstraint):
 
             if isinstance(left, Symbol) and isinstance(right, Symbol):
                 # if lhs is single assigned var, swap lhs and rhs
-                if left.op == "VAR" and self.vars[left.name]:
+                if left.op == "VAR" and self.vars[left.name] is not None:
                     left, right = right, left
 
                 # if lhs is multiple vars but all assigned and rhs is not, swap lhs and rhs
@@ -376,10 +388,14 @@ class ConstraintSystem(BaseConstraint):
                         evaluated_left == evaluated_right
                     ), f"{evaluated_left} != {evaluated_right}, {constraint}"
 
-            except ValueError:
+            except ValueError:  # TODO! might better to avoid this
+                skipped_constraints.append(constraint)
+
+            except TypeError:  # TODO! might better to avoid this
                 skipped_constraints.append(constraint)
 
         if skipped_constraints and len(skipped_constraints) == len(constraints_stack):
+
             raise ValueError(
                 f"There is more than one unknown value at : {skipped_constraints[0]}"
             )
@@ -387,9 +403,12 @@ class ConstraintSystem(BaseConstraint):
         return skipped_constraints
 
     def __consume_hint(self):
-
         for target, hint in self.hints.items():
             func, args = hint
+
+            if target not in self.vars:
+                self.vars[target] = None
+                self.temp_vars.append(target)
 
             if self.vars[target] is None:
                 evaluated_args = []
@@ -455,6 +474,7 @@ class ConstraintSystem(BaseConstraint):
         witness = self.__get_witness_vector()
 
         row_length = len(witness)
+
         A, B, C = [], [], []
 
         for constraint in self.constraints:

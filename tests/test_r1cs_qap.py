@@ -193,3 +193,50 @@ def test_constraint_hint():
     expected_bits = bin(13337)[2:].zfill(n_bit)[::-1]
     for i in range(n_bit):
         assert cs.vars[f"b{i}"] == int(expected_bits[i])
+
+
+def test_constraint_template_with_hint():
+
+    class Num2Bits(ConstraintTemplate):
+        def main(self, *args, **kwds):
+            n_bit = args[0]
+
+            v = []
+            for i in range(n_bit):
+                v.append(Symbol(f"bit{i}"))
+
+            inp = Symbol("inp")
+
+            for i in range(n_bit):
+                self.add_constraint(0 == (1 - v[i]) * v[i])
+
+            eq = inp
+            for i in range(n_bit):
+                eq -= (2**i) * v[i]
+
+            self.add_constraint(0 == eq)
+
+            for i, b in enumerate(v):
+                f = lambda x, i: (x >> i) & 1
+                self.add_hint(f, b, (inp, i))
+
+    n_bit = 256
+    inp = Symbol("i")
+    bits = []
+    outputs = {}
+    for i in range(n_bit):
+        v = Symbol(f"bit{i}")
+        bits.append(v)
+        outputs[f"bit{i}"] = v
+
+    num2bits = Num2Bits(["inp"], bits)
+
+    cs = ConstraintSystem([inp], bits)
+
+    cs.add_template(num2bits(n_bit), {"inp": inp}, outputs)
+
+    cs.evaluate({"i": 13333333337})
+
+    expected_bits = bin(13333333337)[2:].zfill(n_bit)[::-1]
+    for i in range(n_bit):
+        assert cs.vars[f"bit{i}"] == int(expected_bits[i])
