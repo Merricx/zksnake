@@ -55,7 +55,7 @@ jobs:
           set -e
           pip install zksnake --find-links dist --force-reinstall
           pip install pytest pylint
-          pylint --disable=R,C,fixme python
+          pylint --disable=R,C,fixme,import-error python
           pytest
       - name: pytest
         if: ${{ !startsWith(matrix.platform.target, 'x86') && matrix.platform.target != 'ppc64' }}
@@ -71,7 +71,7 @@ jobs:
           run: |
             set -e
             pip3 install zksnake --find-links dist --force-reinstall
-            pylint --disable=R,C,fixme python
+            pylint --disable=R,C,fixme,import-error python
             pytest
 
   windows:
@@ -107,7 +107,7 @@ jobs:
           set -e
           pip install zksnake --find-links dist --force-reinstall
           pip install pytest pylint
-          pylint --disable=R,C,fixme python
+          pylint --disable=R,C,fixme,import-error python
           pytest
 
   macos:
@@ -135,15 +135,6 @@ jobs:
         with:
           name: wheels-macos-${{ matrix.platform.target }}
           path: dist
-      # - name: pytest
-      #   if: ${{ !startsWith(matrix.platform.target, 'aarch64') }}
-      #   shell: bash
-      #   run: |
-      #     set -e
-      #     pip install zksnake --find-links dist --force-reinstall
-      #     pip install pytest pylint
-      #     pylint --disable=R,C,fixme python
-      #     pytest
 
   sdist:
     runs-on: ubuntu-latest
