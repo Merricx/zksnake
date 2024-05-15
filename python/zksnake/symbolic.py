@@ -39,7 +39,7 @@ class Symbol:
         if isinstance(self, Symbol) and isinstance(other, int):
             return Equation(other, self)
 
-        raise ValueError("Invalid constraint")
+        return Equation(self, other)
 
     def __add__(self, other):
         if isinstance(other, Symbol) and other.is_negative:
@@ -282,6 +282,9 @@ def symeval(stmt: Symbol, var_map: dict, p: int):
         Non-mapped variable will raise IndexError.
         p: Prime modulus to be used in the arithmetic operation
     """
+    if isinstance(stmt, int):
+        return stmt % p
+
     variables = deepcopy(var_map)
 
     stack = stmt.stack[:]
@@ -304,20 +307,70 @@ def symeval(stmt: Symbol, var_map: dict, p: int):
             right = variables[k] if not rhs.is_negative else -variables[k]
 
             if right is None:
-                raise ValueError(f"Value of {lhs} is not found in variable mapping")
+                raise ValueError(f"Value of {rhs} is not found in variable mapping")
         else:
             right = rhs
 
         result = 0
         if op == "ADD":
+            key = str(lhs + rhs)
             result = (left + right) % p
         elif op == "SUB":
+            key = str(lhs - rhs)
             result = (left - right) % p
         elif op == "MUL":
+            key = str(lhs * rhs)
             result = left * right % p
         elif op == "DIV":
+            key = str(lhs / rhs)
             result = left * pow(right, -1, p) % p
 
         variables[key] = result
 
-    return variables[str(stmt)]
+    return variables[str(stmt)] % p
+
+
+def get_unassigned_var(stmt: Symbol, var_map: dict):
+    """
+    Get the first depth of unassigned VAR and return its coefficient
+
+    Example:
+    Given `x*3 + 5`, return `x` with `3` as coefficent
+    """
+    if isinstance(stmt, int):
+        return None, None
+
+    if isinstance(stmt, Symbol) and stmt.op == "VAR":
+        if var_map[stmt.name] is None:
+            return stmt, 1
+
+    stack = stmt.stack[:]
+    __push_stack(stmt, stack)
+
+    coeff = 1
+
+    first_found = None
+
+    for eq in stack:
+        _, op, lhs, rhs = eq
+
+        if isinstance(lhs, Symbol) and lhs.op == "VAR":
+            if var_map[lhs.name] is None:
+                first_found = lhs
+                if isinstance(rhs, int) and op == "MUL":
+                    coeff = rhs
+
+                return first_found, coeff
+
+        if isinstance(rhs, Symbol) and rhs.op == "VAR":
+            if var_map[rhs.name] is None:
+                first_found = rhs
+                if isinstance(lhs, int) and op == "MUL":
+                    coeff = lhs
+
+                return first_found, coeff
+
+    if not first_found:
+        coeff = None
+
+    return first_found, coeff

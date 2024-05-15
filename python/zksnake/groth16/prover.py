@@ -1,8 +1,6 @@
-from joblib import Parallel, delayed
-
-from ..ecc import EllipticCurve, CurvePointSize, Curve
+from ..ecc import EllipticCurve, CurvePointSize
 from ..qap import QAP
-from ..utils import get_random_int, get_n_jobs
+from ..utils import get_random_int
 
 
 class Proof:
@@ -40,28 +38,40 @@ class Proof:
         cx, cy = int(s[n * 6 : n * 7], 16), int(s[n * 7 :], 16)
 
         A = E(ax, ay)
-        B = E((bx1, bx2), (by1, by2), (1, 0))
+        B = E((bx1, bx2), (by1, by2))
         C = E(cx, cy)
 
         return Proof(A, B, C)
 
     def to_hex(self) -> str:
         """Return hex representation of the Proof"""
-        return self.A.hex() + self.B.hex() + self.C.hex()
+        if self.A.x.bit_length() <= 256:
+            n = 64
+        else:
+            n = 96
+
+        Ax, Ay = hex(self.A.x)[2:].zfill(n), hex(self.A.y)[2:].zfill(n)
+        Cx, Cy = hex(self.C.x)[2:].zfill(n), hex(self.C.y)[2:].zfill(n)
+
+        Bx, By = self.B.x, self.B.y
+        Bx1, Bx2 = hex(Bx[0])[2:].zfill(n), hex(Bx[1])[2:].zfill(n)
+        By1, By2 = hex(By[0])[2:].zfill(n), hex(By[1])[2:].zfill(n)
+
+        return Ax + Ay + Bx1 + Bx2 + By1 + By2 + Cx + Cy
 
 
 class ProvingKey:
     def __init__(
         self,
-        alpha_G1: Curve,
-        beta_G1: Curve,
-        beta_G2: Curve,
-        delta_G1: Curve,
-        delta_G2: Curve,
-        tau_G1: Curve,
-        tau_G2: Curve,
-        target_G1: Curve,
-        k_delta_G1: list[Curve],
+        alpha_G1,
+        beta_G1,
+        beta_G2,
+        delta_G1,
+        delta_G2,
+        tau_G1,
+        tau_G2,
+        target_G1,
+        k_delta_G1,
     ):
         self.alpha_1 = alpha_G1
         self.beta_1 = beta_G1
@@ -95,7 +105,7 @@ class Prover:
         self.qap = qap
         self.key = key
         self.E = EllipticCurve(curve)
-        self.order = self.E.curve.curve_order
+        self.order = self.E.order
 
         if key.delta_1.is_zero() or key.delta_2.is_zero():
             raise ValueError("Key delta_1 or delta_2 is zero element!")
@@ -116,21 +126,30 @@ class Prover:
         except ValueError as exc:
             raise ValueError("Failed to evaluate with the given witness") from exc
 
-        A = U(self.key.tau_1) + self.key.alpha_1 + (self.key.delta_1 * r)
-        B1 = V(self.key.tau_1) + self.key.beta_1 + (self.key.delta_1 * s)
-        B2 = V(self.key.tau_2) + self.key.beta_2 + (self.key.delta_2 * s)
-        HT = H(self.key.target_1)
-
-        delta_witness = Parallel(n_jobs=get_n_jobs())(
-            delayed(lambda point, scalar: point * scalar)(point, scalar)
-            for point, scalar in zip(self.key.kdelta_1, private_witness)
+        A = (
+            self.E.multiexp(self.key.tau_1, U.coeffs())
+            + self.key.alpha_1
+            + (self.key.delta_1 * r)
         )
-        sum_delta_witness = delta_witness[0]
-        for k in delta_witness[1:]:
-            sum_delta_witness += k
+        B1 = (
+            self.E.multiexp(self.key.tau_1, V.coeffs())
+            + self.key.beta_1
+            + (self.key.delta_1 * s)
+        )
+        B2 = (
+            self.E.multiexp(self.key.tau_2, V.coeffs())
+            + self.key.beta_2
+            + (self.key.delta_2 * s)
+        )
+        HZ = self.E.multiexp(self.key.target_1, H.coeffs())
+
+        if len(private_witness) > 0:
+            sum_delta_witness = self.E.multiexp(self.key.kdelta_1, private_witness)
+        else:  # all inputs are public
+            sum_delta_witness = self.E.G1() * 0
 
         C = (
-            HT
+            HZ
             + sum_delta_witness
             + (A * s)
             + (B1 * r)

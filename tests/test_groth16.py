@@ -1,8 +1,8 @@
 import pytest
 
 from zksnake.ecc import EllipticCurve
-from zksnake.polynomial import vanishing_polynomial
 from zksnake.qap import QAP
+from zksnake.r1cs import ConstraintSystem
 from zksnake.groth16 import Prover, Proof, Setup, Verifier
 
 
@@ -83,13 +83,12 @@ def qap_data_bls12_381():
 
 def test_groth16_bn128(qap_data_bn128):
 
-    qap = QAP(EllipticCurve("BN128").curve.curve_order)
+    qap = QAP(EllipticCurve("BN128").order)
 
     qap.U = qap_data_bn128["U"]
     qap.V = qap_data_bn128["V"]
     qap.W = qap_data_bn128["W"]
     qap.n_public = 2
-    qap.T = vanishing_polynomial(2, qap.p)
 
     setup = Setup(qap)
     pk, vk = setup.generate()
@@ -106,13 +105,12 @@ def test_groth16_bn128(qap_data_bn128):
 
 def test_groth16_bls12_381(qap_data_bls12_381):
 
-    qap = QAP(EllipticCurve("BLS12_381").curve.curve_order)
+    qap = QAP(EllipticCurve("BLS12_381").order)
 
     qap.U = qap_data_bls12_381["U"]
     qap.V = qap_data_bls12_381["V"]
     qap.W = qap_data_bls12_381["W"]
     qap.n_public = 2
-    qap.T = vanishing_polynomial(2, qap.p)
 
     setup = Setup(qap, "BLS12_381")
     pk, vk = setup.generate()
@@ -124,6 +122,37 @@ def test_groth16_bls12_381(qap_data_bls12_381):
     proof = prover.prove(pub, priv)
 
     verifier = Verifier(vk, "BLS12_381")
+    assert verifier.verify(proof, pub)
+
+
+def test_groth16_from_circom():
+
+    cs = ConstraintSystem.from_file(
+        "./tests/stub/test_poseidon.r1cs", "./tests/stub/test_poseidon.sym"
+    )
+
+    pub, priv = cs.solve(
+        {
+            "main.a": 1,
+            "main.b": 2,
+            "main.c": 3,
+        },
+        {
+            "main.h": 6542985608222806190361240322586112750744169038454362455181422643027100751666
+        },
+    )
+
+    qap = cs.compile()
+
+    setup = Setup(qap)
+
+    pkey, vkey = setup.generate()
+
+    prover = Prover(qap, pkey)
+    verifier = Verifier(vkey)
+
+    proof = prover.prove(pub, priv)
+
     assert verifier.verify(proof, pub)
 
 

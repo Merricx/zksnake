@@ -9,28 +9,27 @@ def run(n_power):
 
     time_results = []
 
-    start = time.time()
     v = []
     inp = Symbol("inp")
     out = Symbol("out")
     for i in range(n_power - 1):
         v.append(Symbol(f"v{i}"))
 
-    cs = ConstraintSystem([inp], "out")
+    cs = ConstraintSystem([inp], ["out"])
 
-    cs.add(v[0] == inp * inp)
+    cs.add_constraint(v[0] == inp * inp)
     for i in range(1, n_power - 1):
-        cs.add(v[i] == v[i - 1] * inp)
+        cs.add_constraint(v[i] == v[i - 1] * inp)
 
-    cs.add(out == v[n_power - 2])
+    cs.add_constraint(out == v[n_power - 2])
     cs.set_public(out)
 
+    start = time.time()
     qap = cs.compile()
-
     end = time.time() - start
     time_results.append(end)
 
-    pub, priv = cs.solve({"inp": 2}, 2**n_power)
+    pub, priv = cs.solve({"inp": 2}, {"out": 2**n_power})
 
     start = time.time()
     setup = Setup(qap)
@@ -46,7 +45,7 @@ def run(n_power):
 
     start = time.time()
     verifier = Verifier(vk)
-    verifier.verify(proof, pub)
+    assert verifier.verify(proof, pub)
     end = time.time() - start
     time_results.append(end)
 

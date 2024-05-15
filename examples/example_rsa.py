@@ -11,11 +11,11 @@ v2 = Symbol("v2")
 n = Symbol("n")
 
 # prove that we know p and q such that n == p*q
-cs = ConstraintSystem(["p", "q"], "n")
-cs.add(v0 == 1 / (p - 1))  # make sure p != 1
-cs.add(v1 == 1 / (q - 1))  # make sure q != 1
-cs.add(v2 == p * q)
-cs.add(n == v2)
+cs = ConstraintSystem(["p", "q"], ["n"])
+cs.add_constraint(v0 == 1 / (p - 1))  # make sure p != 1
+cs.add_constraint(v1 == 1 / (q - 1))  # make sure q != 1
+cs.add_constraint(v2 == p * q)
+cs.add_constraint(n == v2)
 
 cs.set_public(n)  # value of n is public knowledge
 
@@ -27,7 +27,7 @@ nval = 2140324650240744961264423072839333563008614715144755017797754920881418023
 
 assert pval * qval == nval
 
-public_witness, private_witness = cs.solve({"p": pval, "q": qval}, nval)
+public_witness, private_witness = cs.solve({"p": pval, "q": qval}, {"n": nval})
 
 setup = Setup(qap)
 
