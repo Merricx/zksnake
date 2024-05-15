@@ -40,7 +40,7 @@ cs.set_public(y)
 qap = cs.compile()
 ```
 
-Alternatively, you can import the constraints from [Circom](https://github.com/iden3/circom) compiled r1cs file:
+Alternatively, you can import the constraints from [Circom](https://github.com/iden3/circom):
 
 ```python
 from zksnake.r1cs import ConstraintSystem
@@ -49,7 +49,7 @@ cs = ConstraintSystem.from_file("circuit.r1cs", "circuit.sym")
 qap = cs.compile()
 ```
 
-Note that some constraints that quite complex or expensive cannot just be imported directly (eg. one linear constraint with multiple unknown variables) and require you to add "hint" function manually to pre-define the variable value.
+Note that some constraints that are quite complex or expensive cannot just be imported directly and require you to add "hint" function to pre-define the variable value (see [Example](./examples/example_bitify_circom.py)).
 
 ### Trusted setup phase
 

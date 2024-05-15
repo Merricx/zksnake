@@ -355,7 +355,7 @@ class ConstraintSystem(BaseConstraint):
                         if not target_l:
                             eval_known = eval_l
                             eval_unknown = eval_r
-                        if not target_r:
+                        else:
                             eval_known = eval_r
                             eval_unknown = eval_l
 
