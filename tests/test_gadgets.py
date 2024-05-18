@@ -1,5 +1,5 @@
 import pytest
-from zksnake.gadgets import IsEqual, GreaterThan, GreaterEqThan, MiMCHash
+from zksnake.gadgets import IsEqual, GreaterThan, GreaterEqThan
 from zksnake.symbolic import Symbol
 from zksnake.r1cs import ConstraintSystem
 

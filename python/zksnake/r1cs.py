@@ -521,7 +521,7 @@ class ConstraintSystem(BaseConstraint):
         """
         self.__add_dummy_constraints()
         witness = self.__get_witness_vector()
-        # print(witness)
+
         row_length = len(witness)
 
         A, B, C = [], [], []
@@ -566,10 +566,6 @@ class ConstraintSystem(BaseConstraint):
             A.append(a)
             B.append(b)
             C.append(c)
-
-        # print(A)
-        # print(B)
-        # print(C)
 
         qap = QAP(self.p)
         qap.from_r1cs(A, B, C, len(self.public) + 1)

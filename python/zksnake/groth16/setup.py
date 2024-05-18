@@ -4,7 +4,11 @@ from joblib import Parallel, delayed
 
 from ..qap import QAP
 from ..ecc import EllipticCurve
-from ..polynomial import PolynomialRing, evaluate_vanishing_polynomial
+from ..polynomial import (
+    PolynomialRing,
+    evaluate_vanishing_polynomial,
+    evaluate_lagrange_coefficients,
+)
 from .prover import ProvingKey
 from .verifier import VerifyingKey
 from ..utils import get_random_int, get_n_jobs
@@ -47,21 +51,27 @@ class Setup:
         delta_G1 = G1 * delta
         delta_G2 = G2 * delta
 
-        degree = len(self.qap.U[0])
+        degree = len(self.qap.a)
+        n_constraint = len(self.qap.a[0])
 
-        L = self.qap.U
-        R = self.qap.V
-        O = self.qap.W
+        lagrange_coeffs = evaluate_lagrange_coefficients(degree, tau, self.order)
 
-        K = []
-        for i in range(len(O)):
-            k_list = []
-            # TODO: Slow! Need to refactor this implementation
-            for j in range(len(O[i])):
-                k_list.append((L[i][j] * beta + R[i][j] * alpha + O[i][j]) % self.order)
+        L = [0] * n_constraint
+        R = [0] * n_constraint
+        O = [0] * n_constraint
 
-            poly = PolynomialRing(k_list, self.order)
-            K.append(poly(tau))
+        for i, coeff in enumerate(lagrange_coeffs):
+            for index, rows in enumerate(self.qap.a[i]):
+                L[index] += coeff * rows
+            for index, rows in enumerate(self.qap.b[i]):
+                R[index] += coeff * rows
+            for index, rows in enumerate(self.qap.c[i]):
+                O[index] += coeff * rows
+
+        K = [
+            (L[i] * beta + R[i] * alpha + O[i]) % self.order
+            for i in range(n_constraint)
+        ]
 
         t = evaluate_vanishing_polynomial(degree, tau, self.order)
 

@@ -169,3 +169,12 @@ pub fn evaluate_vanishing_polynomial(n: usize, tau: BigUint) -> PyResult<BigUint
     let result = EvaluationDomain::evaluate_vanishing_polynomial(&domain, Fr::from(tau));
     Ok(result.into())
 }
+
+#[pyfunction]
+pub fn evaluate_lagrange_coefficients(n: usize, tau: BigUint) -> PyResult<Vec<BigUint>> {
+    let domain: GeneralEvaluationDomain<Fr> = EvaluationDomain::new(n)
+        .ok_or_else(|| PyValueError::new_err("Domain size is too large"))?;
+
+    let coeffs = EvaluationDomain::evaluate_all_lagrange_coefficients(&domain, Fr::from(tau));
+    Ok(coeffs.par_iter().map(|x| x.to_owned().into()).collect())
+}

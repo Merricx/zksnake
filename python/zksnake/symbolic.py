@@ -1,6 +1,3 @@
-from copy import deepcopy
-
-
 class Symbol:
 
     def __init__(self, name):
@@ -285,7 +282,8 @@ def symeval(stmt: Symbol, var_map: dict, p: int):
     if isinstance(stmt, int):
         return stmt % p
 
-    variables = deepcopy(var_map)
+    variables = var_map
+    temp_vars = {}
 
     stack = stmt.stack[:]
     __push_stack(stmt, stack)
@@ -294,8 +292,13 @@ def symeval(stmt: Symbol, var_map: dict, p: int):
         key, op, lhs, rhs = eq
 
         if isinstance(lhs, Symbol):
-            k = lhs.name if lhs.op == "VAR" else str(lhs)
-            left = variables[k] if not lhs.is_negative else -variables[k]
+            if lhs.op == "VAR":
+                left = (
+                    variables[lhs.name] if not lhs.is_negative else -variables[lhs.name]
+                )
+            else:
+                k = str(lhs)
+                left = temp_vars[k] if not lhs.is_negative else -temp_vars[k]
 
             if left is None:
                 raise ValueError(f"Value of {lhs} is not found in variable mapping")
@@ -303,8 +306,13 @@ def symeval(stmt: Symbol, var_map: dict, p: int):
             left = lhs
 
         if isinstance(rhs, Symbol):
-            k = rhs.name if rhs.op == "VAR" else str(rhs)
-            right = variables[k] if not rhs.is_negative else -variables[k]
+            if rhs.op == "VAR":
+                right = (
+                    variables[rhs.name] if not rhs.is_negative else -variables[rhs.name]
+                )
+            else:
+                k = str(rhs)
+                right = temp_vars[k] if not rhs.is_negative else -temp_vars[k]
 
             if right is None:
                 raise ValueError(f"Value of {rhs} is not found in variable mapping")
@@ -325,9 +333,12 @@ def symeval(stmt: Symbol, var_map: dict, p: int):
             key = str(lhs / rhs)
             result = left * pow(right, -1, p) % p
 
-        variables[key] = result
+        temp_vars[key] = result
 
-    return variables[str(stmt)] % p
+    if str(stmt) in variables:
+        return variables[str(stmt)] % p
+
+    return temp_vars[str(stmt)] % p
 
 
 def get_unassigned_var(stmt: Symbol, var_map: dict):

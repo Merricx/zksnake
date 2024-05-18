@@ -1,6 +1,5 @@
 from zksnake._algebra import array  # pylint: disable=no-name-in-module
 
-from .utils import Timer
 from .polynomial import PolynomialRing, ifft
 
 fft_cache = {}
@@ -12,27 +11,12 @@ class QAP:
         self.U = []
         self.V = []
         self.W = []
+        self.a = []
+        self.b = []
+        self.c = []
         self.n_public = 0
 
         self.p = p
-
-    def _r1cs_to_qap_reduction(self, m, poly_m, index):
-        poly_list = []
-
-        for i in range(len(m[0])):
-            y = [0] * len(m)
-            for j in range(len(m)):
-                y[j] = m[j][i]
-
-            if tuple(y) not in fft_cache:
-                poly = ifft(y, self.p)
-                fft_cache[tuple(y)] = poly
-            else:
-                poly = fft_cache[tuple(y)]
-
-            poly_list.append(poly)
-
-        poly_m[index] = poly_list
 
     def from_r1cs(self, A: list, B: list, C: list, n_public: int):
         """
@@ -42,17 +26,15 @@ class QAP:
             A, B, C: matrix A,B,C from R1CS
             n_public: number of public variables in R1CS
         """
-        mat = (A, B, C)
         self.n_public = n_public
 
-        poly_m = [[]] * 3
+        full_zero_list = [0] * len(A[0])
+        mat_len = len(A)
+        next_power_2 = 1 << (mat_len - 1).bit_length()
 
-        for i, m in enumerate(mat):
-            self._r1cs_to_qap_reduction(m, poly_m, i)
-
-        self.U, self.V, self.W = poly_m[0], poly_m[1], poly_m[2]
-
-        fft_cache.clear()
+        self.a = A + [full_zero_list] * (next_power_2 - mat_len)
+        self.b = B + [full_zero_list] * (next_power_2 - mat_len)
+        self.c = C + [full_zero_list] * (next_power_2 - mat_len)
 
     def evaluate_witness(self, witness: list):
         """
@@ -65,13 +47,16 @@ class QAP:
             U, V, W, H: resulting polynomials to be proved
         """
 
-        poly_m = []
-        for m in (self.U, self.V, self.W):
-            result = array.dot_product(witness, m, self.p)
-            poly_m.append(PolynomialRing(result, self.p))
+        # TODO: bottleneck here
+        a = array.dot_product(witness, self.a, self.p)
+        b = array.dot_product(witness, self.b, self.p)
+        c = array.dot_product(witness, self.c, self.p)
 
-        U, V, W = poly_m[0], poly_m[1], poly_m[2]
+        U = PolynomialRing(ifft(a, self.p), self.p)
+        V = PolynomialRing(ifft(b, self.p), self.p)
+        W = PolynomialRing(ifft(c, self.p), self.p)
 
+        # TODO: replace naive mul with mul over fft
         # H = (U * V - W) / Z
         HZ = U * V - W
         H, remainder = HZ.divide_by_vanishing_poly()

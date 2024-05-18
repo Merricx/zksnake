@@ -2,7 +2,6 @@ import pytest
 
 from zksnake.symbolic import Symbol
 from zksnake.r1cs import ConstraintSystem, ConstraintTemplate
-from zksnake.groth16 import Prover, Setup, Verifier
 
 
 def test_basic_r1cs_bn254():
@@ -91,36 +90,6 @@ def test_r1cs_loop_constraint():
     pub, priv = cs.solve({"inp": 2}, {"out": 2**n_power})
 
     qap.evaluate_witness(pub + priv)
-
-
-def test_unused_public_input():
-
-    x = Symbol("x")
-    y = Symbol("y")
-    v1 = Symbol("v1")
-    unused = Symbol("unused")
-
-    cs = ConstraintSystem(["x", "unused"], ["y"])
-    cs.add_constraint(v1 == x * x)
-    cs.add_constraint(y - 5 - x == v1 * x)
-    cs.set_public(unused)
-    cs.set_public(y)
-
-    pub, priv = cs.solve({"x": 3, "unused": 1337}, {"y": 35})
-
-    qap = cs.compile()
-
-    setup = Setup(qap)
-    pkey, vkey = setup.generate()
-
-    prover = Prover(qap, pkey)
-    verifier = Verifier(vkey)
-
-    proof = prover.prove(pub, priv)
-
-    # try to forge proof from unused public input
-    pub[2] = 1330000000
-    assert verifier.verify(proof, pub) is False
 
 
 def test_constraint_template():

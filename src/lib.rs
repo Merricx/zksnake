@@ -76,6 +76,10 @@ fn register_polynomial_module(py: Python, parent_module: &PyModule) -> PyResult<
         bn254::polynomial::evaluate_vanishing_polynomial,
         poly_bn254_module
     )?)?;
+    poly_bn254_module.add_function(wrap_pyfunction!(
+        bn254::polynomial::evaluate_lagrange_coefficients,
+        poly_bn254_module
+    )?)?;
 
     let poly_bls12_381_module = PyModule::new(py, "polynomial_bls12_381")?;
     poly_bls12_381_module.add_class::<bls12_381::polynomial::PolynomialRing>()?;
@@ -89,6 +93,10 @@ fn register_polynomial_module(py: Python, parent_module: &PyModule) -> PyResult<
     )?)?;
     poly_bls12_381_module.add_function(wrap_pyfunction!(
         bls12_381::polynomial::evaluate_vanishing_polynomial,
+        poly_bls12_381_module
+    )?)?;
+    poly_bls12_381_module.add_function(wrap_pyfunction!(
+        bls12_381::polynomial::evaluate_lagrange_coefficients,
         poly_bls12_381_module
     )?)?;
 

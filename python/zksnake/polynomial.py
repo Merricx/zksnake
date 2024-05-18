@@ -29,3 +29,8 @@ def ifft(domain, p):
 def evaluate_vanishing_polynomial(domain, tau, p):
     poly = POLY_OBJECT[p]
     return poly.evaluate_vanishing_polynomial(domain, tau)
+
+
+def evaluate_lagrange_coefficients(domain, tau, p):
+    poly = POLY_OBJECT[p]
+    return poly.evaluate_lagrange_coefficients(domain, tau)
