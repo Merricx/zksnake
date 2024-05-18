@@ -1,3 +1,5 @@
+"""Proving module of Groth16 protocol"""
+
 from ..ecc import EllipticCurve, CurvePointSize
 from ..qap import QAP
 from ..utils import get_random_int
@@ -17,7 +19,7 @@ class Proof:
         return self.__str__()
 
     @classmethod
-    def from_hex(cls, s: str, crv="BN128"):
+    def from_hex(cls, s: str, crv="BN254"):
         """Parse Proof from hexstring"""
 
         E = EllipticCurve(crv)
@@ -84,10 +86,10 @@ class ProvingKey:
         self.kdelta_1 = k_delta_G1
 
     def from_hex(self, s: str):
-        pass
+        raise NotImplementedError()
 
     def to_hex(self) -> str:
-        pass
+        raise NotImplementedError()
 
 
 class Prover:
@@ -97,10 +99,10 @@ class Prover:
     Args:
         qap: QAP to be proved from
         key: `ProvingKey` from trusted setup
-        curve: `BN128` or `BLS12_381`
+        curve: `BN254` or `BLS12_381`
     """
 
-    def __init__(self, qap: QAP, key: ProvingKey, curve: str = "BN128"):
+    def __init__(self, qap: QAP, key: ProvingKey, curve: str = "BN254"):
 
         self.qap = qap
         self.key = key

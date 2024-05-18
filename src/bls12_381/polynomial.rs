@@ -8,6 +8,7 @@ use pyo3::{
     exceptions::{PyRuntimeError, PyValueError},
     prelude::*,
 };
+use rayon::prelude::*;
 
 #[pyclass]
 #[derive(Clone, Debug, PartialEq)]
@@ -145,7 +146,7 @@ pub fn fft(coeffs: Vec<BigUint>) -> PyResult<Vec<BigUint>> {
     let domain: GeneralEvaluationDomain<Fr> = EvaluationDomain::new(coeffs.len()).unwrap();
     let evals = EvaluationDomain::fft(&domain, &domain_coeff);
 
-    Ok(evals.iter().map(|x| x.to_owned().into()).collect())
+    Ok(evals.par_iter().map(|x| x.to_owned().into()).collect())
 }
 
 #[pyfunction]
@@ -157,7 +158,7 @@ pub fn ifft(evals: Vec<BigUint>) -> PyResult<Vec<BigUint>> {
     let domain: GeneralEvaluationDomain<Fr> = EvaluationDomain::new(evals.len()).unwrap();
     let coeffs = EvaluationDomain::ifft(&domain, &domain_evals);
 
-    Ok(coeffs.iter().map(|x| x.to_owned().into()).collect())
+    Ok(coeffs.par_iter().map(|x| x.to_owned().into()).collect())
 }
 
 #[pyfunction]

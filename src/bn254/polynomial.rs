@@ -4,7 +4,11 @@ use ark_poly::{
     GeneralEvaluationDomain, Polynomial,
 };
 use num_bigint::BigUint;
-use pyo3::{exceptions::PyRuntimeError, prelude::*};
+use pyo3::{
+    exceptions::{PyRuntimeError, PyValueError},
+    prelude::*,
+};
+use rayon::prelude::*;
 
 #[pyclass]
 #[derive(Clone, Debug, PartialEq)]
@@ -142,7 +146,7 @@ pub fn fft(coeffs: Vec<BigUint>) -> PyResult<Vec<BigUint>> {
     let domain: GeneralEvaluationDomain<Fr> = EvaluationDomain::new(coeffs.len()).unwrap();
     let evals = EvaluationDomain::fft(&domain, &domain_coeff);
 
-    Ok(evals.iter().map(|x| x.to_owned().into()).collect())
+    Ok(evals.par_iter().map(|x| x.to_owned().into()).collect())
 }
 
 #[pyfunction]
@@ -154,12 +158,13 @@ pub fn ifft(evals: Vec<BigUint>) -> PyResult<Vec<BigUint>> {
     let domain: GeneralEvaluationDomain<Fr> = EvaluationDomain::new(evals.len()).unwrap();
     let coeffs = EvaluationDomain::ifft(&domain, &domain_evals);
 
-    Ok(coeffs.iter().map(|x| x.to_owned().into()).collect())
+    Ok(coeffs.par_iter().map(|x| x.to_owned().into()).collect())
 }
 
 #[pyfunction]
 pub fn evaluate_vanishing_polynomial(n: usize, tau: BigUint) -> PyResult<BigUint> {
-    let domain: GeneralEvaluationDomain<Fr> = EvaluationDomain::new(n).unwrap();
+    let domain: GeneralEvaluationDomain<Fr> = EvaluationDomain::new(n)
+        .ok_or_else(|| PyValueError::new_err("Domain size is too large"))?;
 
     let result = EvaluationDomain::evaluate_vanishing_polynomial(&domain, Fr::from(tau));
     Ok(result.into())

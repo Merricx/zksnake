@@ -5,7 +5,7 @@ from zksnake.r1cs import ConstraintSystem, ConstraintTemplate
 from zksnake.groth16 import Prover, Setup, Verifier
 
 
-def test_basic_r1cs_bn128():
+def test_basic_r1cs_bn254():
 
     x = Symbol("x")
     y = Symbol("y")

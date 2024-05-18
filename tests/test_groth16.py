@@ -7,7 +7,7 @@ from zksnake.groth16 import Prover, Proof, Setup, Verifier
 
 
 @pytest.fixture
-def qap_data_bn128():
+def qap_data_bn254():
 
     return {
         "U": [
@@ -81,13 +81,13 @@ def qap_data_bls12_381():
     }
 
 
-def test_groth16_bn128(qap_data_bn128):
+def test_groth16_bn254(qap_data_bn254):
 
-    qap = QAP(EllipticCurve("BN128").order)
+    qap = QAP(EllipticCurve("BN254").order)
 
-    qap.U = qap_data_bn128["U"]
-    qap.V = qap_data_bn128["V"]
-    qap.W = qap_data_bn128["W"]
+    qap.U = qap_data_bn254["U"]
+    qap.V = qap_data_bn254["V"]
+    qap.W = qap_data_bn254["W"]
     qap.n_public = 2
 
     setup = Setup(qap)
@@ -156,9 +156,9 @@ def test_groth16_from_circom():
     assert verifier.verify(proof, pub)
 
 
-def test_proof_serialization_bn128():
+def test_proof_serialization_bn254():
 
-    E = EllipticCurve("BN128")
+    E = EllipticCurve("BN254")
     G1 = E.G1()
     G2 = E.G2()
 

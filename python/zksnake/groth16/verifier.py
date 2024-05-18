@@ -1,3 +1,5 @@
+"""Verification module of Groth16 protocol"""
+
 from ..ecc import EllipticCurve
 from .prover import Proof
 
@@ -18,10 +20,10 @@ class VerifyingKey:
         self.ic = IC
 
     def from_hex(self, s: str):
-        pass
+        raise NotImplementedError()
 
     def to_hex(self) -> str:
-        pass
+        raise NotImplementedError()
 
 
 class Verifier:
@@ -30,10 +32,10 @@ class Verifier:
 
     Args:
         key: `VerifyingKey` from trusted setup
-        curve: `BN128` or `BLS12_381`
+        curve: `BN254` or `BLS12_381`
     """
 
-    def __init__(self, key: VerifyingKey, curve: str = "BN128"):
+    def __init__(self, key: VerifyingKey, curve: str = "BN254"):
         self.key = key
         self.E = EllipticCurve(curve)
 

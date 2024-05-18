@@ -47,7 +47,7 @@ class R1CSReader:
     def __read_section(self):
         while True:
 
-            section_type = int.from_bytes(self.reader.read(4), "little")
+            section_type = int.from_bytes(self.reader.read(4), "little") or 0
             section_size = int.from_bytes(self.reader.read(8), "little")
             section_content = BytesIO(self.reader.read(section_size))
 

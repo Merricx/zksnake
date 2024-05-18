@@ -18,6 +18,7 @@ class BaseConstraint:
         self.hints = {}
         self.constraints = []
         self.public = []
+        self.p = None
 
         if inputs and isinstance(inputs[0], Symbol):
             self.inputs = [x.name for x in inputs]
@@ -69,14 +70,17 @@ class BaseConstraint:
         """
         template_prefix = template.__class__.__name__
 
-        # inject input constraints
+        # inject input constraints via hint
         for key, value in inputs.items():
             if isinstance(value, Symbol):
                 value = value.name
 
             if key in template.inputs:
-                eq = Symbol(f"{template_prefix}.{key}") == Symbol(value)
-                self.add_constraint(eq)
+                self.add_hint(
+                    lambda x: x,
+                    Symbol(f"{template_prefix}.{key}"),
+                    args=(Symbol(value),),
+                )
 
         # inject constraints from template
         for constraint in template.constraints:
@@ -91,9 +95,23 @@ class BaseConstraint:
                 eq = Symbol(f"{template_prefix}.{key}") == Symbol(value)
                 self.add_constraint(eq)
 
-        # inject hints
+        # inject hints from template
         for target, value in template.hints.items():
-            self.hints[target] = value
+            if not target.startswith(template_prefix + "."):
+                target = f"{template_prefix}.{target}"
+
+            func, args = value
+            args = [
+                (
+                    Symbol(f"{template_prefix}.{arg.name}")
+                    if isinstance(arg, Symbol)
+                    and not arg.name.startswith(template_prefix + ".")
+                    else arg
+                )
+                for arg in args
+            ]
+
+            self.hints[target] = (func, args)
 
     def add_hint(
         self, func: Callable[[Any], int], target: Union[Symbol, str], args: Any = None
@@ -129,14 +147,21 @@ class BaseConstraint:
 
 class ConstraintTemplate(BaseConstraint):
 
-    def __intercept_var(self, eq: Union[Symbol, int]):
+    def __add_class_prefix(self, name: str):
+        prefix = self.__class__.__name__
+        if not name.startswith(prefix + "."):
+            return f"{prefix}.{name}"
+        return name
+
+    def __intercept_var(self, eq: Union[Symbol, int, str]):
         if isinstance(eq, int):
             return
 
+        if isinstance(eq, str):
+            eq = Symbol(eq)
+
         if eq.op == "VAR":
-            prefix = self.__class__.__name__
-            if not eq.name.startswith(prefix + "."):
-                eq.name = f"{prefix}.{eq.name}"
+            eq.name = self.__add_class_prefix(eq.name)
         else:
             self.__intercept_var(eq.left)
             self.__intercept_var(eq.right)
@@ -144,6 +169,20 @@ class ConstraintTemplate(BaseConstraint):
     def add_constraint(self, eq: Equation):
         self.__intercept_var(eq)
         return super().add_constraint(eq)
+
+    def add_hint(
+        self, func: Callable[[Any], int], target: Union[Symbol, str], args: Any = None
+    ):
+        self.__intercept_var(target)
+        args = [
+            (
+                Symbol(self.__add_class_prefix(arg.name))
+                if isinstance(arg, Symbol)
+                else arg
+            )
+            for arg in args
+        ]
+        return super().add_hint(func, target, args)
 
     def main(self, *args, **kwds):
         raise NotImplementedError()
@@ -161,11 +200,12 @@ class ConstraintSystem(BaseConstraint):
         self,
         inputs: Union[list[str], list[Symbol]],
         outputs: Union[list[str], list[Symbol]],
-        curve="BN128",
+        curve="BN254",
     ):
-        self.p = EllipticCurve(curve).order
         super().__init__(inputs, outputs)
+        self.p = EllipticCurve(curve).order
 
+    # pylint false positive
     # pylint: disable=unused-private-member
     def __add_var(self, eq: Symbol):
         self._BaseConstraint__add_var(eq)  # pylint: disable=no-member
@@ -199,7 +239,7 @@ class ConstraintSystem(BaseConstraint):
             r = eq.right
 
             if isinstance(l, Symbol) and isinstance(r, Symbol):
-                raise ValueError(f"Multiple multiplication occur at {eq}")
+                raise ValueError(f"Constraint {eq} not in the form of C = A*B")
 
             if isinstance(r, int):
                 l, r = r, l
@@ -215,7 +255,9 @@ class ConstraintSystem(BaseConstraint):
     def __get_witness_vector(self):
         public_input = [v for v in self.vars if v in self.inputs and v in self.public]
         private_input = [
-            v for v in self.vars if v in self.inputs and v not in self.public
+            v
+            for v in self.vars
+            if v in self.inputs and v not in self.public and v not in self.temp_vars
         ]
         intermediate_vars = [
             v
@@ -241,7 +283,8 @@ class ConstraintSystem(BaseConstraint):
     def __consume_constraint_stack(self, constraints_stack: list):
         skipped_constraints = []
         for constraint in constraints_stack:
-
+            # print(self.vars)
+            # print(constraint)
             left = constraint.left
             right = constraint.right
 
@@ -431,7 +474,13 @@ class ConstraintSystem(BaseConstraint):
         if len(input_values) != len(self.inputs):
             raise ValueError("Length of input values differ with input variables")
 
+        for k, _ in self.vars.items():
+            self.vars[k] = None
+
         for inp in self.inputs:
+            if inp not in self.vars:
+                self.temp_vars.append(inp)
+
             self.vars[inp] = input_values.get(inp, 0) % self.p
 
         constraints_stack = self.constraints[:]
@@ -472,7 +521,7 @@ class ConstraintSystem(BaseConstraint):
         """
         self.__add_dummy_constraints()
         witness = self.__get_witness_vector()
-
+        # print(witness)
         row_length = len(witness)
 
         A, B, C = [], [], []
@@ -518,6 +567,10 @@ class ConstraintSystem(BaseConstraint):
             B.append(b)
             C.append(c)
 
+        # print(A)
+        # print(B)
+        # print(C)
+
         qap = QAP(self.p)
         qap.from_r1cs(A, B, C, len(self.public) + 1)
 
@@ -525,7 +578,8 @@ class ConstraintSystem(BaseConstraint):
 
     def solve(self, input_values: dict, output_value: dict = None) -> list:
         """
-        Evaluate the constraint system with given inputs and output
+        Generate witness by solving the constraint system with given inputs
+        (optionally, with given outputs)
 
         Args:
             input_values: dict mapping of input variables and values

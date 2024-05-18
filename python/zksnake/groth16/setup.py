@@ -12,13 +12,13 @@ from ..utils import get_random_int, get_n_jobs
 
 class Setup:
 
-    def __init__(self, qap: QAP, curve: str = "BN128"):
+    def __init__(self, qap: QAP, curve: str = "BN254"):
         """
         Trusted setup object
 
         Args:
             qap: QAP to be set up from
-            curve: `BN128` or `BLS12_381`
+            curve: `BN254` or `BLS12_381`
         """
         self.qap = qap
         self.E = EllipticCurve(curve)
