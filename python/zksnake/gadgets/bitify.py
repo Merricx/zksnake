@@ -11,8 +11,14 @@ class Bitify(ConstraintTemplate):
     args: `n`
     """
 
-    def main(self, *args, **kwds):
-        n_bit = args[0]
+    def __init__(self, n):
+        super().__init__()
+        self.inputs = ["inp"]
+        self.outputs = [f"bit{i}" for i in range(n)]
+        self.n_bit = n
+
+    def main(self):
+        n_bit = self.n_bit
 
         v = []
         for i in range(n_bit):

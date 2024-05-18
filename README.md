@@ -4,7 +4,7 @@ Python implementation of zk-SNARKs (Zero Knowledge Succint Non-interactive ARgum
 
 <!-- prettier-ignore-start -->
 > [!WARNING] 
-**This library is intended to be used as proof of concept, prototyping, and educational purpose only. It is NOT fully tested and NOT production-ready library!**
+**This library is intended to be used as proof of concept, prototyping, and educational purpose only. It is NOT fully tested and NOT formally verified!**
 <!-- prettier-ignore-end -->
 
 ## Proving schemes and curves
@@ -32,6 +32,7 @@ y = Symbol('y')
 v1 = Symbol('v1')
 
 # solution to: y == x**3 + x + 5
+# x as input and y as output
 cs = ConstraintSystem(['x'], ['y'])
 cs.add_constraint(v1 == x*x)
 cs.add_constraint(y - 5 - x == v1*x)
@@ -49,7 +50,7 @@ cs = ConstraintSystem.from_file("circuit.r1cs", "circuit.sym")
 qap = cs.compile()
 ```
 
-Note that some constraints that are quite complex or expensive cannot just be imported directly and require you to add "hint" function to pre-define the variable value (see [Example](./examples/example_bitify_circom.py)).
+Note that some constraints that are complex or expensive cannot just be imported directly and require you to add "hint" function to pre-define the variable value (see [Example](./examples/example_bitify_circom.py)).
 
 ### Trusted setup phase
 
@@ -82,7 +83,7 @@ assert verifier.verify(proof, public_witness)
 
 It is difficult to achieve high performance due to the nature of Python and there are still many unoptimized code (ie. using naive implementation) in the current implementation.
 
-Nevertheless, this library tries its best to achieve high performance as possible by utilizing Rust bindings via [pyo3](https://github.com/PyO3/pyo3) as a backend for all primitives computation based from [arkworks-rs/algebra](https://github.com/arkworks-rs/algebra) libraries. It also uses parallel and caching in the Python code where it possible.
+Nevertheless, this library tries its best to achieve high performance as possible by utilizing Rust bindings via [pyo3](https://github.com/PyO3/pyo3) as a backend for all primitives computation based from [arkworks-rs/algebra](https://github.com/arkworks-rs/algebra) libraries.
 
 Note that running zksnake via pypy is slightly slower than Cpython.
 

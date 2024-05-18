@@ -2,15 +2,10 @@ from zksnake._algebra import array  # pylint: disable=no-name-in-module
 
 from .polynomial import PolynomialRing, ifft
 
-fft_cache = {}
-
 
 class QAP:
 
     def __init__(self, p):
-        self.U = []
-        self.V = []
-        self.W = []
         self.a = []
         self.b = []
         self.c = []

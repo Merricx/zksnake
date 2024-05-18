@@ -65,7 +65,7 @@ class EllipticCurve:
         elif isinstance(g[0], self.curve.PointG2):
             return self.curve.batch_multi_scalar_g2(g, s)
         else:
-            raise ValueError("Invalid type")
+            raise TypeError(f"Invalid curve type: {g[0]}")
 
     def multiexp(self, g, s):
         """
@@ -86,7 +86,7 @@ class EllipticCurve:
         elif isinstance(g[0], self.curve.PointG2):
             return self.curve.multiscalar_mul_g2(g, s)
         else:
-            raise ValueError("Invalid type")
+            raise TypeError(f"Invalid curve type: {g[0]}")
 
     def __call__(self, x, y, z=1):
 

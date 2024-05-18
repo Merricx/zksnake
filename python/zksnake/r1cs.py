@@ -57,61 +57,21 @@ class BaseConstraint:
     def add_template(
         self,
         template: BaseConstraint,
-        inputs: dict,
-        outputs: dict,
     ):
         """
         Add constraints from ConstraintTemplate
 
         Args:
             template: ConstraintTemplate object
-            inputs: input dictionary of template
-            outputs: output dictionary of template
         """
-        template_prefix = template.__class__.__name__
-
-        # inject input constraints via hint
-        for key, value in inputs.items():
-            if isinstance(value, Symbol):
-                value = value.name
-
-            if key in template.inputs:
-                self.add_hint(
-                    lambda x: x,
-                    Symbol(f"{template_prefix}.{key}"),
-                    args=(Symbol(value),),
-                )
 
         # inject constraints from template
         for constraint in template.constraints:
             self.add_constraint(constraint)
 
-        # inject output constraints
-        for key, value in outputs.items():
-            if isinstance(value, Symbol):
-                value = value.name
-
-            if key in template.outputs:
-                eq = Symbol(f"{template_prefix}.{key}") == Symbol(value)
-                self.add_constraint(eq)
-
         # inject hints from template
         for target, value in template.hints.items():
-            if not target.startswith(template_prefix + "."):
-                target = f"{template_prefix}.{target}"
-
-            func, args = value
-            args = [
-                (
-                    Symbol(f"{template_prefix}.{arg.name}")
-                    if isinstance(arg, Symbol)
-                    and not arg.name.startswith(template_prefix + ".")
-                    else arg
-                )
-                for arg in args
-            ]
-
-            self.hints[target] = (func, args)
+            self.hints[target] = value
 
     def add_hint(
         self, func: Callable[[Any], int], target: Union[Symbol, str], args: Any = None
@@ -147,6 +107,11 @@ class BaseConstraint:
 
 class ConstraintTemplate(BaseConstraint):
 
+    def __init__(self):
+        super().__init__([], [])
+        self.inputs_map = {}
+        self.outputs_map = {}
+
     def __add_class_prefix(self, name: str):
         prefix = self.__class__.__name__
         if not name.startswith(prefix + "."):
@@ -154,17 +119,37 @@ class ConstraintTemplate(BaseConstraint):
         return name
 
     def __intercept_var(self, eq: Union[Symbol, int, str]):
-        if isinstance(eq, int):
-            return
-
         if isinstance(eq, str):
             eq = Symbol(eq)
+
+        if not isinstance(eq, Symbol):
+            return
 
         if eq.op == "VAR":
             eq.name = self.__add_class_prefix(eq.name)
         else:
             self.__intercept_var(eq.left)
             self.__intercept_var(eq.right)
+
+    def __intercept_input_output(self, eq: Union[Symbol, int, str]):
+        if isinstance(eq, str):
+            eq = Symbol(eq)
+
+        if not isinstance(eq, Symbol):
+            return
+
+        prefix = self.__class__.__name__
+        prefix_length = len(prefix)
+        if eq.op == "VAR" and eq.name.startswith(prefix + "."):
+            stripped_name = str(eq.name)[prefix_length + 1 :]
+
+            if stripped_name in self.inputs_map:
+                eq.name = str(self.inputs_map[stripped_name].name)
+            elif stripped_name in self.outputs_map:
+                eq.name = str(self.outputs_map[stripped_name].name)
+        else:
+            self.__intercept_input_output(eq.left)
+            self.__intercept_input_output(eq.right)
 
     def add_constraint(self, eq: Equation):
         self.__intercept_var(eq)
@@ -184,12 +169,52 @@ class ConstraintTemplate(BaseConstraint):
         ]
         return super().add_hint(func, target, args)
 
-    def main(self, *args, **kwds):
+    def main(self):
         raise NotImplementedError()
 
-    def __call__(self, *args, **kwds: Any):
+    def __call__(self, input_map: dict, output_map: dict):
         self.constraints = []
-        self.main(*args, **kwds)
+        self.inputs_map = input_map
+        self.outputs_map = output_map
+
+        self.main()
+
+        for constraint in self.constraints:
+            self.__intercept_input_output(constraint)
+
+        prefix = self.__class__.__name__
+        prefix_length = len(prefix) + 1
+        injected_hints = {}
+        for target, value in self.hints.items():
+            func, args = value
+
+            if not target.startswith(prefix + "."):
+                target = self.__add_class_prefix(target)
+
+            target = Symbol(target)
+            self.__intercept_input_output(target)
+            target = target.name
+
+            new_args = []
+            for arg in args:
+                if isinstance(arg, Symbol):
+                    sym_name = arg.name
+                    if not sym_name.startswith(prefix + "."):
+                        sym_name = self.__add_class_prefix(sym_name)
+
+                    stripped_name = sym_name[prefix_length:]
+                    if stripped_name in self.inputs_map:
+                        arg = Symbol(self.inputs_map[stripped_name].name)
+                    elif stripped_name in self.outputs_map:
+                        arg = Symbol(self.outputs_map[stripped_name].name)
+                    else:
+                        arg = Symbol(sym_name)
+
+                new_args.append(arg)
+
+            injected_hints[target] = (func, new_args)
+
+        self.hints = injected_hints
 
         return self
 

@@ -95,8 +95,14 @@ def test_r1cs_loop_constraint():
 def test_constraint_template():
 
     class Power(ConstraintTemplate):
-        def main(self, *args, **kwds):
-            n_power = args[0]
+        def __init__(self, n):
+            super().__init__()
+            self.inputs = ["inp"]
+            self.outputs = ["out"]
+            self.n_power = n
+
+        def main(self):
+            n_power = self.n_power
 
             v = []
             for i in range(n_power - 1):
@@ -115,7 +121,9 @@ def test_constraint_template():
     v1 = Symbol("v1")
     v2 = Symbol("v2")
     out = Symbol("out")
-    power = Power(["inp"], ["out"])
+    power3 = Power(3)
+    power5 = Power(5)
+    power8 = Power(8)
 
     cs1 = ConstraintSystem([i], [out])
     cs2 = ConstraintSystem([i], [out])
@@ -124,13 +132,13 @@ def test_constraint_template():
     cs3.add_constraint(v1 == i + 1)
     cs3.add_constraint(out == v2 * 2)
 
-    cs1.add_template(power(5), {"inp": i}, {"out": out})
-    cs3.add_template(power(3), {"inp": v1}, {"out": v2})
-    cs2.add_template(power(8), {"inp": i}, {"out": out})
+    cs1.add_template(power5({"inp": i}, {"out": out}))
+    cs2.add_template(power8({"inp": i}, {"out": out}))
+    cs3.add_template(power3({"inp": v1}, {"out": v2}))
 
     assert cs1.evaluate({"i": 2}, {"out": 2**5})
     assert cs2.evaluate({"i": 2}, {"out": 2**8})
-    assert cs3.evaluate({"i": 3}, {"out": 4**3 * 2})
+    assert cs3.evaluate({"i": 3}, {"out": ((3 + 1) ** 3) * 2})
 
 
 def test_constraint_hint():
@@ -167,8 +175,14 @@ def test_constraint_hint():
 def test_constraint_template_with_hint():
 
     class Num2Bits(ConstraintTemplate):
-        def main(self, *args, **kwds):
-            n_bit = args[0]
+        def __init__(self, n):
+            super().__init__()
+            self.inputs = ["inp"]
+            self.outputs = [f"bit{i}" for i in range(n)]
+            self.n_bit = n
+
+        def main(self):
+            n_bit = self.n_bit
 
             v = []
             for i in range(n_bit):
@@ -198,11 +212,11 @@ def test_constraint_template_with_hint():
         bits.append(v)
         outputs[f"bit{i}"] = v
 
-    num2bits = Num2Bits(["inp"], bits)
+    num2bits = Num2Bits(n_bit)
 
     cs = ConstraintSystem([inp], bits)
 
-    cs.add_template(num2bits(n_bit), {"inp": inp}, outputs)
+    cs.add_template(num2bits({"inp": inp}, outputs))
 
     cs.evaluate({"i": 13333333337})
 

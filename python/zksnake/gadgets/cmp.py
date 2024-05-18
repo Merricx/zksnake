@@ -13,8 +13,14 @@ class IsZero(ConstraintTemplate):
     args: `p` as field modulus
     """
 
-    def main(self, *args, **kwds):
-        modulus = args[0]
+    def __init__(self, modulus):
+        super().__init__()
+        self.inputs = ["inp"]
+        self.outputs = ["out"]
+        self.modulus = modulus
+
+    def main(self):
+        modulus = self.modulus
 
         inp = Symbol("inp")
         out = Symbol("out")
@@ -37,8 +43,14 @@ class IsEqual(ConstraintTemplate):
     args: `p` as field modulus
     """
 
-    def main(self, *args, **kwds):
-        modulus = args[0]
+    def __init__(self, modulus):
+        super().__init__()
+        self.inputs = ["inp"]
+        self.outputs = ["out"]
+        self.modulus = modulus
+
+    def main(self):
+        modulus = self.modulus
 
         inp1 = Symbol("inp1")
         inp2 = Symbol("inp2")
@@ -46,10 +58,11 @@ class IsEqual(ConstraintTemplate):
         sub = Symbol("sub")
         out = Symbol("out")
 
-        isz = IsZero(["inp"], ["out"])
+        isz = IsZero(modulus)
 
         self.add_hint(lambda a, b: a - b, sub, args=(inp1, inp2))
-        self.add_template(isz(modulus), {"inp": sub}, {"out": out})
+        self.add_constraint(sub == inp1 - inp2)
+        self.add_template(isz({"inp": sub}, {"out": out}))
 
 
 class LessThan(ConstraintTemplate):
@@ -61,8 +74,14 @@ class LessThan(ConstraintTemplate):
     args: `n` as number of bits
     """
 
-    def main(self, *args, **kwds):
-        n = args[0]
+    def __init__(self, n):
+        super().__init__()
+        self.inputs = ["inp1", "inp2"]
+        self.outputs = ["out"]
+        self.n_bit = n
+
+    def main(self):
+        n = self.n_bit
 
         inp1 = Symbol("inp1")
         inp2 = Symbol("inp2")
@@ -70,15 +89,15 @@ class LessThan(ConstraintTemplate):
 
         bitify_inp = Symbol("bit_inp")
         n2b_out = [Symbol(f"bit{i}") for i in range(n + 1)]
-        n2b = Bitify(["inp"], n2b_out)
+        n2b = Bitify(n + 1)
 
         out_dict = {}
         for i in range(n + 1):
             out_dict[f"bit{i}"] = n2b_out[i]
 
-        self.add_template(n2b(n + 1), {"inp": bitify_inp}, out_dict)
-        # TODO: if add_template triggered, automatically replace bitify_inp in all found constraints
-        self.add_constraint(Symbol("Bitify.inp") == inp1 + (1 << n) - inp2)
+        self.add_template(n2b({"inp": bitify_inp}, out_dict))
+
+        self.add_constraint(bitify_inp == inp1 + (1 << n) - inp2)
         self.add_constraint(out == 1 - n2b_out[-1])
 
 
@@ -91,17 +110,23 @@ class LessEqThan(ConstraintTemplate):
     args: `p` as field modulus
     """
 
-    def main(self, *args, **kwds):
-        n = args[0]
+    def __init__(self, n):
+        super().__init__()
+        self.inputs = ["inp1", "inp2"]
+        self.outputs = ["out"]
+        self.n_bit = n
+
+    def main(self):
+        n = self.n_bit
 
         inp1 = Symbol("inp1")
         inp2 = Symbol("inp2")
         inp2_add_1 = Symbol("inp2_add_1")
         out = Symbol("out")
 
-        lt = LessThan([inp1, inp2], [out])
+        lt = LessThan(n)
         self.add_constraint(inp2_add_1 == inp2 + 1)
-        self.add_template(lt(n), {"inp1": inp1, "inp2": inp2_add_1}, {"out": out})
+        self.add_template(lt({"inp1": inp1, "inp2": inp2_add_1}, {"out": out}))
 
 
 class GreaterThan(ConstraintTemplate):
@@ -113,15 +138,21 @@ class GreaterThan(ConstraintTemplate):
     args: `p` as field modulus
     """
 
-    def main(self, *args, **kwds):
-        n = args[0]
+    def __init__(self, n):
+        super().__init__()
+        self.inputs = ["inp1", "inp2"]
+        self.outputs = ["out"]
+        self.n_bit = n
+
+    def main(self):
+        n = self.n_bit
 
         inp1 = Symbol("inp1")
         inp2 = Symbol("inp2")
         out = Symbol("out")
 
-        lt = LessThan([inp1, inp2], [out])
-        self.add_template(lt(n), {"inp1": inp2, "inp2": inp1}, {"out": out})
+        lt = LessThan(n)
+        self.add_template(lt({"inp1": inp2, "inp2": inp1}, {"out": out}))
 
 
 class GreaterEqThan(ConstraintTemplate):
@@ -133,14 +164,20 @@ class GreaterEqThan(ConstraintTemplate):
     args: `p` as field modulus
     """
 
-    def main(self, *args, **kwds):
-        n = args[0]
+    def __init__(self, n):
+        super().__init__()
+        self.inputs = ["inp1", "inp2"]
+        self.outputs = ["out"]
+        self.n_bit = n
+
+    def main(self):
+        n = self.n_bit
 
         inp1 = Symbol("inp1")
         inp2 = Symbol("inp2")
         inp1_add_1 = Symbol("inp1_add_1")
         out = Symbol("out")
 
-        lt = LessThan([inp1, inp2], [out])
+        lt = LessThan(n)
         self.add_constraint(inp1_add_1 == inp1 + 1)
-        self.add_template(lt(n), {"inp1": inp2, "inp2": inp1_add_1}, {"out": out})
+        self.add_template(lt({"inp1": inp2, "inp2": inp1_add_1}, {"out": out}))
