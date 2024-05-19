@@ -108,7 +108,7 @@ fn register_polynomial_module(py: Python, parent_module: &PyModule) -> PyResult<
 
 fn register_array_module(py: Python, parent_module: &PyModule) -> PyResult<()> {
     let array_module = PyModule::new(py, "array")?;
-    array_module.add_function(wrap_pyfunction!(array::dot_product, array_module)?)?;
+    array_module.add_class::<array::SparseArray>()?;
 
     parent_module.add_submodule(array_module)?;
 

@@ -91,22 +91,13 @@ Note that running zksnake via pypy is slightly slower than Cpython.
 
 The benchmark was done in Macbook M1 Pro (8 cores).
 
-#### BN254
+| Constraints | Compile   | Setup   | Prove   | Verify  |
+| ----------- | --------- | ------- | ------- | ------- |
+| 1024        | 0.1851s   | 0.4726s | 0.1446s | 0.0022s |
+| 2048        | 0.5245s   | 0.7532s | 0.2887s | 0.0030s |
+| 4096        | 1.8482s   | 1.1695s | 0.7613s | 0.0019s |
+| 8192        | 5.1625s   | 0.8948s | 0.0183s | 0.0017s |
+| 16384       | 27.0381s  | 1.9134s | 0.0376s | 0.0017s |
+| 32768       | 111.4407s | 3.7884s | 0.0738s | 0.0017s |
 
-| Constraints | Witness gen. | Setup    | Prove    | Verify  |
-| ----------- | ------------ | -------- | -------- | ------- |
-| 1024        | 0.0032s      | 0.6340s  | 0.4294s  | 0.0020s |
-| 2048        | 0.0080s      | 0.8221s  | 1.1834s  | 0.0022s |
-| 4096        | 0.0160s      | 2.9196s  | 2.7912s  | 0.0019s |
-| 8192        | 0.0323s      | 11.0706s | 8.5577s  | 0.0021s |
-| 16384       | 0.0683s      | 53.4517s | 49.3796s | 0.0021s |
-
-#### BLS12-381
-
-| Constraints | Witness gen. | Setup    | Prove    | Verify  |
-| ----------- | ------------ | -------- | -------- | ------- |
-| 1024        | 0.0040s      | 0.3635s  | 0.5530s  | 0.0028s |
-| 2048        | 0.0081s      | 1.0009s  | 1.2754s  | 0.0028s |
-| 4096        | 0.0159s      | 3.1688s  | 2.9886s  | 0.0029s |
-| 8192        | 0.0327s      | 11.4986s | 8.8297s  | 0.0038s |
-| 16384       | 0.0741s      | 49.5891s | 50.4789s | 0.0030s |
+_Performance is currently sacrificed in compile time due to transformation from dense array to sparse array in order to gain faster setup and proving time_

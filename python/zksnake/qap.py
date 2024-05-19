@@ -1,5 +1,6 @@
 from zksnake._algebra import array  # pylint: disable=no-name-in-module
-
+from .array import SparseArray
+from .utils import Timer
 from .polynomial import PolynomialRing, ifft
 
 
@@ -23,13 +24,13 @@ class QAP:
         """
         self.n_public = n_public
 
-        full_zero_list = [0] * len(A[0])
         mat_len = len(A)
         next_power_2 = 1 << (mat_len - 1).bit_length()
 
-        self.a = A + [full_zero_list] * (next_power_2 - mat_len)
-        self.b = B + [full_zero_list] * (next_power_2 - mat_len)
-        self.c = C + [full_zero_list] * (next_power_2 - mat_len)
+        # TODO: bottleneck here
+        self.a = SparseArray(A, next_power_2, len(A[0]), self.p)
+        self.b = SparseArray(B, next_power_2, len(B[0]), self.p)
+        self.c = SparseArray(C, next_power_2, len(C[0]), self.p)
 
     def evaluate_witness(self, witness: list):
         """
@@ -42,10 +43,9 @@ class QAP:
             U, V, W, H: resulting polynomials to be proved
         """
 
-        # TODO: bottleneck here
-        a = array.dot_product(witness, self.a, self.p)
-        b = array.dot_product(witness, self.b, self.p)
-        c = array.dot_product(witness, self.c, self.p)
+        a = self.a.dot(witness)
+        b = self.b.dot(witness)
+        c = self.c.dot(witness)
 
         U = PolynomialRing(ifft(a, self.p), self.p)
         V = PolynomialRing(ifft(b, self.p), self.p)

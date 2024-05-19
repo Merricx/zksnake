@@ -5,7 +5,6 @@ from joblib import Parallel, delayed
 from ..qap import QAP
 from ..ecc import EllipticCurve
 from ..polynomial import (
-    PolynomialRing,
     evaluate_vanishing_polynomial,
     evaluate_lagrange_coefficients,
 )
@@ -51,8 +50,8 @@ class Setup:
         delta_G1 = G1 * delta
         delta_G2 = G2 * delta
 
-        degree = len(self.qap.a)
-        n_constraint = len(self.qap.a[0])
+        degree = self.qap.a.n_row
+        n_constraint = self.qap.a.n_col
 
         lagrange_coeffs = evaluate_lagrange_coefficients(degree, tau, self.order)
 
@@ -61,12 +60,15 @@ class Setup:
         O = [0] * n_constraint
 
         for i, coeff in enumerate(lagrange_coeffs):
-            for index, rows in enumerate(self.qap.a[i]):
-                L[index] += coeff * rows
-            for index, rows in enumerate(self.qap.b[i]):
-                R[index] += coeff * rows
-            for index, rows in enumerate(self.qap.c[i]):
-                O[index] += coeff * rows
+            for row, col, value in self.qap.a.triplets:
+                if i == row:
+                    L[col] += coeff * value
+            for row, col, value in self.qap.b.triplets:
+                if i == row:
+                    R[col] += coeff * value
+            for row, col, value in self.qap.c.triplets:
+                if i == row:
+                    O[col] += coeff * value
 
         K = [
             (L[i] * beta + R[i] * alpha + O[i]) % self.order

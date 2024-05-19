@@ -1,7 +1,7 @@
 from ..symbolic import Symbol
 from ..r1cs import ConstraintTemplate
 
-from .bitify import Bitify
+from .bitify import NumToBits
 
 
 class IsZero(ConstraintTemplate):
@@ -89,7 +89,7 @@ class LessThan(ConstraintTemplate):
 
         bitify_inp = Symbol("bit_inp")
         n2b_out = [Symbol(f"bit{i}") for i in range(n + 1)]
-        n2b = Bitify(n + 1)
+        n2b = NumToBits(n + 1)
 
         out_dict = {}
         for i in range(n + 1):
