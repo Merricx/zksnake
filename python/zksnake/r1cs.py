@@ -318,8 +318,7 @@ class ConstraintSystem(BaseConstraint):
     def __consume_constraint_stack(self, constraints_stack: list):
         skipped_constraints = []
         for constraint in constraints_stack:
-            # print(self.vars)
-            # print(constraint)
+
             left = constraint.left
             right = constraint.right
 
@@ -383,6 +382,9 @@ class ConstraintSystem(BaseConstraint):
                         diff = symeval(original_left, self.vars, self.p)
 
                         inv_coeff = pow(coeff, -1, self.p)
+
+                        # there will be 4 possible values in total:
+                        # [val_1, -val_1, val_2, -val2]
                         val_1 = (
                             (evaluated_right - diff) * inv_coeff * multiplier % self.p
                         )
@@ -390,15 +392,14 @@ class ConstraintSystem(BaseConstraint):
                             (evaluated_right + diff) * inv_coeff * multiplier % self.p
                         )
 
-                        self.vars[left.name] = val_1
-                        check = symeval(original_left, self.vars, self.p)
-                        if check != evaluated_right:
-                            self.vars[left.name] = val_2
-
+                        for v in (val_1, -val_1, val_2, -val_2):
+                            self.vars[left.name] = v % self.p
                             check = symeval(original_left, self.vars, self.p)
-                            assert (
-                                check == evaluated_right
-                            ), f"{check} != {evaluated_right}"
+
+                            if check == evaluated_right:
+                                break
+
+                        assert check == evaluated_right, f"{check} != {evaluated_right}"
 
                     else:
                         # variable in the lhs already assigned, check the equality instead

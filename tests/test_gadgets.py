@@ -1,7 +1,16 @@
 import pytest
-from zksnake.gadgets import cmp, bitify
+from zksnake.gadgets import cmp, bitify, bitwise
 from zksnake.symbolic import Symbol
 from zksnake.r1cs import ConstraintSystem
+
+
+@pytest.fixture
+def constraint_data():
+    return [
+        {"x": 1337, "y": 12345},
+        {"x": 12345, "y": 1337},
+        {"x": 100, "y": 0},
+    ]
 
 
 def test_bit_conversion():
@@ -39,6 +48,61 @@ def test_bit_conversion():
 
     cs.evaluate(bit_input)
     assert cs.vars["out"] == 1337
+
+
+def test_bitwise(constraint_data):
+
+    x = Symbol("x")
+    y = Symbol("y")
+    out = Symbol("out")
+
+    # AND operation
+    cs = ConstraintSystem([x, y], [out])
+    and_template = bitwise.And(16)
+    cs.add_template(and_template("and", {"inp1": x, "inp2": y}, {"out": out}))
+    for data in constraint_data:
+        cs.evaluate(data)
+        assert cs.vars["out"] == data["x"] & data["y"]
+
+    # OR operation
+    cs = ConstraintSystem([x, y], [out])
+    or_template = bitwise.Or(16)
+    cs.add_template(or_template("or", {"inp1": x, "inp2": y}, {"out": out}))
+    for data in constraint_data:
+        cs.evaluate(data)
+        assert cs.vars["out"] == data["x"] | data["y"]
+
+    # XOR operation
+    cs = ConstraintSystem([x, y], [out])
+    xor_template = bitwise.Xor(16)
+    cs.add_template(xor_template("xor", {"inp1": x, "inp2": y}, {"out": out}))
+    for data in constraint_data:
+        cs.evaluate(data)
+        assert cs.vars["out"] == data["x"] ^ data["y"]
+
+    # NOT operation
+    cs = ConstraintSystem([x], [out])
+    not_template = bitwise.Not(16)
+    cs.add_template(not_template("note", {"inp": x}, {"out": out}))
+    for data in constraint_data:
+        cs.evaluate({"x": data["x"]})
+        assert cs.vars["out"] == (~data["x"]) % 2**16
+
+    # NAND operation
+    cs = ConstraintSystem([x, y], [out])
+    nand_template = bitwise.Nand(16)
+    cs.add_template(nand_template("nand", {"inp1": x, "inp2": y}, {"out": out}))
+    for data in constraint_data:
+        cs.evaluate(data)
+        assert cs.vars["out"] == (~(data["x"] & data["y"])) % 2**16
+
+    # NOR operation
+    cs = ConstraintSystem([x, y], [out])
+    nor_template = bitwise.Nor(16)
+    cs.add_template(nor_template("nor", {"inp1": x, "inp2": y}, {"out": out}))
+    for data in constraint_data:
+        cs.evaluate(data)
+        assert cs.vars["out"] == (~(data["x"] | data["y"])) % 2**16
 
 
 def test_cmp():
