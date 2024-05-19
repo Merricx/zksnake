@@ -1,7 +1,10 @@
-from zksnake._algebra import array  # pylint: disable=no-name-in-module
 from .array import SparseArray
-from .utils import Timer
-from .polynomial import PolynomialRing, ifft
+from .polynomial import (
+    PolynomialRing,
+    ifft,
+    fft,
+    mul_over_evaluation_domain,
+)
 
 
 class QAP:
@@ -14,7 +17,7 @@ class QAP:
 
         self.p = p
 
-    def from_r1cs(self, A: list, B: list, C: list, n_public: int):
+    def from_r1cs(self, A: SparseArray, B: SparseArray, C: SparseArray, n_public: int):
         """
         Parse QAP from R1CS matrices
 
@@ -24,13 +27,15 @@ class QAP:
         """
         self.n_public = n_public
 
-        mat_len = len(A)
-        next_power_2 = 1 << (mat_len - 1).bit_length()
+        next_power_2 = 1 << (A.n_row - 1).bit_length()
 
-        # TODO: bottleneck here
-        self.a = SparseArray(A, next_power_2, len(A[0]), self.p)
-        self.b = SparseArray(B, next_power_2, len(B[0]), self.p)
-        self.c = SparseArray(C, next_power_2, len(C[0]), self.p)
+        self.a = A
+        self.b = B
+        self.c = C
+
+        self.a.n_row = next_power_2
+        self.b.n_row = next_power_2
+        self.c.n_row = next_power_2
 
     def evaluate_witness(self, witness: list):
         """
@@ -47,15 +52,22 @@ class QAP:
         b = self.b.dot(witness)
         c = self.c.dot(witness)
 
-        U = PolynomialRing(ifft(a, self.p), self.p)
-        V = PolynomialRing(ifft(b, self.p), self.p)
-        W = PolynomialRing(ifft(c, self.p), self.p)
+        u = PolynomialRing(ifft(a, self.p), self.p)
+        v = PolynomialRing(ifft(b, self.p), self.p)
+        w = PolynomialRing(ifft(c, self.p), self.p)
 
-        # TODO: replace naive mul with mul over fft
+        u_over_fft = fft(u.coeffs() + [0] * len(u.coeffs()), self.p)
+        v_over_fft = fft(v.coeffs() + [0] * len(u.coeffs()), self.p)
+
+        # UV = IFFT( FFT(U) * FFT(V) )
+        uv = mul_over_evaluation_domain(u_over_fft, v_over_fft, self.p)
+        uv = PolynomialRing(ifft(uv, self.p), self.p)
+
         # H = (U * V - W) / Z
-        HZ = U * V - W
-        H, remainder = HZ.divide_by_vanishing_poly()
+        # subtraction swap is needed to keep the domain of the polynomial intact
+        hz = -(w - uv)
+        h, remainder = hz.divide_by_vanishing_poly()
         if not remainder.is_zero():
             raise ValueError("(U * V - W) did not divided by Z to zero")
 
-        return U, V, W, H
+        return u, v, w, h

@@ -24,12 +24,12 @@ def run(n_power, crv):
     cs.add_constraint(out == v[n_power - 2])
     cs.set_public(out)
 
-    qap = cs.compile()
-
     start = time.time()
-    pub, priv = cs.solve({"inp": 2}, {"out": 2**n_power})
+    qap = cs.compile()
     end = time.time() - start
     time_results.append(end)
+
+    pub, priv = cs.solve({"inp": 2}, {"out": 2**n_power})
 
     start = time.time()
     setup = Setup(qap, crv)
@@ -52,8 +52,8 @@ def run(n_power, crv):
     return time_results
 
 
-n_constraint = [2**10, 2**11, 2**12, 2**13, 2**14]
-crvs = ["BN254", "BLS12_381"]
+n_constraint = [2**10, 2**11, 2**12, 2**13, 2**14, 2**15, 2**16]
+crvs = ["BN254"]
 
 results = []
 for n in n_constraint:
@@ -61,7 +61,7 @@ for n in n_constraint:
         result = run(n, crv)
         print(f"{n} constraints with {crv} curve")
         print("=" * 50)
-        print("Solve time:", result[0])
+        print("Compile time:", result[0])
         print("Setup time:", result[1])
         print("Prove time:", result[2])
         print("Verify time:", result[3])

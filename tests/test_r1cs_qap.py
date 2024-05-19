@@ -132,9 +132,9 @@ def test_constraint_template():
     cs3.add_constraint(v1 == i + 1)
     cs3.add_constraint(out == v2 * 2)
 
-    cs1.add_template(power5({"inp": i}, {"out": out}))
-    cs2.add_template(power8({"inp": i}, {"out": out}))
-    cs3.add_template(power3({"inp": v1}, {"out": v2}))
+    cs1.add_template(power5("pow5", {"inp": i}, {"out": out}))
+    cs2.add_template(power8("pow8", {"inp": i}, {"out": out}))
+    cs3.add_template(power3("pow3", {"inp": v1}, {"out": v2}))
 
     assert cs1.evaluate({"i": 2}, {"out": 2**5})
     assert cs2.evaluate({"i": 2}, {"out": 2**8})
@@ -216,7 +216,7 @@ def test_constraint_template_with_hint():
 
     cs = ConstraintSystem([inp], bits)
 
-    cs.add_template(num2bits({"inp": inp}, outputs))
+    cs.add_template(num2bits("n2b", {"inp": inp}, outputs))
 
     cs.evaluate({"i": 13333333337})
 

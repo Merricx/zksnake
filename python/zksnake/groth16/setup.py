@@ -60,15 +60,17 @@ class Setup:
         O = [0] * n_constraint
 
         for i, coeff in enumerate(lagrange_coeffs):
-            for row, col, value in self.qap.a.triplets:
-                if i == row:
-                    L[col] += coeff * value
-            for row, col, value in self.qap.b.triplets:
-                if i == row:
-                    R[col] += coeff * value
-            for row, col, value in self.qap.c.triplets:
-                if i == row:
-                    O[col] += coeff * value
+            multipliers = self.qap.a.triplets_map.get(i, [])
+            for col, value in multipliers:
+                L[col] += coeff * value
+
+            multipliers = self.qap.b.triplets_map.get(i, [])
+            for col, value in multipliers:
+                R[col] += coeff * value
+
+            multipliers = self.qap.c.triplets_map.get(i, [])
+            for col, value in multipliers:
+                O[col] += coeff * value
 
         K = [
             (L[i] * beta + R[i] * alpha + O[i]) % self.order

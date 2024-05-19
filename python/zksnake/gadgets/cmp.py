@@ -62,7 +62,7 @@ class IsEqual(ConstraintTemplate):
 
         self.add_hint(lambda a, b: a - b, sub, args=(inp1, inp2))
         self.add_constraint(sub == inp1 - inp2)
-        self.add_template(isz({"inp": sub}, {"out": out}))
+        self.add_template(isz("is_zero", {"inp": sub}, {"out": out}))
 
 
 class LessThan(ConstraintTemplate):
@@ -95,7 +95,7 @@ class LessThan(ConstraintTemplate):
         for i in range(n + 1):
             out_dict[f"bit{i}"] = n2b_out[i]
 
-        self.add_template(n2b({"inp": bitify_inp}, out_dict))
+        self.add_template(n2b("n2b", {"inp": bitify_inp}, out_dict))
 
         self.add_constraint(bitify_inp == inp1 + (1 << n) - inp2)
         self.add_constraint(out == 1 - n2b_out[-1])
@@ -126,7 +126,7 @@ class LessEqThan(ConstraintTemplate):
 
         lt = LessThan(n)
         self.add_constraint(inp2_add_1 == inp2 + 1)
-        self.add_template(lt({"inp1": inp1, "inp2": inp2_add_1}, {"out": out}))
+        self.add_template(lt("lt", {"inp1": inp1, "inp2": inp2_add_1}, {"out": out}))
 
 
 class GreaterThan(ConstraintTemplate):
@@ -152,7 +152,7 @@ class GreaterThan(ConstraintTemplate):
         out = Symbol("out")
 
         lt = LessThan(n)
-        self.add_template(lt({"inp1": inp2, "inp2": inp1}, {"out": out}))
+        self.add_template(lt("lt", {"inp1": inp2, "inp2": inp1}, {"out": out}))
 
 
 class GreaterEqThan(ConstraintTemplate):
@@ -180,4 +180,4 @@ class GreaterEqThan(ConstraintTemplate):
 
         lt = LessThan(n)
         self.add_constraint(inp1_add_1 == inp1 + 1)
-        self.add_template(lt({"inp1": inp2, "inp2": inp1_add_1}, {"out": out}))
+        self.add_template(lt("lt", {"inp1": inp2, "inp2": inp1_add_1}, {"out": out}))

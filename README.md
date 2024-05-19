@@ -91,13 +91,12 @@ Note that running zksnake via pypy is slightly slower than Cpython.
 
 The benchmark was done in Macbook M1 Pro (8 cores).
 
-| Constraints | Compile   | Setup   | Prove   | Verify  |
-| ----------- | --------- | ------- | ------- | ------- |
-| 1024        | 0.1851s   | 0.4726s | 0.1446s | 0.0022s |
-| 2048        | 0.5245s   | 0.7532s | 0.2887s | 0.0030s |
-| 4096        | 1.8482s   | 1.1695s | 0.7613s | 0.0019s |
-| 8192        | 5.1625s   | 0.8948s | 0.0183s | 0.0017s |
-| 16384       | 27.0381s  | 1.9134s | 0.0376s | 0.0017s |
-| 32768       | 111.4407s | 3.7884s | 0.0738s | 0.0017s |
-
-_Performance is currently sacrificed in compile time due to transformation from dense array to sparse array in order to gain faster setup and proving time_
+| Constraints | Compile  | Setup   | Prove   | Verify  |
+| ----------- | -------- | ------- | ------- | ------- |
+| 1024        | 0.0154s  | 0.7227s | 0.1201s | 0.0022s |
+| 2048        | 0.0414s  | 0.3480s | 0.2009s | 0.0019s |
+| 4096        | 0.1341s  | 0.5656s | 0.3827s | 0.0030s |
+| 8192        | 0.5653s  | 1.1019s | 0.7292s | 0.0019s |
+| 16384       | 2.0084s  | 2.2248s | 1.3297s | 0.0020s |
+| 32768       | 8.1905s  | 4.4819s | 2.5504s | 0.0020s |
+| 65536       | 34.4961s | 8.8074s | 4.8914s | 0.0021s |

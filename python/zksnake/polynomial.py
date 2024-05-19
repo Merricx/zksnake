@@ -21,9 +21,24 @@ def fft(domain, p):
     return poly.fft(domain)
 
 
+def coset_fft(domain, p):
+    poly = POLY_OBJECT[p]
+    return poly.coset_fft(domain)
+
+
 def ifft(domain, p):
     poly = POLY_OBJECT[p]
     return poly.ifft(domain)
+
+
+def coset_ifft(domain, p):
+    poly = POLY_OBJECT[p]
+    return poly.coset_ifft(domain)
+
+
+def mul_over_evaluation_domain(a, b, p):
+    poly = POLY_OBJECT[p]
+    return poly.mul_over_evaluation_domain(a, b)
 
 
 def evaluate_vanishing_polynomial(domain, tau, p):

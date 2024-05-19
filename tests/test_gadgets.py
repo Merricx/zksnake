@@ -21,7 +21,7 @@ def test_bit_conversion():
 
     cs = ConstraintSystem([x], bits)
 
-    cs.add_template(n2b_16bit({"inp": x}, outputs))
+    cs.add_template(n2b_16bit("n2b", {"inp": x}, outputs))
 
     cs.evaluate({"x": 1337})
 
@@ -31,7 +31,7 @@ def test_bit_conversion():
 
     out = Symbol("out")
     cs = ConstraintSystem(bits, ["out"])
-    cs.add_template(b2n_16bit(outputs, {"out": out}))
+    cs.add_template(b2n_16bit("b2n", outputs, {"out": out}))
 
     bit_input = {}
     for i in range(n_bit):
@@ -49,7 +49,7 @@ def test_cmp():
 
     cs = ConstraintSystem([x, y], [out])
     is_zero = cmp.IsEqual(cs.p)
-    cs.add_template(is_zero({"inp1": x, "inp2": y}, {"out": out}))
+    cs.add_template(is_zero("is_zero", {"inp1": x, "inp2": y}, {"out": out}))
 
     cs.evaluate({"x": 13337, "y": 13330}, {"out": 0})
     cs.evaluate({"x": 13337, "y": 13337}, {"out": 1})
@@ -60,7 +60,7 @@ def test_cmp():
 
     cs = ConstraintSystem([x, y], [out])
     gt = cmp.GreaterThan(16)
-    cs.add_template(gt({"inp1": x, "inp2": y}, {"out": out}))
+    cs.add_template(gt("gt", {"inp1": x, "inp2": y}, {"out": out}))
 
     cs.evaluate({"x": 13330, "y": 13337}, {"out": 0})
     cs.evaluate({"x": 13337, "y": 13330}, {"out": 1})
@@ -69,7 +69,7 @@ def test_cmp():
 
     cs = ConstraintSystem([x, y], [out])
     gte = cmp.GreaterEqThan(16)
-    cs.add_template(gte({"inp1": x, "inp2": y}, {"out": out}))
+    cs.add_template(gte("gte", {"inp1": x, "inp2": y}, {"out": out}))
 
     cs.evaluate({"x": 13337, "y": 13337}, {"out": 1})
     cs.evaluate({"x": 13338, "y": 13337}, {"out": 1})

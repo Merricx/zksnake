@@ -73,11 +73,23 @@ fn register_polynomial_module(py: Python, parent_module: &PyModule) -> PyResult<
         poly_bn254_module
     )?)?;
     poly_bn254_module.add_function(wrap_pyfunction!(
+        bn254::polynomial::coset_fft,
+        poly_bn254_module
+    )?)?;
+    poly_bn254_module.add_function(wrap_pyfunction!(
+        bn254::polynomial::coset_ifft,
+        poly_bn254_module
+    )?)?;
+    poly_bn254_module.add_function(wrap_pyfunction!(
         bn254::polynomial::evaluate_vanishing_polynomial,
         poly_bn254_module
     )?)?;
     poly_bn254_module.add_function(wrap_pyfunction!(
         bn254::polynomial::evaluate_lagrange_coefficients,
+        poly_bn254_module
+    )?)?;
+    poly_bn254_module.add_function(wrap_pyfunction!(
+        bn254::polynomial::mul_over_evaluation_domain,
         poly_bn254_module
     )?)?;
 
@@ -89,6 +101,18 @@ fn register_polynomial_module(py: Python, parent_module: &PyModule) -> PyResult<
     )?)?;
     poly_bls12_381_module.add_function(wrap_pyfunction!(
         bls12_381::polynomial::ifft,
+        poly_bls12_381_module
+    )?)?;
+    poly_bls12_381_module.add_function(wrap_pyfunction!(
+        bls12_381::polynomial::coset_fft,
+        poly_bls12_381_module
+    )?)?;
+    poly_bls12_381_module.add_function(wrap_pyfunction!(
+        bls12_381::polynomial::coset_ifft,
+        poly_bls12_381_module
+    )?)?;
+    poly_bls12_381_module.add_function(wrap_pyfunction!(
+        bls12_381::polynomial::mul_over_evaluation_domain,
         poly_bls12_381_module
     )?)?;
     poly_bls12_381_module.add_function(wrap_pyfunction!(

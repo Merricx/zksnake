@@ -96,19 +96,6 @@ impl PolynomialRing {
         })
     }
 
-    pub fn mul_over_domain(&self, other: Self) -> PyResult<Self> {
-        Ok(PolynomialRing {
-            poly: DensePolynomial {
-                coeffs: EvaluationDomain::mul_polynomials_in_evaluation_domain(
-                    &self.domain,
-                    &self.poly.coeffs,
-                    &other.poly.coeffs,
-                ),
-            },
-            domain: self.domain,
-        })
-    }
-
     pub fn is_zero(&self) -> bool {
         self.poly.coeffs.len() == 0
     }
@@ -150,6 +137,20 @@ pub fn fft(coeffs: Vec<BigUint>) -> PyResult<Vec<BigUint>> {
 }
 
 #[pyfunction]
+pub fn coset_fft(coeffs: Vec<BigUint>) -> PyResult<Vec<BigUint>> {
+    let mut domain_coeff = vec![];
+    for c in &coeffs {
+        domain_coeff.push(Fr::from(c.to_owned()));
+    }
+    let domain: GeneralEvaluationDomain<Fr> = EvaluationDomain::new(coeffs.len()).unwrap();
+    let generator = EvaluationDomain::group_gen(&domain);
+    let coset_domain = EvaluationDomain::get_coset(&domain, generator).unwrap();
+    let evals = EvaluationDomain::fft(&coset_domain, &domain_coeff);
+
+    Ok(evals.par_iter().map(|x| x.to_owned().into()).collect())
+}
+
+#[pyfunction]
 pub fn ifft(evals: Vec<BigUint>) -> PyResult<Vec<BigUint>> {
     let mut domain_evals = vec![];
     for c in &evals {
@@ -159,6 +160,40 @@ pub fn ifft(evals: Vec<BigUint>) -> PyResult<Vec<BigUint>> {
     let coeffs = EvaluationDomain::ifft(&domain, &domain_evals);
 
     Ok(coeffs.par_iter().map(|x| x.to_owned().into()).collect())
+}
+
+#[pyfunction]
+pub fn coset_ifft(evals: Vec<BigUint>) -> PyResult<Vec<BigUint>> {
+    let mut domain_evals = vec![];
+    for c in &evals {
+        domain_evals.push(Fr::from(c.to_owned()));
+    }
+    let domain: GeneralEvaluationDomain<Fr> = EvaluationDomain::new(evals.len()).unwrap();
+    let generator = EvaluationDomain::group_gen(&domain);
+    let coset_domain = EvaluationDomain::get_coset(&domain, generator).unwrap();
+    let coeffs = EvaluationDomain::ifft(&coset_domain, &domain_evals);
+
+    Ok(coeffs.par_iter().map(|x| x.to_owned().into()).collect())
+}
+
+#[pyfunction]
+pub fn mul_over_evaluation_domain(a: Vec<BigUint>, b: Vec<BigUint>) -> PyResult<Vec<BigUint>> {
+    let mut evals_a = vec![];
+    let mut evals_b = vec![];
+    for c in &a {
+        evals_a.push(Fr::from(c.to_owned()));
+    }
+
+    for c in &b {
+        evals_b.push(Fr::from(c.to_owned()));
+    }
+
+    let domain: GeneralEvaluationDomain<Fr> =
+        EvaluationDomain::new(evals_a.len() + evals_b.len()).unwrap();
+    let result =
+        EvaluationDomain::mul_polynomials_in_evaluation_domain(&domain, &evals_a, &evals_b);
+
+    Ok(result.par_iter().map(|x| x.to_owned().into()).collect())
 }
 
 #[pyfunction]

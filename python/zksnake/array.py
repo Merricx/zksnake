@@ -1,13 +1,4 @@
 from typing import Sequence
-from joblib import Parallel, delayed
-
-from .utils import get_n_jobs
-
-
-def _insert_triplet(i, rows, triplets):
-    for j, col in enumerate(rows):
-        if col != 0:
-            triplets.append((i, j, col))
 
 
 class SparseArray:
@@ -21,18 +12,26 @@ class SparseArray:
         self.p = p
         self.n_row = n_row
         self.n_col = n_col
+        self.triplets_map = {}
         triplets = []
 
-        if n_row >= 8192:
-            Parallel(n_jobs=get_n_jobs())(
-                delayed(_insert_triplet)(i, row, triplets)
-                for i, row in enumerate(matrix)
-            )
-        else:
-            for i, row in enumerate(matrix):
-                _insert_triplet(i, row, triplets)
+        for i, row in enumerate(matrix):
+            for j, col in enumerate(row):
+                if col != 0:
+                    triplets.append((i, j, col))
 
         self.triplets = triplets
+
+    def append(self, triplets: Sequence[tuple[int, int, int]]):
+        """Add new triplet to the array"""
+        for triplet in triplets:
+            row, col, value = triplet
+            if row not in self.triplets_map:
+                self.triplets_map[row] = [(col, value)]
+            else:
+                self.triplets_map[row] += [(col, value)]
+
+            self.triplets.append(tuple(triplet))
 
     def dot(self, vector):
         """dot product with vector"""

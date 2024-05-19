@@ -1,7 +1,8 @@
 from __future__ import annotations
-
 from typing import Any, Union, Callable
+
 from .symbolic import Symbol, Equation, symeval, get_unassigned_var
+from .array import SparseArray
 from .ecc import EllipticCurve
 from .qap import QAP
 from .parser import R1CSReader
@@ -111,9 +112,10 @@ class ConstraintTemplate(BaseConstraint):
         super().__init__([], [])
         self.inputs_map = {}
         self.outputs_map = {}
+        self.name = self.__class__.__name__
 
     def __add_class_prefix(self, name: str):
-        prefix = self.__class__.__name__
+        prefix = self.name
         if not name.startswith(prefix + "."):
             return f"{prefix}.{name}"
         return name
@@ -138,7 +140,7 @@ class ConstraintTemplate(BaseConstraint):
         if not isinstance(eq, Symbol):
             return
 
-        prefix = self.__class__.__name__
+        prefix = self.name
         prefix_length = len(prefix)
         if eq.op == "VAR" and eq.name.startswith(prefix + "."):
             stripped_name = str(eq.name)[prefix_length + 1 :]
@@ -170,19 +172,25 @@ class ConstraintTemplate(BaseConstraint):
         return super().add_hint(func, target, args)
 
     def main(self):
-        raise NotImplementedError()
+        raise NotImplementedError(
+            f"main function of {self.__class__.__name__} is not implemented"
+        )
 
-    def __call__(self, input_map: dict, output_map: dict):
+    def __call__(self, name: str, input_map: dict, output_map: dict):
         self.constraints = []
         self.inputs_map = input_map
         self.outputs_map = output_map
+        self.name = name
+
+        if "." in name:
+            raise ValueError("Template calling name cannot contains dot (.) character")
 
         self.main()
 
         for constraint in self.constraints:
             self.__intercept_input_output(constraint)
 
-        prefix = self.__class__.__name__
+        prefix = name
         prefix_length = len(prefix) + 1
         injected_hints = {}
         for target, value in self.hints.items():
@@ -235,30 +243,31 @@ class ConstraintSystem(BaseConstraint):
     def __add_var(self, eq: Symbol):
         self._BaseConstraint__add_var(eq)  # pylint: disable=no-member
 
-    def __transform(self, eq, witness, vec, is_neg=False):
+    def __transform(self, row, eq, witness, vec: list, is_neg=False):
 
         if isinstance(eq, int):
-            vec[0] = (-eq if is_neg else eq) % self.p
+            value = (-eq if is_neg else eq) % self.p
+            vec.append((row, 0, value))
             return
 
         if eq.op == "VAR":
             index = witness.index(eq.name)
             if eq.is_negative or is_neg:
-                vec[index] = (-1) % self.p
+                vec.append((row, index, (-1) % self.p))
             else:
-                vec[index] = 1
+                vec.append((row, index, 1))
         elif eq.op == "ADD":
             l = eq.left
             r = eq.right
 
-            self.__transform(l, witness, vec)
-            self.__transform(r, witness, vec)
+            self.__transform(row, l, witness, vec)
+            self.__transform(row, r, witness, vec)
         elif eq.op == "SUB":
             l = eq.left
             r = eq.right
 
-            self.__transform(l, witness, vec)
-            self.__transform(r, witness, vec, True)
+            self.__transform(row, l, witness, vec)
+            self.__transform(row, r, witness, vec, True)
         elif eq.op == "MUL":
             l = eq.left
             r = eq.right
@@ -270,7 +279,8 @@ class ConstraintSystem(BaseConstraint):
                 l, r = r, l
 
             index = witness.index(r.name)
-            vec[index] = (-l if is_neg else l) % self.p
+            value = (-l if is_neg else l) % self.p
+            vec.append((row, index, value))
 
         elif eq.op == "DIV":
             raise ValueError(f"Forbidden division operation occur at {eq}")
@@ -547,44 +557,47 @@ class ConstraintSystem(BaseConstraint):
         self.__add_dummy_constraints()
         witness = self.__get_witness_vector()
 
-        row_length = len(witness)
+        row_length = len(self.constraints)
+        col_length = len(witness)
 
-        A, B, C = [], [], []
+        A = SparseArray([[]], row_length, col_length, self.p)
+        B = SparseArray([[]], row_length, col_length, self.p)
+        C = SparseArray([[]], row_length, col_length, self.p)
 
-        for constraint in self.constraints:
+        for row, constraint in enumerate(self.constraints):
 
-            a = [0] * row_length
-            b = [0] * row_length
-            c = [0] * row_length
+            a = []
+            b = []
+            c = []
 
             left = constraint.left
             right = constraint.right
 
             if right.op == "ADD":
-                self.__transform(right, witness, a)
-                b[0] = 1
+                self.__transform(row, right, witness, a)
+                b.append((row, 0, 1))
 
-                self.__transform(left, witness, c)
+                self.__transform(row, left, witness, c)
             elif right.op == "SUB":
-                self.__transform(right, witness, a, True)
-                b[0] = 1
+                self.__transform(row, right, witness, a, True)
+                b.append((row, 0, 1))
 
-                self.__transform(left, witness, c)
+                self.__transform(row, left, witness, c)
             elif right.op == "MUL":
-                self.__transform(right.left, witness, a)
-                self.__transform(right.right, witness, b)
+                self.__transform(row, right.left, witness, a)
+                self.__transform(row, right.right, witness, b)
 
-                self.__transform(left, witness, c)
+                self.__transform(row, left, witness, c)
             elif right.op == "DIV":
-                self.__transform(right.left, witness, c)
-                self.__transform(right.right, witness, b)
+                self.__transform(row, right.left, witness, c)
+                self.__transform(row, right.right, witness, b)
 
-                self.__transform(left, witness, a)
+                self.__transform(row, left, witness, a)
             elif right.op == "VAR":
-                self.__transform(right, witness, a)
-                b[0] = 1
+                self.__transform(row, right, witness, a)
+                b.append((row, 0, 1))
 
-                self.__transform(left, witness, c)
+                self.__transform(row, left, witness, c)
             else:
                 raise ValueError(f"Invalid constraint at: {constraint}")
 
