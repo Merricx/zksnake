@@ -1,5 +1,5 @@
 import pytest
-from zksnake.gadgets import cmp, bitify, bitwise
+from zksnake.gadgets import cmp, bitify, bitwise, poseidon
 from zksnake.symbolic import Symbol
 from zksnake.r1cs import ConstraintSystem
 
@@ -10,6 +10,33 @@ def constraint_data():
         {"x": 1337, "y": 12345},
         {"x": 12345, "y": 1337},
         {"x": 100, "y": 0},
+    ]
+
+
+@pytest.fixture
+def poseidon_test_vector():
+    # test vector from https://github.com/iden3/circomlib/blob/master/test/poseidoncircuit.js
+    return [
+        {
+            "n_input": 2,
+            "inputs": [1, 2],
+            "expected": 7853200120776062878684798364095072458815029376092732009249414926327459813530,
+        },
+        {
+            "n_input": 2,
+            "inputs": [3, 4],
+            "expected": 14763215145315200506921711489642608356394854266165572616578112107564877678998,
+        },
+        {
+            "n_input": 5,
+            "inputs": [1, 2, 0, 0, 0],
+            "expected": 1018317224307729531995786483840663576608797660851238720571059489595066344487,
+        },
+        {
+            "n_input": 5,
+            "inputs": [3, 4, 5, 10, 23],
+            "expected": 13034429309846638789535561449942021891039729847501137143363028890275222221409,
+        },
     ]
 
 
@@ -140,3 +167,28 @@ def test_cmp():
     cs.evaluate({"x": 13330, "y": 13337}, {"out": 0})
     cs.evaluate({"x": -1, "y": 1}, {"out": 0})
     cs.evaluate({"x": 0, "y": 0}, {"out": 1})
+
+
+def test_poseidon(poseidon_test_vector):
+
+    for test_vector in poseidon_test_vector:
+        n_input = test_vector["n_input"]
+        inputs = test_vector["inputs"]
+        expected = test_vector["expected"]
+
+        sym_inputs = []
+        poseidon_input = {}
+        poseidon_eval = {}
+        for i in range(n_input):
+            sym_inputs.append(Symbol(f"v{i}"))
+            poseidon_input[f"inp{i}"] = sym_inputs[i]
+            poseidon_eval[f"v{i}"] = inputs[i]
+
+        out = Symbol("out")
+
+        cs = ConstraintSystem(sym_inputs, [out])
+        poseidon_hash = poseidon.Poseidon(n_input)
+
+        cs.add_template(poseidon_hash("hash", poseidon_input, {"out": out}))
+
+        cs.evaluate(poseidon_eval, {"out": expected})

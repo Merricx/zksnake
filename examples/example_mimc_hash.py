@@ -1,4 +1,3 @@
-import time
 from mimc import eqs
 from zksnake.r1cs import ConstraintSystem
 
@@ -21,24 +20,16 @@ public_witness, private_witness = cs.solve(
     },
 )
 
-st = time.time()
 qap = cs.compile()
-print(time.time() - st)
 
 setup = Setup(qap)
-st = time.time()
 pkey, vkey = setup.generate()
-print(time.time() - st)
 
 prover = Prover(qap, pkey)
 verifier = Verifier(vkey)
 
-st = time.time()
 proof = prover.prove(public_witness, private_witness)
-print(time.time() - st)
 print("Proof:", proof.to_hex())
 
-st = time.time()
 assert verifier.verify(proof, public_witness)
-print(time.time() - st)
 print("Proof is valid!")
