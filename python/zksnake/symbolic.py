@@ -15,6 +15,9 @@ class Symbol:
         return self.__str__()
 
     def __eq__(self, other):
+        if not isinstance(other, Symbol) and not isinstance(other, int):
+            return NotImplemented
+
         if isinstance(self, Symbol) and self.op in ["VAR"]:
             return Equation(self, other)
         if isinstance(other, Symbol) and other.op in ["VAR"]:
@@ -251,6 +254,33 @@ class Equation(Symbol):
 
     def __neg__(self):
         raise NotImplementedError()
+
+
+class SymbolArray:
+    def __init__(self, name: str, n: int):
+        if n > 1:
+            self.data = [Symbol(f"{name}[{i}]") for i in range(n)]
+        else:
+            self.data = [Symbol(name)]
+
+        self.name = name
+        self.n = n
+
+    def __setitem__(self, index: int, value: Symbol):
+        if index >= self.n:
+            raise IndexError("Index out of range")
+        self.data[index] = value
+
+    def __getitem__(self, index: int):
+        if index >= self.n:
+            raise IndexError("Index out of range")
+        return self.data[index]
+
+    def __len__(self) -> int:
+        return len(self.data)
+
+    def explode(self) -> list[str]:
+        return [data.name for data in self.data]
 
 
 def __push_stack(eq, stack):

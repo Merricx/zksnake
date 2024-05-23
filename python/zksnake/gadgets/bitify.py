@@ -1,4 +1,4 @@
-from ..symbolic import Symbol
+from ..symbolic import Symbol, SymbolArray
 from ..r1cs import ConstraintTemplate
 
 
@@ -13,18 +13,16 @@ class NumToBits(ConstraintTemplate):
 
     def __init__(self, n):
         super().__init__()
-        self.inputs = ["inp"]
-        self.outputs = [f"bit{i}" for i in range(n)]
         self.n_bit = n
 
-    def main(self):
+    def main(self, *args):
         n_bit = self.n_bit
 
-        v = []
-        for i in range(n_bit):
-            v.append(Symbol(f"bit{i}"))
+        inp = args[0]
+        v = args[1]
 
-        inp = Symbol("inp")
+        assert isinstance(inp, Symbol)
+        assert isinstance(v, SymbolArray) and len(v) == n_bit
 
         for i in range(n_bit):
             self.add_constraint(0 == (1 - v[i]) * v[i])
@@ -50,18 +48,16 @@ class BitsToNum(ConstraintTemplate):
 
     def __init__(self, n):
         super().__init__()
-        self.inputs = [f"bit{i}" for i in range(n)]
-        self.outputs = ["out"]
         self.n_bit = n
 
-    def main(self):
+    def main(self, *args):
         n_bit = self.n_bit
 
-        v = []
-        for i in range(n_bit):
-            v.append(Symbol(f"bit{i}"))
+        v = args[0]
+        out = args[1]
 
-        out = Symbol("out")
+        assert isinstance(v, SymbolArray) and len(v) == n_bit
+        assert isinstance(out, Symbol)
 
         eq = v[0]
         for i in range(1, n_bit):

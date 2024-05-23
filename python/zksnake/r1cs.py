@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Any, Union, Callable
 
-from .symbolic import Symbol, Equation, symeval, get_unassigned_var
+from .symbolic import Symbol, SymbolArray, Equation, symeval, get_unassigned_var
 from .array import SparseArray
 from .ecc import EllipticCurve
 from .qap import QAP
@@ -11,8 +11,8 @@ from .parser import R1CSReader
 class BaseConstraint:
     def __init__(
         self,
-        inputs: Union[list[str], list[Symbol]],
-        outputs: Union[list[str], list[Symbol]],
+        inputs: Union[list[str], list[Union[Symbol, SymbolArray]]],
+        outputs: Union[list[str], list[Union[Symbol, SymbolArray]]],
     ):
         self.vars = {}
         self.temp_vars = []
@@ -57,7 +57,7 @@ class BaseConstraint:
 
     def add_template(
         self,
-        template: BaseConstraint,
+        template: ConstraintTemplate,
     ):
         """
         Add constraints from ConstraintTemplate
@@ -71,8 +71,8 @@ class BaseConstraint:
             self.add_constraint(constraint)
 
         # inject hints from template
-        for target, value in template.hints.items():
-            self.hints[target] = value
+        for target, (func, args) in template.hints.items():
+            self.add_hint(func, target, args)
 
     def add_hint(
         self, func: Callable[[Any], int], target: Union[Symbol, str], args: Any = None
@@ -80,10 +80,16 @@ class BaseConstraint:
         """
         Add hint function to pre-define variable value outside constraints evaluation
         """
+        args = args or []
         target = target if isinstance(target, str) else target.name
         self.hints[target] = (func, args)
 
-    def set_public(self, public_vars: Union[str, Symbol, list[str], list[Symbol]]):
+    def set_public(
+        self,
+        public_vars: Union[
+            str, Symbol, SymbolArray, list[str], list[Symbol], list[SymbolArray]
+        ],
+    ):
         """
         Set variable(s) in the constraint system to be public.
 
@@ -96,12 +102,16 @@ class BaseConstraint:
                     self.public += [var]
                 elif isinstance(var, Symbol):
                     self.public += [var.name]
+                elif isinstance(var, SymbolArray):
+                    self.public += var.explode()
                 else:
                     raise TypeError(f"Invalid type of {var}")
         elif isinstance(public_vars, str):
             self.public += [public_vars]
         elif isinstance(public_vars, Symbol):
             self.public += [public_vars.name]
+        elif isinstance(public_vars, SymbolArray):
+            self.public += public_vars.explode()
         else:
             raise TypeError(f"Invalid type of {public_vars}")
 
@@ -110,13 +120,21 @@ class ConstraintTemplate(BaseConstraint):
 
     def __init__(self):
         super().__init__([], [])
-        self.inputs_map = {}
-        self.outputs_map = {}
+        self.input_args = []
+        self.output_args = []
+        self.input_names = []
+        self.output_names = []
+        self.is_instance = False
         self.name = self.__class__.__name__
 
     def __add_class_prefix(self, name: str):
         prefix = self.name
-        if not name.startswith(prefix + "."):
+
+        if (
+            not name.startswith(prefix + ".")
+            and name not in self.input_names
+            and name not in self.output_names
+        ):
             return f"{prefix}.{name}"
         return name
 
@@ -133,26 +151,6 @@ class ConstraintTemplate(BaseConstraint):
             self.__intercept_var(eq.left)
             self.__intercept_var(eq.right)
 
-    def __intercept_input_output(self, eq: Union[Symbol, int, str]):
-        if isinstance(eq, str):
-            eq = Symbol(eq)
-
-        if not isinstance(eq, Symbol):
-            return
-
-        prefix = self.name
-        prefix_length = len(prefix)
-        if eq.op == "VAR" and eq.name.startswith(prefix + "."):
-            stripped_name = str(eq.name)[prefix_length + 1 :]
-
-            if stripped_name in self.inputs_map:
-                eq.name = str(self.inputs_map[stripped_name].name)
-            elif stripped_name in self.outputs_map:
-                eq.name = str(self.outputs_map[stripped_name].name)
-        else:
-            self.__intercept_input_output(eq.left)
-            self.__intercept_input_output(eq.right)
-
     def add_constraint(self, eq: Equation):
         self.__intercept_var(eq)
         return super().add_constraint(eq)
@@ -160,7 +158,12 @@ class ConstraintTemplate(BaseConstraint):
     def add_hint(
         self, func: Callable[[Any], int], target: Union[Symbol, str], args: Any = None
     ):
-        self.__intercept_var(target)
+
+        target = target.name if isinstance(target, Symbol) else target
+        target = Symbol(self.__add_class_prefix(target))
+
+        args = args or []
+
         args = [
             (
                 Symbol(self.__add_class_prefix(arg.name))
@@ -169,60 +172,42 @@ class ConstraintTemplate(BaseConstraint):
             )
             for arg in args
         ]
+
         return super().add_hint(func, target, args)
 
-    def main(self):
+    def main(self, *args):
         raise NotImplementedError(
             f"main function of {self.__class__.__name__} is not implemented"
         )
 
-    def __call__(self, name: str, input_map: dict, output_map: dict):
+    def __call__(self, namespace: str, *inputs):
         self.constraints = []
-        self.inputs_map = input_map
-        self.outputs_map = output_map
-        self.name = name
+        self.input_args = list(inputs)
+        self.name = namespace
 
-        if "." in name:
-            raise ValueError("Template calling name cannot contains dot (.) character")
+        if "." in namespace:
+            raise ValueError("Namespace cannot contains dot (.) character")
 
-        self.main()
+        return self
 
-        for constraint in self.constraints:
-            self.__intercept_input_output(constraint)
+    def __eq__(self, value: Union[Symbol, SymbolArray]):
 
-        prefix = name
-        prefix_length = len(prefix) + 1
-        injected_hints = {}
-        for target, value in self.hints.items():
-            func, args = value
+        self.constraints = []
+        self.is_instance = True
+        self.output_args = [value]
 
-            if not target.startswith(prefix + "."):
-                target = self.__add_class_prefix(target)
+        for sym in self.input_args:
+            if isinstance(sym, SymbolArray):
+                self.input_names.extend(sym.explode())
+            elif isinstance(sym, Symbol):
+                self.input_names.append(sym.name)
 
-            target = Symbol(target)
-            self.__intercept_input_output(target)
-            target = target.name
+        if isinstance(value, SymbolArray):
+            self.output_names = value.explode()
+        elif isinstance(value, Symbol):
+            self.output_names = [value.name]
 
-            new_args = []
-            for arg in args:
-                if isinstance(arg, Symbol):
-                    sym_name = arg.name
-                    if not sym_name.startswith(prefix + "."):
-                        sym_name = self.__add_class_prefix(sym_name)
-
-                    stripped_name = sym_name[prefix_length:]
-                    if stripped_name in self.inputs_map:
-                        arg = Symbol(self.inputs_map[stripped_name].name)
-                    elif stripped_name in self.outputs_map:
-                        arg = Symbol(self.outputs_map[stripped_name].name)
-                    else:
-                        arg = Symbol(sym_name)
-
-                new_args.append(arg)
-
-            injected_hints[target] = (func, new_args)
-
-        self.hints = injected_hints
+        self.main(*self.input_args, value)
 
         return self
 
@@ -459,6 +444,7 @@ class ConstraintSystem(BaseConstraint):
                         left % self.p == evaluated_right
                     ), f"{left % self.p} != {evaluated_right}, {right}"
                 else:
+
                     # no variable assignment, directly check if lhs == rhs hold
                     evaluated_left = symeval(left, self.vars, self.p)
                     evaluated_right = symeval(right, self.vars, self.p)
@@ -474,7 +460,7 @@ class ConstraintSystem(BaseConstraint):
                 skipped_constraints.append(constraint)
 
         if skipped_constraints and len(skipped_constraints) == len(constraints_stack):
-
+            # print(self.vars)
             raise ValueError(
                 f"There is more than one unknown value at : {skipped_constraints[0]}"
             )
@@ -490,6 +476,7 @@ class ConstraintSystem(BaseConstraint):
                 self.temp_vars.append(target)
 
             if self.vars[target] is None:
+
                 evaluated_args = []
                 for arg in args:
                     if isinstance(arg, Symbol) and self.vars.get(arg.name) is None:
@@ -650,6 +637,7 @@ class ConstraintSystem(BaseConstraint):
         for wire in result["wires"][private_offset:]:
             cs.__add_var(wire)
 
+        cs.set_public(outputs)
         cs.set_public(public_inputs)
 
         for constraint in result["constraints"]:

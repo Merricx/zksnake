@@ -1,18 +1,14 @@
-from ..symbolic import Symbol
+from ..symbolic import Symbol, SymbolArray
 from ..r1cs import ConstraintTemplate
-from .constants.poseidon import POSEIDON_C, POSEIDON_M, POSEIDON_P, POSEIDON_S
+from .constants import poseidon_bn254
 
 
 class Sigma(ConstraintTemplate):
-    def __init__(self):
-        super().__init__()
-        self.inputs = ["inp"]
-        self.outputs = ["out"]
 
-    def main(self):
+    def main(self, *args):
 
-        inp = Symbol("inp")
-        out = Symbol("out")
+        inp = args[0]
+        out = args[1]
 
         inp2 = Symbol("inp2")
         inp4 = Symbol("inp4")
@@ -25,16 +21,14 @@ class Sigma(ConstraintTemplate):
 class Ark(ConstraintTemplate):
     def __init__(self, t, C, r):
         super().__init__()
-        self.inputs = [f"inp{i}" for i in range(t)]
-        self.outputs = [f"out{i}" for i in range(t)]
         self.t = t
         self.C = C
         self.r = r
 
-    def main(self):
+    def main(self, *args):
 
-        inp = [Symbol(f"inp{i}") for i in range(self.t)]
-        out = [Symbol(f"out{i}") for i in range(self.t)]
+        inp = args[0]
+        out = args[1]
 
         for i in range(self.t):
             # TODO: This addition can be combined with Mix operation
@@ -44,14 +38,12 @@ class Ark(ConstraintTemplate):
 class Mix(ConstraintTemplate):
     def __init__(self, t, M):
         super().__init__()
-        self.inputs = [f"inp{i}" for i in range(t)]
-        self.outputs = [f"out{i}" for i in range(t)]
         self.t = t
         self.M = M
 
-    def main(self):
-        inp = [Symbol(f"inp{i}") for i in range(self.t)]
-        out = [Symbol(f"out{i}") for i in range(self.t)]
+    def main(self, *args):
+        inp = args[0]
+        out = args[1]
 
         for i in range(self.t):
             lc = 0
@@ -64,15 +56,13 @@ class Mix(ConstraintTemplate):
 class MixLast(ConstraintTemplate):
     def __init__(self, t, M, s):
         super().__init__()
-        self.inputs = [f"inp{i}" for i in range(t)]
-        self.outputs = ["out"]
         self.t = t
         self.M = M
         self.s = s
 
-    def main(self):
-        inp = [Symbol(f"inp{i}") for i in range(self.t)]
-        out = Symbol("out")
+    def main(self, *args):
+        inp = args[0]
+        out = args[1]
 
         lc = 0
         for j in range(self.t):
@@ -84,16 +74,14 @@ class MixLast(ConstraintTemplate):
 class MixS(ConstraintTemplate):
     def __init__(self, t, S, r):
         super().__init__()
-        self.inputs = [f"inp{i}" for i in range(t)]
-        self.outputs = [f"out{i}" for i in range(t)]
         self.t = t
         self.S = S
         self.r = r
 
-    def main(self):
+    def main(self, *args):
 
-        inp = [Symbol(f"inp{i}") for i in range(self.t)]
-        out = [Symbol(f"out{i}") for i in range(self.t)]
+        inp = args[0]
+        out = args[1]
 
         lc = 0
         for i in range(self.t):
@@ -110,50 +98,47 @@ class MixS(ConstraintTemplate):
 class PoseidonEx(ConstraintTemplate):
     def __init__(self, n_in, n_out):
         super().__init__()
-        self.inputs = [f"inp{i}" for i in range(n_in)] + ["init_state"]
-        self.outputs = [f"out{i}" for i in range(n_out)]
         self.n_in = n_in
         self.n_out = n_out
 
-    def main(self):
+    def main(self, *args):
 
-        init_state = Symbol("init_state")
-        inp = [Symbol(f"inp{i}") for i in range(self.n_in)]
-        out = [Symbol(f"out{i}") for i in range(self.n_out)]
+        init_state = args[0]
+        inp = args[1]
+        out = args[2]
 
         N_ROUNDS_P = [56, 57, 56, 60, 60, 63, 64, 63, 60, 66, 60, 65, 70, 60, 64, 68]
         t = self.n_in + 1
         n_rounds_f = 8
         n_rounds_p = N_ROUNDS_P[t - 2]
 
-        C = POSEIDON_C(t)
-        S = POSEIDON_S(t)
-        M = POSEIDON_M(t)
-        P = POSEIDON_P(t)
+        # Note that Poseidon constants for BLS12-381 is not implemented yet
+        C = poseidon_bn254.POSEIDON_C(t)
+        S = poseidon_bn254.POSEIDON_S(t)
+        M = poseidon_bn254.POSEIDON_M(t)
+        P = poseidon_bn254.POSEIDON_P(t)
 
         ################################################################################
-        #
+        # ADD PRE-ROUND CONSTANT
         ################################################################################
 
         ark_out = []
         for i in range(n_rounds_p):
-            ark_out.append([Symbol(f"ark.out[{i}][{j}]") for j in range(t)])
+            ark_out.append(SymbolArray(f"ark.out[{i}]", t))
 
         ark = Ark(t, C, 0)
-        ark_input = {}
-        ark_output = {}
+        ark_input = SymbolArray("ark.in[0]", t)
         for j in range(t):
-            ark_output[f"out{j}"] = ark_out[0][j]
             if j > 0:
-                ark_input[f"inp{j}"] = inp[j - 1]
+                ark_input[j] = inp[j - 1]
             else:
-                ark_input[f"inp{j}"] = init_state
+                ark_input[j] = init_state
 
-        self.add_template(ark("ark[0]", ark_input, ark_output))
+        self.add_template(ark_out[0] == ark("ark[0]", ark_input))
 
         mix_out = []
         for i in range(n_rounds_f - 1):
-            mix_out.append([Symbol(f"mix.out[{i}][{j}]") for j in range(t)])
+            mix_out.append(SymbolArray(f"mix.out[{i}]", t))
 
         sigmaF_out = []
         for i in range(n_rounds_f):
@@ -162,7 +147,7 @@ class PoseidonEx(ConstraintTemplate):
                 sigmaF_out[i].append(Symbol(f"sigmaF.out[{i}][{j}]"))
 
         ################################################################################
-        #
+        # FIRST HALF FULL ROUNDS
         ################################################################################
 
         sigmaF = Sigma()
@@ -170,100 +155,69 @@ class PoseidonEx(ConstraintTemplate):
             for j in range(t):
                 if r == 0:
                     self.add_template(
-                        sigmaF(
-                            f"sigmaF[{r}][{j}]",
-                            {"inp": ark_out[0][j]},
-                            {"out": sigmaF_out[r][j]},
-                        )
+                        sigmaF_out[r][j] == sigmaF(f"sigmaF[{r}][{j}]", ark_out[0][j])
                     )
                 else:
                     self.add_template(
-                        sigmaF(
-                            f"sigmaF[{r}][{j}]",
-                            {"inp": mix_out[r - 1][j]},
-                            {"out": sigmaF_out[r][j]},
-                        )
+                        sigmaF_out[r][j]
+                        == sigmaF(f"sigmaF[{r}][{j}]", mix_out[r - 1][j])
                     )
 
             ark = Ark(t, C, (r + 1) * t)
-            ark_input = {}
-            ark_output = {}
-            for j in range(t):
-                ark_output[f"out{j}"] = ark_out[r + 1][j]
-                ark_input[f"inp{j}"] = sigmaF_out[r][j]
-
-            self.add_template(ark(f"ark[{r+1}]", ark_input, ark_output))
+            self.add_template(ark_out[r + 1] == ark(f"ark[{r+1}]", sigmaF_out[r]))
 
             mix = Mix(t, M)
-            mix_input = {}
-            mix_output = {}
-            for j in range(t):
-                mix_output[f"out{j}"] = mix_out[r][j]
-                mix_input[f"inp{j}"] = ark_out[r + 1][j]
-
-            self.add_template(mix(f"mix[{r}]", mix_input, mix_output))
+            self.add_template(mix_out[r] == mix(f"mix[{r}]", ark_out[r + 1]))
 
         for j in range(t):
             self.add_template(
-                sigmaF(
-                    f"sigmaF[{n_rounds_f//2-1}][{j}]",
-                    {"inp": mix_out[n_rounds_f // 2 - 2][j]},
-                    {"out": sigmaF_out[n_rounds_f // 2 - 1][j]},
+                sigmaF_out[n_rounds_f // 2 - 1][j]
+                == sigmaF(
+                    f"sigmaF[{n_rounds_f//2-1}][{j}]", mix_out[n_rounds_f // 2 - 2][j]
                 )
             )
 
         ark = Ark(t, C, (n_rounds_f // 2) * t)
-        ark_input = {}
-        ark_output = {}
-        for j in range(t):
-            ark_output[f"out{j}"] = ark_out[n_rounds_f // 2][j]
-            ark_input[f"inp{j}"] = sigmaF_out[n_rounds_f // 2 - 1][j]
-
-        self.add_template(ark(f"ark[{n_rounds_f//2}]", ark_input, ark_output))
+        self.add_template(
+            ark_out[n_rounds_f // 2]
+            == ark(f"ark[{n_rounds_f//2}]", sigmaF_out[n_rounds_f // 2 - 1])
+        )
 
         mix = Mix(t, P)
-        mix_input = {}
-        mix_output = {}
-        for j in range(t):
-            mix_output[f"out{j}"] = mix_out[n_rounds_f // 2 - 1][j]
-            mix_input[f"inp{j}"] = ark_out[n_rounds_f // 2][j]
-
-        self.add_template(mix(f"mix[{n_rounds_f//2-1}]", mix_input, mix_output))
+        self.add_template(
+            mix_out[n_rounds_f // 2 - 1]
+            == mix(f"mix[{n_rounds_f//2-1}]", ark_out[n_rounds_f // 2])
+        )
 
         ################################################################################
-        #
+        # MIDDLE PARTIAL ROUNDS
         ################################################################################
 
-        sigmaP_out = []
-        for i in range(n_rounds_p):
-            sigmaP_out.append(Symbol(f"sigmaP.out[{i}]"))
+        sigmaP_out = SymbolArray("sigmaP.out", n_rounds_p)
 
         mixS_out = []
         for i in range(n_rounds_p):
-            mixS_out.append([Symbol(f"mixS.out[{i}][{j}]") for j in range(t)])
+            mixS_out.append(SymbolArray(f"mixS.out[{i}]", t))
 
         sigmaP = Sigma()
 
         for r in range(n_rounds_p):
             if r == 0:
                 self.add_template(
-                    sigmaP(
-                        f"sigmaP[{r}]",
-                        {"inp": mix_out[n_rounds_f // 2 - 1][0]},
-                        {"out": sigmaP_out[r]},
-                    )
+                    sigmaP_out[r]
+                    == sigmaP(f"sigmaP[{r}]", mix_out[n_rounds_f // 2 - 1][0])
                 )
             else:
                 self.add_template(
-                    sigmaP(
+                    sigmaP_out[r]
+                    == sigmaP(
                         f"sigmaP[{r}]",
-                        {"inp": mixS_out[r - 1][0]},
-                        {"out": sigmaP_out[r]},
+                        mixS_out[r - 1][0],
                     )
                 )
 
             mixS = MixS(t, S, r)
-            mixS_input = {}
+            mixS_input = SymbolArray("mixS.in", t)
             mixS_output = {}
 
             for j in range(t):
@@ -276,17 +230,17 @@ class PoseidonEx(ConstraintTemplate):
                         == sigmaP_out[r] + C[(n_rounds_f // 2 + 1) * t + r]
                     )
 
-                    mixS_input[f"inp{j}"] = sigmaP_out_aux
+                    mixS_input[j] = sigmaP_out_aux
                 else:
                     if r == 0:
-                        mixS_input[f"inp{j}"] = mix_out[n_rounds_f // 2 - 1][j]
+                        mixS_input[j] = mix_out[n_rounds_f // 2 - 1][j]
                     else:
-                        mixS_input[f"inp{j}"] = mixS_out[r - 1][j]
+                        mixS_input[j] = mixS_out[r - 1][j]
 
-            self.add_template(mixS(f"mixS[{r}]", mixS_input, mixS_output))
+            self.add_template(mixS_out[r] == mixS(f"mixS[{r}]", mixS_input))
 
         ################################################################################
-        #
+        # SECOND FULL HALF ROUNDS
         ################################################################################
 
         for r in range(n_rounds_f // 2 - 1):
@@ -294,86 +248,78 @@ class PoseidonEx(ConstraintTemplate):
             for j in range(t):
                 if r == 0:
                     self.add_template(
-                        sigmaF(
+                        sigmaF_out[n_rounds_f // 2 + r][j]
+                        == sigmaF(
                             f"sigmaF[{n_rounds_f//2+r}][{j}]",
-                            {"inp": mixS_out[n_rounds_p - 1][j]},
-                            {"out": sigmaF_out[n_rounds_f // 2 + r][j]},
+                            mixS_out[n_rounds_p - 1][j],
                         )
                     )
                 else:
                     self.add_template(
-                        sigmaF(
+                        sigmaF_out[n_rounds_f // 2 + r][j]
+                        == sigmaF(
                             f"sigmaF[{n_rounds_f//2+r}][{j}]",
-                            {"inp": mix_out[n_rounds_f // 2 + r - 1][j]},
-                            {"out": sigmaF_out[n_rounds_f // 2 + r][j]},
+                            mix_out[n_rounds_f // 2 + r - 1][j],
                         )
                     )
 
             ark = Ark(t, C, (n_rounds_f // 2 + 1) * t + n_rounds_p + r * t)
-            ark_input = {}
-            ark_output = {}
-            for j in range(t):
-                ark_output[f"out{j}"] = ark_out[n_rounds_f // 2 + r + 1][j]
-                ark_input[f"inp{j}"] = sigmaF_out[n_rounds_f // 2 + r][j]
 
             self.add_template(
-                ark(f"ark[{n_rounds_f // 2 + r + 1}]", ark_input, ark_output)
+                ark_out[n_rounds_f // 2 + r + 1]
+                == ark(
+                    f"ark[{n_rounds_f // 2 + r + 1}]",
+                    sigmaF_out[n_rounds_f // 2 + r],
+                )
             )
 
             mix = Mix(t, M)
-            mix_input = {}
-            mix_output = {}
-            for j in range(t):
-                mix_output[f"out{j}"] = mix_out[n_rounds_f // 2 + r][j]
-                mix_input[f"inp{j}"] = ark_out[n_rounds_f // 2 + r + 1][j]
 
-            self.add_template(mix(f"mix[{n_rounds_f // 2 + r}]", mix_input, mix_output))
+            self.add_template(
+                mix_out[n_rounds_f // 2 + r]
+                == mix(f"mix[{n_rounds_f // 2 + r}]", ark_out[n_rounds_f // 2 + r + 1])
+            )
 
         ################################################################################
-        #
+        # LAST ROUND
         ################################################################################
 
         for j in range(t):
             self.add_template(
-                sigmaF(
+                sigmaF_out[n_rounds_f - 1][j]
+                == sigmaF(
                     f"sigmaF[{n_rounds_f-1}][{j}]",
-                    {"inp": mix_out[n_rounds_f - 2][j]},
-                    {"out": sigmaF_out[n_rounds_f - 1][j]},
+                    mix_out[n_rounds_f - 2][j],
                 )
             )
 
         for i in range(self.n_out):
             mix_last = MixLast(t, M, i)
-            mix_last_input = {}
-            for j in range(t):
-                mix_last_input[f"inp{j}"] = sigmaF_out[n_rounds_f - 1][j]
 
             self.add_template(
-                mix_last(f"mixLast[{i}]", mix_last_input, {"out": out[i]})
+                out[i] == mix_last(f"mixLast[{i}]", sigmaF_out[n_rounds_f - 1])
             )
 
 
 class Poseidon(ConstraintTemplate):
     def __init__(self, n):
         super().__init__()
-        self.inputs = [f"inp{i}" for i in range(n)]
-        self.outputs = ["out"]
         self.n_input = n
 
         assert n < 17
 
-    def main(self):
+    def main(self, *args):
 
-        inp = [Symbol(f"inp{i}") for i in range(self.n_input)]
-        out = Symbol("out")
+        inp = args[0]
+        out = args[1]
+
         init_state = Symbol("init_state")
+
+        assert isinstance(inp, SymbolArray) and len(inp) == self.n_input
+        assert isinstance(out, SymbolArray) and len(out) == 1
 
         self.add_hint(lambda: 0, init_state, args=())
 
-        pEx_input = {"init_state": init_state}
-        for i in range(self.n_input):
-            pEx_input[f"inp{i}"] = inp[i]
-
         pEx = PoseidonEx(self.n_input, 1)
 
-        self.add_template(pEx("pEx", pEx_input, {"out0": out}))
+        self.add_template(out == pEx("pEx", init_state, inp))

@@ -4,8 +4,7 @@ from typing import Sequence
 class SparseArray:
     """
     Sparse Array object (matrix dominated by zero elements)
-    structured by triplets of (row, col, value) of non-zero elements in the matrix
-    first index of triplets is the length of row, col, and value 0 respectively
+    structured by triplets consist of (row, col, value) of non-zero elements in the matrix
     """
 
     def __init__(self, matrix: Sequence[Sequence[int]], n_row: int, n_col: int, p: int):

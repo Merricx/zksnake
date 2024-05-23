@@ -100,3 +100,35 @@ The benchmark was done in Macbook M1 Pro (8 cores).
 | 16384       | 2.0084s  | 2.2248s | 1.3297s | 0.0020s |
 | 32768       | 8.1905s  | 4.4819s | 2.5504s | 0.0020s |
 | 65536       | 34.4961s | 8.8074s | 4.8914s | 0.0021s |
+
+## Development
+
+Requirements:
+
+- python3 >= 3.9
+- rust >= 1.77
+
+Install maturin:
+
+```
+pip install maturin
+```
+
+Setup virtual environment:
+
+```
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+Compile and install the editable module into venv:
+
+```
+maturin develop -r -E dev
+```
+
+Test the script:
+
+```
+python3 -m pytest tests
+```
