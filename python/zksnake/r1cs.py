@@ -21,15 +21,29 @@ class BaseConstraint:
         self.public = []
         self.p = None
 
-        if inputs and isinstance(inputs[0], Symbol):
-            self.inputs = [x.name for x in inputs]
-        else:
-            self.inputs = inputs
+        self.inputs = []
+        self.outputs = []
+        if isinstance(inputs, list):
+            for var in inputs:
+                if isinstance(var, str):
+                    self.inputs += [var]
+                elif isinstance(var, Symbol):
+                    self.inputs += [var.name]
+                elif isinstance(var, SymbolArray):
+                    self.inputs += var.explode()
+                else:
+                    raise TypeError(f"Invalid type of {var}")
 
-        if outputs and isinstance(outputs[0], Symbol):
-            self.outputs = [x.name for x in outputs]
-        else:
-            self.outputs = outputs
+        if isinstance(outputs, list):
+            for var in outputs:
+                if isinstance(var, str):
+                    self.outputs += [var]
+                elif isinstance(var, Symbol):
+                    self.outputs += [var.name]
+                elif isinstance(var, SymbolArray):
+                    self.outputs += var.explode()
+                else:
+                    raise TypeError(f"Invalid type of {var}")
 
         # outputs always public
         self.set_public(outputs)

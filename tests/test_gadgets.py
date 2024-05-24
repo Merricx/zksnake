@@ -187,7 +187,7 @@ def test_poseidon(poseidon_test_vector):
         for i in range(n_input):
             poseidon_eval[f"v[{i}]"] = inputs[i]
 
-        cs = ConstraintSystem(sym_inputs, out)
+        cs = ConstraintSystem([sym_inputs], [out])
         poseidon_hash = poseidon.Poseidon(n_input)
 
         cs.add_template(out == poseidon_hash("hash", sym_inputs))

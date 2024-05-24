@@ -1,4 +1,4 @@
-from zksnake.symbolic import Symbol
+from zksnake.symbolic import Symbol, SymbolArray
 from zksnake.r1cs import ConstraintSystem
 from zksnake.gadgets.poseidon import Poseidon
 from zksnake.groth16 import Setup, Prover, Verifier
@@ -6,11 +6,17 @@ from zksnake.groth16 import Setup, Prover, Verifier
 a = Symbol("a")
 b = Symbol("b")
 c = Symbol("c")
-h = Symbol("h")
+
+hash_input = SymbolArray("", 3)
+hash_input[0] = a
+hash_input[1] = b
+hash_input[2] = c
+h = SymbolArray("h", 1)
+
 
 cs = ConstraintSystem([a, b, c], [h])
 poseidon = Poseidon(3)
-cs.add_template(poseidon("hash", {"inp0": a, "inp1": b, "inp2": c}, {"out": h}))
+cs.add_template(h == poseidon("hash", hash_input))
 
 qap = cs.compile()
 
