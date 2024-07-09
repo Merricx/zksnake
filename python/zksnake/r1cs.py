@@ -469,7 +469,6 @@ class ConstraintSystem(BaseConstraint):
                         left % self.p == evaluated_right
                     ), f"{left % self.p} != {evaluated_right}, {right}"
                 else:
-
                     # no variable assignment, directly check if lhs == rhs hold
                     evaluated_left = symeval(left, self.vars, self.p)
                     evaluated_right = symeval(right, self.vars, self.p)
@@ -501,7 +500,6 @@ class ConstraintSystem(BaseConstraint):
                 self.temp_vars.append(target)
 
             if self.vars[target] is None:
-
                 evaluated_args = []
                 for arg in args:
                     if isinstance(arg, Symbol) and self.vars.get(arg.name) is None:
@@ -514,7 +512,6 @@ class ConstraintSystem(BaseConstraint):
                         evaluated_args.append(arg)
                 else:
                     result = func(*evaluated_args)
-
                     self.vars[target] = int(result) % self.p
 
     def evaluate(self, input_values: dict, output_values: dict = None) -> bool:
