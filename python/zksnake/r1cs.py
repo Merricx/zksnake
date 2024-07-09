@@ -204,17 +204,22 @@ class ConstraintTemplate(BaseConstraint):
 
         return self
 
+    def __map_input_output(self, val):
+        for v in val:
+            if isinstance(v, SymbolArray):
+                self.input_names.extend(v.explode())
+            elif isinstance(v, Symbol):
+                self.input_names.append(v.name)
+            elif isinstance(v, list):
+                self.__map_input_output(v)
+
     def __eq__(self, value: Union[Symbol, SymbolArray]):
 
         self.constraints = []
         self.is_instance = True
         self.output_args = [value]
 
-        for sym in self.input_args:
-            if isinstance(sym, SymbolArray):
-                self.input_names.extend(sym.explode())
-            elif isinstance(sym, Symbol):
-                self.input_names.append(sym.name)
+        self.__map_input_output(self.input_args)
 
         if isinstance(value, SymbolArray):
             self.output_names = value.explode()
@@ -317,7 +322,9 @@ class ConstraintSystem(BaseConstraint):
     def __consume_constraint_stack(self, constraints_stack: list):
         skipped_constraints = []
         for constraint in constraints_stack:
-
+            # print(self.vars)
+            # print(constraint)
+            # print()
             left = constraint.left
             right = constraint.right
 
@@ -337,7 +344,11 @@ class ConstraintSystem(BaseConstraint):
                 original_left = left
                 coeff = 1
                 multiplier = 1
-                if isinstance(left, Symbol) and left.op not in ["VAR", "MUL"]:
+                if (
+                    isinstance(left, Symbol)
+                    and left.op not in ["VAR", "MUL"]
+                    and right.op in ["MUL", "DIV", "VAR"]
+                ):
                     # Assign c in the form of c + v1 + v2 ... = (a)*(b)
                     target, coeff = get_unassigned_var(left, self.vars)
 
@@ -503,6 +514,7 @@ class ConstraintSystem(BaseConstraint):
                         evaluated_args.append(arg)
                 else:
                     result = func(*evaluated_args)
+
                     self.vars[target] = int(result) % self.p
 
     def evaluate(self, input_values: dict, output_values: dict = None) -> bool:

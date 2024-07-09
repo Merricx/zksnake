@@ -1,3 +1,6 @@
+from typing import Union
+
+
 class Symbol:
 
     def __init__(self, name):
@@ -271,10 +274,13 @@ class SymbolArray:
             raise IndexError("Index out of range")
         self.data[index] = value
 
-    def __getitem__(self, index: int):
-        if index >= self.n:
-            raise IndexError("Index out of range")
-        return self.data[index]
+    def __getitem__(self, index: Union[int, slice]):
+        if isinstance(index, slice):
+            return [self.data[i] for i in range(*index.indices(len(self.data)))]
+        else:
+            if index >= self.n:
+                raise IndexError("Index out of range")
+            return self.data[index]
 
     def __len__(self) -> int:
         return len(self.data)

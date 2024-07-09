@@ -1,6 +1,6 @@
 from zksnake.symbolic import Symbol, SymbolArray
 from zksnake.r1cs import ConstraintSystem
-from zksnake.gadgets.poseidon import Poseidon
+from zksnake.gadgets.hash.poseidon import Poseidon
 from zksnake.groth16 import Setup, Prover, Verifier
 
 a = Symbol("a")

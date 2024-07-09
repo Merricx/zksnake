@@ -1,27 +1,19 @@
 # zksnake
 
-Python implementation of zk-SNARKs (Zero Knowledge Succint Non-interactive ARgument of Knowledge).
+Python implementation of zk-SNARKs (Zero Knowledge Succint Non-interactive ARgument of Knowledge) using simple Symbolic expression.
 
 <!-- prettier-ignore-start -->
 > [!WARNING] 
-**This library is intended to be used as proof of concept, prototyping, and educational purpose only. It is NOT fully tested and NOT formally verified!**
+**This library is intended to be used as proof of concept, prototyping, and educational purpose only. It is still in active development and not fully tested!**
 <!-- prettier-ignore-end -->
 
 ## Proving schemes and curves
 
 zksnake currently only support **Groth16** proving scheme with `BN254` and `BLS12-381` as supported curves. More proving schemes will be implemented in the future (hopefully).
 
-## Installation
-
-Requirements: **Python >= 3.9**
-
-```
-pip install zksnake
-```
-
 ## Usage
 
-### Build your constraints into QAP
+### Build constraints into QAP
 
 ```python
 from zksnake.symbolic import Symbol
@@ -31,8 +23,8 @@ x = Symbol('x')
 y = Symbol('y')
 v1 = Symbol('v1')
 
-# solution to: y == x**3 + x + 5
-# x as input and y as output
+# prove the solution of y == x**3 + x + 5
+# where x as input and y as output
 cs = ConstraintSystem(['x'], ['y'])
 cs.add_constraint(v1 == x*x)
 cs.add_constraint(y - 5 - x == v1*x)
@@ -50,7 +42,7 @@ cs = ConstraintSystem.from_file("circuit.r1cs", "circuit.sym")
 qap = cs.compile()
 ```
 
-Note that some constraints that are complex or expensive cannot just be imported directly and require you to add "hint" function to pre-define the variable value (see [Example](./examples/example_bitify_circom.py)).
+Note that some constraints that are complex or expensive (require off-circuit computation) cannot be imported directly and require you to add "hint" function to pre-define the variable value (see [Example](./examples/example_bitify_circom.py)).
 
 ### Trusted setup phase
 

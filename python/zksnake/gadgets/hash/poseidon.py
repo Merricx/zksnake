@@ -1,5 +1,12 @@
-from ..symbolic import Symbol, SymbolArray
-from ..r1cs import ConstraintTemplate
+"""
+R1CS template of Poseidon hash
+
+Heavily referenced from:
+https://github.com/iden3/circomlib/blob/master/circuits/poseidon.circom
+"""
+
+from ...symbolic import Symbol, SymbolArray
+from ...r1cs import ConstraintTemplate
 from .constants import poseidon_bn254
 
 

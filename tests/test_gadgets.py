@@ -1,5 +1,6 @@
 import pytest
-from zksnake.gadgets import cmp, bitify, bitwise, poseidon
+from zksnake.gadgets import cmp, bitify, bitwise, binsum
+from zksnake.gadgets.hash import poseidon
 from zksnake.symbolic import Symbol, SymbolArray
 from zksnake.r1cs import ConstraintSystem
 
@@ -193,3 +194,35 @@ def test_poseidon(poseidon_test_vector):
         cs.add_template(out == poseidon_hash("hash", sym_inputs))
 
         cs.evaluate(poseidon_eval, {"out": expected})
+
+
+def test_binsum():
+
+    ops = 3
+    n_bit = 8
+    inp = []
+    for i in range(ops):
+        inp.append(SymbolArray(f"inp[{i}]", n_bit))
+
+    out = SymbolArray("out", binsum.nbits((2**n_bit - 1) * ops))
+
+    cs = ConstraintSystem(inp, [out])
+
+    bsum = binsum.BinSum(n_bit, ops)
+
+    cs.add_template(out == bsum("sum", inp))
+
+    for x, y, z in [(0, 1, 3), (7, 20, 12), (255, 255, 255)]:
+
+        vals = [x, y, z]
+
+        eval_input = {}
+        for i in range(ops):
+            for j in range(n_bit):
+                eval_input[f"inp[{i}][{j}]"] = (vals[i] >> j) & 1
+
+        cs.evaluate(eval_input)
+
+        expected_bits = bin(x + y + z)[2:].zfill(n_bit)[::-1]
+        for i in range(n_bit):
+            assert cs.vars[f"out[{i}]"] == int(expected_bits[i])
