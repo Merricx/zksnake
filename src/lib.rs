@@ -73,7 +73,23 @@ fn register_polynomial_module(py: Python, parent_module: &PyModule) -> PyResult<
         poly_bn254_module
     )?)?;
     poly_bn254_module.add_function(wrap_pyfunction!(
+        bn254::polynomial::coset_fft,
+        poly_bn254_module
+    )?)?;
+    poly_bn254_module.add_function(wrap_pyfunction!(
+        bn254::polynomial::coset_ifft,
+        poly_bn254_module
+    )?)?;
+    poly_bn254_module.add_function(wrap_pyfunction!(
         bn254::polynomial::evaluate_vanishing_polynomial,
+        poly_bn254_module
+    )?)?;
+    poly_bn254_module.add_function(wrap_pyfunction!(
+        bn254::polynomial::evaluate_lagrange_coefficients,
+        poly_bn254_module
+    )?)?;
+    poly_bn254_module.add_function(wrap_pyfunction!(
+        bn254::polynomial::mul_over_evaluation_domain,
         poly_bn254_module
     )?)?;
 
@@ -88,7 +104,23 @@ fn register_polynomial_module(py: Python, parent_module: &PyModule) -> PyResult<
         poly_bls12_381_module
     )?)?;
     poly_bls12_381_module.add_function(wrap_pyfunction!(
+        bls12_381::polynomial::coset_fft,
+        poly_bls12_381_module
+    )?)?;
+    poly_bls12_381_module.add_function(wrap_pyfunction!(
+        bls12_381::polynomial::coset_ifft,
+        poly_bls12_381_module
+    )?)?;
+    poly_bls12_381_module.add_function(wrap_pyfunction!(
+        bls12_381::polynomial::mul_over_evaluation_domain,
+        poly_bls12_381_module
+    )?)?;
+    poly_bls12_381_module.add_function(wrap_pyfunction!(
         bls12_381::polynomial::evaluate_vanishing_polynomial,
+        poly_bls12_381_module
+    )?)?;
+    poly_bls12_381_module.add_function(wrap_pyfunction!(
+        bls12_381::polynomial::evaluate_lagrange_coefficients,
         poly_bls12_381_module
     )?)?;
 
@@ -100,7 +132,7 @@ fn register_polynomial_module(py: Python, parent_module: &PyModule) -> PyResult<
 
 fn register_array_module(py: Python, parent_module: &PyModule) -> PyResult<()> {
     let array_module = PyModule::new(py, "array")?;
-    array_module.add_function(wrap_pyfunction!(array::dot_product, array_module)?)?;
+    array_module.add_class::<array::SparseArray>()?;
 
     parent_module.add_submodule(array_module)?;
 

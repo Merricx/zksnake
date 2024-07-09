@@ -1,100 +1,55 @@
 import pytest
 
 from zksnake.ecc import EllipticCurve
-from zksnake.qap import QAP
+from zksnake.symbolic import Symbol
 from zksnake.r1cs import ConstraintSystem
 from zksnake.groth16 import Prover, Proof, Setup, Verifier
 
 
 @pytest.fixture
-def qap_data_bn128():
+def qap_data_bn254():
 
-    return {
-        "U": [
-            [0, 0],
-            [0, 0],
-            [
-                2,
-                21888242871839275222246405745257275088548364400416034343698204186575808495616,
-            ],
-            [
-                21888242871839275222246405745257275088548364400416034343698204186575808495616,
-                1,
-            ],
-        ],
-        "V": [[0, 0], [0, 0], [1, 0], [0, 0]],
-        "W": [
-            [
-                5,
-                21888242871839275222246405745257275088548364400416034343698204186575808495612,
-            ],
-            [
-                21888242871839275222246405745257275088548364400416034343698204186575808495616,
-                1,
-            ],
-            [
-                1,
-                21888242871839275222246405745257275088548364400416034343698204186575808495616,
-            ],
-            [
-                2,
-                21888242871839275222246405745257275088548364400416034343698204186575808495616,
-            ],
-        ],
-    }
+    x = Symbol("x")
+    y = Symbol("y")
+    v1 = Symbol("v1")
+
+    cs = ConstraintSystem(["x"], ["y"])
+    cs.add_constraint(v1 == x * x)
+    cs.add_constraint(y - 5 - x == v1 * x)
+    cs.set_public(y)
+
+    pub, priv = cs.solve({"x": 3}, {"y": 35})
+
+    qap = cs.compile()
+
+    return qap, (pub, priv)
 
 
 @pytest.fixture
 def qap_data_bls12_381():
-    return {
-        "U": [
-            [0, 0],
-            [0, 0],
-            [
-                2,
-                52435875175126190479447740508185965837690552500527637822603658699938581184512,
-            ],
-            [
-                52435875175126190479447740508185965837690552500527637822603658699938581184512,
-                1,
-            ],
-        ],
-        "V": [[0, 0], [0, 0], [1, 0], [0, 0]],
-        "W": [
-            [
-                5,
-                52435875175126190479447740508185965837690552500527637822603658699938581184508,
-            ],
-            [
-                52435875175126190479447740508185965837690552500527637822603658699938581184512,
-                1,
-            ],
-            [
-                1,
-                52435875175126190479447740508185965837690552500527637822603658699938581184512,
-            ],
-            [
-                2,
-                52435875175126190479447740508185965837690552500527637822603658699938581184512,
-            ],
-        ],
-    }
+    x = Symbol("x")
+    y = Symbol("y")
+    v1 = Symbol("v1")
+
+    cs = ConstraintSystem(["x"], ["y"], "BLS12_381")
+    cs.add_constraint(v1 == x * x)
+    cs.add_constraint(y - 5 - x == v1 * x)
+    cs.set_public(y)
+
+    pub, priv = cs.solve({"x": 3}, {"y": 35})
+
+    qap = cs.compile()
+
+    return qap, (pub, priv)
 
 
-def test_groth16_bn128(qap_data_bn128):
+def test_groth16_bn254(qap_data_bn254):
 
-    qap = QAP(EllipticCurve("BN128").order)
-
-    qap.U = qap_data_bn128["U"]
-    qap.V = qap_data_bn128["V"]
-    qap.W = qap_data_bn128["W"]
-    qap.n_public = 2
+    qap, witness = qap_data_bn254
+    pub, priv = witness
 
     setup = Setup(qap)
     pk, vk = setup.generate()
-
-    pub = [1, 35]
-    priv = [3, 9]
 
     prover = Prover(qap, pk)
     proof = prover.prove(pub, priv)
@@ -105,18 +60,11 @@ def test_groth16_bn128(qap_data_bn128):
 
 def test_groth16_bls12_381(qap_data_bls12_381):
 
-    qap = QAP(EllipticCurve("BLS12_381").order)
-
-    qap.U = qap_data_bls12_381["U"]
-    qap.V = qap_data_bls12_381["V"]
-    qap.W = qap_data_bls12_381["W"]
-    qap.n_public = 2
+    qap, witness = qap_data_bls12_381
+    pub, priv = witness
 
     setup = Setup(qap, "BLS12_381")
     pk, vk = setup.generate()
-
-    pub = [1, 35]
-    priv = [3, 9]
 
     prover = Prover(qap, pk, "BLS12_381")
     proof = prover.prove(pub, priv)
@@ -156,9 +104,39 @@ def test_groth16_from_circom():
     assert verifier.verify(proof, pub)
 
 
-def test_proof_serialization_bn128():
+def test_unused_public_input():
 
-    E = EllipticCurve("BN128")
+    x = Symbol("x")
+    y = Symbol("y")
+    v1 = Symbol("v1")
+    unused = Symbol("unused")
+
+    cs = ConstraintSystem(["x", "unused"], ["y"])
+    cs.add_constraint(v1 == x * x)
+    cs.add_constraint(y - 5 - x == v1 * x)
+    cs.set_public(unused)
+    cs.set_public(y)
+
+    pub, priv = cs.solve({"x": 3, "unused": 1337}, {"y": 35})
+
+    qap = cs.compile()
+
+    setup = Setup(qap)
+    pkey, vkey = setup.generate()
+
+    prover = Prover(qap, pkey)
+    verifier = Verifier(vkey)
+
+    proof = prover.prove(pub, priv)
+
+    # try to forge public witness with same proof
+    pub[2] = 1330000000
+    assert verifier.verify(proof, pub) is False
+
+
+def test_proof_serialization_bn254():
+
+    E = EllipticCurve("BN254")
     G1 = E.G1()
     G2 = E.G2()
 

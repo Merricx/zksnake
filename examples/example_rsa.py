@@ -7,15 +7,13 @@ p = Symbol("p")
 q = Symbol("q")
 v0 = Symbol("v0")
 v1 = Symbol("v1")
-v2 = Symbol("v2")
 n = Symbol("n")
 
 # prove that we know p and q such that n == p*q
 cs = ConstraintSystem(["p", "q"], ["n"])
 cs.add_constraint(v0 == 1 / (p - 1))  # make sure p != 1
 cs.add_constraint(v1 == 1 / (q - 1))  # make sure q != 1
-cs.add_constraint(v2 == p * q)
-cs.add_constraint(n == v2)
+cs.add_constraint(n == p * q)
 
 cs.set_public(n)  # value of n is public knowledge
 

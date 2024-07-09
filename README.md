@@ -1,27 +1,19 @@
 # zksnake
 
-Python implementation of zk-SNARKs (Zero Knowledge Succint Non-interactive ARgument of Knowledge).
+Python implementation of zk-SNARKs (Zero Knowledge Succint Non-interactive ARgument of Knowledge) using simple Symbolic expression.
 
 <!-- prettier-ignore-start -->
 > [!WARNING] 
-**This library is intended to be used as proof of concept, prototyping, and educational purpose only. It is NOT fully tested and NOT production-ready library!**
+**This library is intended to be used as proof of concept, prototyping, and educational purpose only. It is still in active development and not fully tested!**
 <!-- prettier-ignore-end -->
 
 ## Proving schemes and curves
 
 zksnake currently only support **Groth16** proving scheme with `BN254` and `BLS12-381` as supported curves. More proving schemes will be implemented in the future (hopefully).
 
-## Installation
-
-Requirements: **Python >= 3.9**
-
-```
-pip install zksnake
-```
-
 ## Usage
 
-### Build your constraints into QAP
+### Build constraints into QAP
 
 ```python
 from zksnake.symbolic import Symbol
@@ -31,7 +23,8 @@ x = Symbol('x')
 y = Symbol('y')
 v1 = Symbol('v1')
 
-# solution to: y == x**3 + x + 5
+# prove the solution of y == x**3 + x + 5
+# where x as input and y as output
 cs = ConstraintSystem(['x'], ['y'])
 cs.add_constraint(v1 == x*x)
 cs.add_constraint(y - 5 - x == v1*x)
@@ -49,7 +42,7 @@ cs = ConstraintSystem.from_file("circuit.r1cs", "circuit.sym")
 qap = cs.compile()
 ```
 
-Note that some constraints that are quite complex or expensive cannot just be imported directly and require you to add "hint" function to pre-define the variable value (see [Example](./examples/example_bitify_circom.py)).
+Note that some constraints that are complex or expensive (require off-circuit computation) cannot be imported directly and require you to add "hint" function to pre-define the variable value (see [Example](./examples/example_bitify_circom.py)).
 
 ### Trusted setup phase
 
@@ -82,7 +75,7 @@ assert verifier.verify(proof, public_witness)
 
 It is difficult to achieve high performance due to the nature of Python and there are still many unoptimized code (ie. using naive implementation) in the current implementation.
 
-Nevertheless, this library tries its best to achieve high performance as possible by utilizing Rust bindings via [pyo3](https://github.com/PyO3/pyo3) as a backend for all primitives computation based from [arkworks-rs/algebra](https://github.com/arkworks-rs/algebra) libraries. It also uses parallel and caching in the Python code where it possible.
+Nevertheless, this library tries its best to achieve high performance as possible by utilizing Rust bindings via [pyo3](https://github.com/PyO3/pyo3) as a backend for all primitives computation based from [arkworks-rs/algebra](https://github.com/arkworks-rs/algebra) libraries.
 
 Note that running zksnake via pypy is slightly slower than Cpython.
 
@@ -90,41 +83,44 @@ Note that running zksnake via pypy is slightly slower than Cpython.
 
 The benchmark was done in Macbook M1 Pro (8 cores).
 
-```bash
-$ python3 benchmarks/benchmark_script.py
+| Constraints | Compile  | Setup   | Prove   | Verify  |
+| ----------- | -------- | ------- | ------- | ------- |
+| 1024        | 0.0154s  | 0.7227s | 0.1201s | 0.0022s |
+| 2048        | 0.0414s  | 0.3480s | 0.2009s | 0.0019s |
+| 4096        | 0.1341s  | 0.5656s | 0.3827s | 0.0030s |
+| 8192        | 0.5653s  | 1.1019s | 0.7292s | 0.0019s |
+| 16384       | 2.0084s  | 2.2248s | 1.3297s | 0.0020s |
+| 32768       | 8.1905s  | 4.4819s | 2.5504s | 0.0020s |
+| 65536       | 34.4961s | 8.8074s | 4.8914s | 0.0021s |
 
-256 constraints
-==================================================
-Compile time: 0.03383898735046387
-Setup time: 0.24071812629699707
-Prove time: 0.10752201080322266
-Verify time: 0.0019559860229492188
+## Development
 
-512 constraints
-==================================================
-Compile time: 0.14043331146240234
-Setup time: 0.4345536231994629
-Prove time: 0.23484110832214355
-Verify time: 0.0019159317016601562
+Requirements:
 
-1024 constraints
-==================================================
-Compile time: 0.5702369213104248
-Setup time: 1.2666420936584473
-Prove time: 0.6734471321105957
-Verify time: 0.001953125
+- python3 >= 3.9
+- rust >= 1.77
 
-2048 constraints
-==================================================
-Compile time: 2.5771420001983643
-Setup time: 4.66642689704895
-Prove time: 2.2481582164764404
-Verify time: 0.0019867420196533203
+Install maturin:
 
-4096 constraints
-==================================================
-Compile time: 12.395374059677124
-Setup time: 17.877058029174805
-Prove time: 7.910065174102783
-Verify time: 0.0020728111267089844
+```
+pip install maturin
+```
+
+Setup virtual environment:
+
+```
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+Compile and install the editable module into venv:
+
+```
+maturin develop -r -E dev
+```
+
+Test the script:
+
+```
+python3 -m pytest tests
 ```

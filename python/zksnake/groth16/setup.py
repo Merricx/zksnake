@@ -4,7 +4,10 @@ from joblib import Parallel, delayed
 
 from ..qap import QAP
 from ..ecc import EllipticCurve
-from ..polynomial import PolynomialRing, evaluate_vanishing_polynomial
+from ..polynomial import (
+    evaluate_vanishing_polynomial,
+    evaluate_lagrange_coefficients,
+)
 from .prover import ProvingKey
 from .verifier import VerifyingKey
 from ..utils import get_random_int, get_n_jobs
@@ -12,13 +15,13 @@ from ..utils import get_random_int, get_n_jobs
 
 class Setup:
 
-    def __init__(self, qap: QAP, curve: str = "BN128"):
+    def __init__(self, qap: QAP, curve: str = "BN254"):
         """
         Trusted setup object
 
         Args:
             qap: QAP to be set up from
-            curve: `BN128` or `BLS12_381`
+            curve: `BN254` or `BLS12_381`
         """
         self.qap = qap
         self.E = EllipticCurve(curve)
@@ -47,21 +50,32 @@ class Setup:
         delta_G1 = G1 * delta
         delta_G2 = G2 * delta
 
-        degree = len(self.qap.U[0])
+        degree = self.qap.a.n_row
+        n_constraint = self.qap.a.n_col
 
-        L = self.qap.U
-        R = self.qap.V
-        O = self.qap.W
+        lagrange_coeffs = evaluate_lagrange_coefficients(degree, tau, self.order)
 
-        K = []
-        for i in range(len(O)):
-            k_list = []
-            # TODO: Slow! Need to refactor this implementation
-            for j in range(len(O[i])):
-                k_list.append((L[i][j] * beta + R[i][j] * alpha + O[i][j]) % self.order)
+        L = [0] * n_constraint
+        R = [0] * n_constraint
+        O = [0] * n_constraint
 
-            poly = PolynomialRing(k_list, self.order)
-            K.append(poly(tau))
+        for i, coeff in enumerate(lagrange_coeffs):
+            multipliers = self.qap.a.triplets_map.get(i, [])
+            for col, value in multipliers:
+                L[col] += coeff * value
+
+            multipliers = self.qap.b.triplets_map.get(i, [])
+            for col, value in multipliers:
+                R[col] += coeff * value
+
+            multipliers = self.qap.c.triplets_map.get(i, [])
+            for col, value in multipliers:
+                O[col] += coeff * value
+
+        K = [
+            (L[i] * beta + R[i] * alpha + O[i]) % self.order
+            for i in range(n_constraint)
+        ]
 
         t = evaluate_vanishing_polynomial(degree, tau, self.order)
 

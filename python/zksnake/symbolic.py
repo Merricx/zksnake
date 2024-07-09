@@ -1,4 +1,4 @@
-from copy import deepcopy
+from typing import Union
 
 
 class Symbol:
@@ -18,6 +18,9 @@ class Symbol:
         return self.__str__()
 
     def __eq__(self, other):
+        if not isinstance(other, Symbol) and not isinstance(other, int):
+            return NotImplemented
+
         if isinstance(self, Symbol) and self.op in ["VAR"]:
             return Equation(self, other)
         if isinstance(other, Symbol) and other.op in ["VAR"]:
@@ -256,6 +259,36 @@ class Equation(Symbol):
         raise NotImplementedError()
 
 
+class SymbolArray:
+    def __init__(self, name: str, n: int):
+        if n > 1:
+            self.data = [Symbol(f"{name}[{i}]") for i in range(n)]
+        else:
+            self.data = [Symbol(name)]
+
+        self.name = name
+        self.n = n
+
+    def __setitem__(self, index: int, value: Symbol):
+        if index >= self.n:
+            raise IndexError("Index out of range")
+        self.data[index] = value
+
+    def __getitem__(self, index: Union[int, slice]):
+        if isinstance(index, slice):
+            return [self.data[i] for i in range(*index.indices(len(self.data)))]
+        else:
+            if index >= self.n:
+                raise IndexError("Index out of range")
+            return self.data[index]
+
+    def __len__(self) -> int:
+        return len(self.data)
+
+    def explode(self) -> list[str]:
+        return [data.name for data in self.data]
+
+
 def __push_stack(eq, stack):
     left = eq.left
     right = eq.right
@@ -285,7 +318,8 @@ def symeval(stmt: Symbol, var_map: dict, p: int):
     if isinstance(stmt, int):
         return stmt % p
 
-    variables = deepcopy(var_map)
+    variables = var_map
+    temp_vars = {}
 
     stack = stmt.stack[:]
     __push_stack(stmt, stack)
@@ -294,8 +328,13 @@ def symeval(stmt: Symbol, var_map: dict, p: int):
         key, op, lhs, rhs = eq
 
         if isinstance(lhs, Symbol):
-            k = lhs.name if lhs.op == "VAR" else str(lhs)
-            left = variables[k] if not lhs.is_negative else -variables[k]
+            if lhs.op == "VAR":
+                left = (
+                    variables[lhs.name] if not lhs.is_negative else -variables[lhs.name]
+                )
+            else:
+                k = str(lhs)
+                left = temp_vars[k] if not lhs.is_negative else -temp_vars[k]
 
             if left is None:
                 raise ValueError(f"Value of {lhs} is not found in variable mapping")
@@ -303,8 +342,13 @@ def symeval(stmt: Symbol, var_map: dict, p: int):
             left = lhs
 
         if isinstance(rhs, Symbol):
-            k = rhs.name if rhs.op == "VAR" else str(rhs)
-            right = variables[k] if not rhs.is_negative else -variables[k]
+            if rhs.op == "VAR":
+                right = (
+                    variables[rhs.name] if not rhs.is_negative else -variables[rhs.name]
+                )
+            else:
+                k = str(rhs)
+                right = temp_vars[k] if not rhs.is_negative else -temp_vars[k]
 
             if right is None:
                 raise ValueError(f"Value of {rhs} is not found in variable mapping")
@@ -325,9 +369,12 @@ def symeval(stmt: Symbol, var_map: dict, p: int):
             key = str(lhs / rhs)
             result = left * pow(right, -1, p) % p
 
-        variables[key] = result
+        temp_vars[key] = result
 
-    return variables[str(stmt)] % p
+    if str(stmt) in variables:
+        return variables[str(stmt)] % p
+
+    return temp_vars[str(stmt)] % p
 
 
 def get_unassigned_var(stmt: Symbol, var_map: dict):

@@ -1,11 +1,10 @@
 import pytest
 
-from zksnake.symbolic import Symbol
+from zksnake.symbolic import Symbol, SymbolArray
 from zksnake.r1cs import ConstraintSystem, ConstraintTemplate
-from zksnake.groth16 import Prover, Setup, Verifier
 
 
-def test_basic_r1cs_bn128():
+def test_basic_r1cs_bn254():
 
     x = Symbol("x")
     y = Symbol("y")
@@ -93,60 +92,33 @@ def test_r1cs_loop_constraint():
     qap.evaluate_witness(pub + priv)
 
 
-def test_unused_public_input():
-
-    x = Symbol("x")
-    y = Symbol("y")
-    v1 = Symbol("v1")
-    unused = Symbol("unused")
-
-    cs = ConstraintSystem(["x", "unused"], ["y"])
-    cs.add_constraint(v1 == x * x)
-    cs.add_constraint(y - 5 - x == v1 * x)
-    cs.set_public(unused)
-    cs.set_public(y)
-
-    pub, priv = cs.solve({"x": 3, "unused": 1337}, {"y": 35})
-
-    qap = cs.compile()
-
-    setup = Setup(qap)
-    pkey, vkey = setup.generate()
-
-    prover = Prover(qap, pkey)
-    verifier = Verifier(vkey)
-
-    proof = prover.prove(pub, priv)
-
-    # try to forge proof from unused public input
-    pub[2] = 1330000000
-    assert verifier.verify(proof, pub) is False
-
-
 def test_constraint_template():
 
     class Power(ConstraintTemplate):
-        def main(self, *args, **kwds):
-            n_power = args[0]
+        def __init__(self, n):
+            super().__init__()
+            self.n_power = n
 
-            v = []
-            for i in range(n_power - 1):
-                v.append(Symbol(f"v{i}"))
+        def main(self, *args):
+            n_power = self.n_power
 
-            inp = Symbol("inp")
-            out = Symbol("out")
+            v = SymbolArray("v", n_power - 1)
+
+            inp = args[0]
+            out = args[1]
             self.add_constraint(v[0] == inp * inp)
             for i in range(1, n_power - 1):
                 self.add_constraint(v[i] == v[i - 1] * inp)
 
             self.add_constraint(out == v[n_power - 2])
-            self.set_public(out)
 
     i = Symbol("i")
     v1 = Symbol("v1")
     v2 = Symbol("v2")
     out = Symbol("out")
-    power = Power(["inp"], ["out"])
+    power3 = Power(3)
+    power5 = Power(5)
+    power8 = Power(8)
 
     cs1 = ConstraintSystem([i], [out])
     cs2 = ConstraintSystem([i], [out])
@@ -155,13 +127,13 @@ def test_constraint_template():
     cs3.add_constraint(v1 == i + 1)
     cs3.add_constraint(out == v2 * 2)
 
-    cs1.add_template(power(5), {"inp": i}, {"out": out})
-    cs3.add_template(power(3), {"inp": v1}, {"out": v2})
-    cs2.add_template(power(8), {"inp": i}, {"out": out})
+    cs1.add_template(out == power5("pow5", i))
+    cs2.add_template(out == power8("pow8", i))
+    cs3.add_template(v2 == power3("pow3", v1))
 
     assert cs1.evaluate({"i": 2}, {"out": 2**5})
     assert cs2.evaluate({"i": 2}, {"out": 2**8})
-    assert cs3.evaluate({"i": 3}, {"out": 4**3 * 2})
+    assert cs3.evaluate({"i": 3}, {"out": ((3 + 1) ** 3) * 2})
 
 
 def test_constraint_hint():
@@ -198,14 +170,15 @@ def test_constraint_hint():
 def test_constraint_template_with_hint():
 
     class Num2Bits(ConstraintTemplate):
-        def main(self, *args, **kwds):
-            n_bit = args[0]
+        def __init__(self, n):
+            super().__init__()
+            self.n_bit = n
 
-            v = []
-            for i in range(n_bit):
-                v.append(Symbol(f"bit{i}"))
+        def main(self, *args):
+            n_bit = self.n_bit
 
-            inp = Symbol("inp")
+            inp = args[0]
+            v = args[1]
 
             for i in range(n_bit):
                 self.add_constraint(0 == (1 - v[i]) * v[i])
@@ -223,20 +196,16 @@ def test_constraint_template_with_hint():
     n_bit = 256
     inp = Symbol("i")
     bits = []
-    outputs = {}
-    for i in range(n_bit):
-        v = Symbol(f"bit{i}")
-        bits.append(v)
-        outputs[f"bit{i}"] = v
+    out = SymbolArray("bit", n_bit)
 
-    num2bits = Num2Bits(["inp"], bits)
+    num2bits = Num2Bits(n_bit)
 
     cs = ConstraintSystem([inp], bits)
 
-    cs.add_template(num2bits(n_bit), {"inp": inp}, outputs)
+    cs.add_template(out == num2bits("n2b", inp))
 
     cs.evaluate({"i": 13333333337})
 
     expected_bits = bin(13333333337)[2:].zfill(n_bit)[::-1]
     for i in range(n_bit):
-        assert cs.vars[f"bit{i}"] == int(expected_bits[i])
+        assert cs.vars[f"bit[{i}]"] == int(expected_bits[i])

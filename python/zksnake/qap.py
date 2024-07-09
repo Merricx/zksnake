@@ -1,39 +1,23 @@
-from zksnake._algebra import array  # pylint: disable=no-name-in-module
-
-from .polynomial import PolynomialRing, ifft
-
-fft_cache = {}
+from .array import SparseArray
+from .polynomial import (
+    PolynomialRing,
+    ifft,
+    fft,
+    mul_over_evaluation_domain,
+)
 
 
 class QAP:
 
     def __init__(self, p):
-        self.U = []
-        self.V = []
-        self.W = []
+        self.a = []
+        self.b = []
+        self.c = []
         self.n_public = 0
 
         self.p = p
 
-    def _r1cs_to_qap_reduction(self, m, poly_m, index):
-        poly_list = []
-
-        for i in range(len(m[0])):
-            y = [0] * len(m)
-            for j in range(len(m)):
-                y[j] = m[j][i]
-
-            if tuple(y) not in fft_cache:
-                poly = ifft(y, self.p)
-                fft_cache[tuple(y)] = poly
-            else:
-                poly = fft_cache[tuple(y)]
-
-            poly_list.append(poly)
-
-        poly_m[index] = poly_list
-
-    def from_r1cs(self, A: list, B: list, C: list, n_public: int):
+    def from_r1cs(self, A: SparseArray, B: SparseArray, C: SparseArray, n_public: int):
         """
         Parse QAP from R1CS matrices
 
@@ -41,17 +25,17 @@ class QAP:
             A, B, C: matrix A,B,C from R1CS
             n_public: number of public variables in R1CS
         """
-        mat = (A, B, C)
         self.n_public = n_public
 
-        poly_m = [[]] * 3
+        next_power_2 = 1 << (A.n_row - 1).bit_length()
 
-        for i, m in enumerate(mat):
-            self._r1cs_to_qap_reduction(m, poly_m, i)
+        self.a = A
+        self.b = B
+        self.c = C
 
-        self.U, self.V, self.W = poly_m[0], poly_m[1], poly_m[2]
-
-        fft_cache.clear()
+        self.a.n_row = next_power_2
+        self.b.n_row = next_power_2
+        self.c.n_row = next_power_2
 
     def evaluate_witness(self, witness: list):
         """
@@ -64,17 +48,26 @@ class QAP:
             U, V, W, H: resulting polynomials to be proved
         """
 
-        poly_m = []
-        for m in (self.U, self.V, self.W):
-            result = array.dot_product(witness, m, self.p)
-            poly_m.append(PolynomialRing(result, self.p))
+        a = self.a.dot(witness)
+        b = self.b.dot(witness)
+        c = self.c.dot(witness)
 
-        U, V, W = poly_m[0], poly_m[1], poly_m[2]
+        u = PolynomialRing(ifft(a, self.p), self.p)
+        v = PolynomialRing(ifft(b, self.p), self.p)
+        w = PolynomialRing(ifft(c, self.p), self.p)
+
+        u_over_fft = fft(u.coeffs() + [0] * len(u.coeffs()), self.p)
+        v_over_fft = fft(v.coeffs() + [0] * len(u.coeffs()), self.p)
+
+        # UV = IFFT( FFT(U) * FFT(V) )
+        uv = mul_over_evaluation_domain(u_over_fft, v_over_fft, self.p)
+        uv = PolynomialRing(ifft(uv, self.p), self.p)
 
         # H = (U * V - W) / Z
-        HZ = U * V - W
-        H, remainder = HZ.divide_by_vanishing_poly()
+        # subtraction swap is needed to keep the domain of the polynomial intact
+        hz = -(w - uv)
+        h, remainder = hz.divide_by_vanishing_poly()
         if not remainder.is_zero():
             raise ValueError("(U * V - W) did not divided by Z to zero")
 
-        return U, V, W, H
+        return u, v, w, h

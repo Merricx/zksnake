@@ -7,7 +7,7 @@ name = "zksnake"
 dependencies = [
   "joblib>=1.4.0",
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 authors = [
   {name = "Merricx", email = "imam@merri.cx"},
 ]
