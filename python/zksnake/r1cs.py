@@ -1,11 +1,96 @@
 from __future__ import annotations
 from typing import Any, Union, Callable
+from joblib import Parallel, delayed
 
 from .symbolic import Symbol, SymbolArray, Equation, symeval, get_unassigned_var
 from .array import SparseArray
 from .ecc import EllipticCurve
 from .qap import QAP
 from .parser import R1CSReader
+from .utils import get_n_jobs
+
+
+def __transform(row, eq, witness, vec: list, p, is_neg=False):
+    if isinstance(eq, int):
+        value = (-eq if is_neg else eq) % p
+        vec.append((row, 0, value))
+        return
+
+    if eq.op == "VAR":
+        index = witness.index(eq.name)
+        if eq.is_negative or is_neg:
+            vec.append((row, index, (-1) % p))
+        else:
+            vec.append((row, index, 1))
+    elif eq.op == "ADD":
+        l = eq.left
+        r = eq.right
+
+        __transform(row, l, witness, vec, p)
+        __transform(row, r, witness, vec, p)
+    elif eq.op == "SUB":
+        l = eq.left
+        r = eq.right
+
+        __transform(row, l, witness, vec, p)
+        __transform(row, r, witness, vec, p, True)
+    elif eq.op == "MUL":
+        l = eq.left
+        r = eq.right
+
+        if isinstance(l, Symbol) and isinstance(r, Symbol):
+            raise ValueError(f"Constraint {eq} not in the form of C = A*B")
+
+        if isinstance(r, int):
+            l, r = r, l
+
+        index = witness.index(r.name)
+        value = (-l if is_neg else l) % p
+        vec.append((row, index, value))
+
+    elif eq.op == "DIV":
+        raise ValueError(f"Forbidden division operation occur at {eq}")
+    else:
+        raise ValueError(f"Invalid operation at {eq}")
+
+
+def consume_constraint(row, constraint, witness, p):
+    a = []
+    b = []
+    c = []
+
+    left = constraint.left
+    right = constraint.right
+
+    if right.op == "ADD":
+        __transform(row, right, witness, a, p)
+        b.append((row, 0, 1))
+
+        __transform(row, left, witness, c, p)
+    elif right.op == "SUB":
+        __transform(row, right, witness, a, p, True)
+        b.append((row, 0, 1))
+
+        __transform(row, left, witness, c, p)
+    elif right.op == "MUL":
+        __transform(row, right.left, witness, a, p)
+        __transform(row, right.right, witness, b, p)
+
+        __transform(row, left, witness, c, p)
+    elif right.op == "DIV":
+        __transform(row, right.left, witness, c, p)
+        __transform(row, right.right, witness, b, p)
+
+        __transform(row, left, witness, a, p)
+    elif right.op == "VAR":
+        __transform(row, right, witness, a, p)
+        b.append((row, 0, 1))
+
+        __transform(row, left, witness, c, p)
+    else:
+        raise ValueError(f"Invalid constraint at: {constraint}")
+
+    return a, b, c
 
 
 class BaseConstraint:
@@ -246,50 +331,6 @@ class ConstraintSystem(BaseConstraint):
     # pylint: disable=unused-private-member
     def __add_var(self, eq: Symbol):
         self._BaseConstraint__add_var(eq)  # pylint: disable=no-member
-
-    def __transform(self, row, eq, witness, vec: list, is_neg=False):
-
-        if isinstance(eq, int):
-            value = (-eq if is_neg else eq) % self.p
-            vec.append((row, 0, value))
-            return
-
-        if eq.op == "VAR":
-            index = witness.index(eq.name)
-            if eq.is_negative or is_neg:
-                vec.append((row, index, (-1) % self.p))
-            else:
-                vec.append((row, index, 1))
-        elif eq.op == "ADD":
-            l = eq.left
-            r = eq.right
-
-            self.__transform(row, l, witness, vec)
-            self.__transform(row, r, witness, vec)
-        elif eq.op == "SUB":
-            l = eq.left
-            r = eq.right
-
-            self.__transform(row, l, witness, vec)
-            self.__transform(row, r, witness, vec, True)
-        elif eq.op == "MUL":
-            l = eq.left
-            r = eq.right
-
-            if isinstance(l, Symbol) and isinstance(r, Symbol):
-                raise ValueError(f"Constraint {eq} not in the form of C = A*B")
-
-            if isinstance(r, int):
-                l, r = r, l
-
-            index = witness.index(r.name)
-            value = (-l if is_neg else l) % self.p
-            vec.append((row, index, value))
-
-        elif eq.op == "DIV":
-            raise ValueError(f"Forbidden division operation occur at {eq}")
-        else:
-            raise ValueError(f"Invalid operation at {eq}")
 
     def __get_witness_vector(self):
         public_input = [v for v in self.vars if v in self.inputs and v in self.public]
@@ -575,46 +616,20 @@ class ConstraintSystem(BaseConstraint):
         B = SparseArray([[]], row_length, col_length, self.p)
         C = SparseArray([[]], row_length, col_length, self.p)
 
-        for row, constraint in enumerate(self.constraints):
+        if len(self.constraints) > 8192:
+            n_job = get_n_jobs()
+        else:
+            n_job = 1
 
-            a = []
-            b = []
-            c = []
+        result = Parallel(n_jobs=n_job)(
+            delayed(consume_constraint)(row, constraint, witness, self.p)
+            for row, constraint in enumerate(self.constraints)
+        )
 
-            left = constraint.left
-            right = constraint.right
-
-            if right.op == "ADD":
-                self.__transform(row, right, witness, a)
-                b.append((row, 0, 1))
-
-                self.__transform(row, left, witness, c)
-            elif right.op == "SUB":
-                self.__transform(row, right, witness, a, True)
-                b.append((row, 0, 1))
-
-                self.__transform(row, left, witness, c)
-            elif right.op == "MUL":
-                self.__transform(row, right.left, witness, a)
-                self.__transform(row, right.right, witness, b)
-
-                self.__transform(row, left, witness, c)
-            elif right.op == "DIV":
-                self.__transform(row, right.left, witness, c)
-                self.__transform(row, right.right, witness, b)
-
-                self.__transform(row, left, witness, a)
-            elif right.op == "VAR":
-                self.__transform(row, right, witness, a)
-                b.append((row, 0, 1))
-
-                self.__transform(row, left, witness, c)
-            else:
-                raise ValueError(f"Invalid constraint at: {constraint}")
-
-            A.append(a)
-            B.append(b)
-            C.append(c)
+        for row in result:
+            A.append(row[0])
+            B.append(row[1])
+            C.append(row[2])
 
         qap = QAP(self.p)
         qap.from_r1cs(A, B, C, len(self.public) + 1)
