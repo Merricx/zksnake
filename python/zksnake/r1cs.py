@@ -9,6 +9,7 @@ from .qap import QAP
 from .parser import R1CSReader
 from .utils import get_n_jobs
 
+
 def __transform(row, eq, witness, vec: list, p, is_neg=False):
     if isinstance(eq, int):
         value = (-eq if is_neg else eq) % p
@@ -52,6 +53,7 @@ def __transform(row, eq, witness, vec: list, p, is_neg=False):
     else:
         raise ValueError(f"Invalid operation at {eq}")
 
+
 def consume_constraint(row, constraint, witness, p):
     a = []
     b = []
@@ -87,8 +89,9 @@ def consume_constraint(row, constraint, witness, p):
         __transform(row, left, witness, c, p)
     else:
         raise ValueError(f"Invalid constraint at: {constraint}")
-    
-    return a,b,c
+
+    return a, b, c
+
 
 class BaseConstraint:
     def __init__(
@@ -619,8 +622,7 @@ class ConstraintSystem(BaseConstraint):
             n_job = 1
 
         result = Parallel(n_jobs=n_job)(
-            delayed(consume_constraint)
-            (row, constraint, witness, self.p) 
+            delayed(consume_constraint)(row, constraint, witness, self.p)
             for row, constraint in enumerate(self.constraints)
         )
 
