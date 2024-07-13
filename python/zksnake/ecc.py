@@ -45,7 +45,12 @@ class EllipticCurve:
     def pairing(self, a, b):
         return self.curve.pairing(a, b)
 
-    def multi_pairing(self, a, b):
+    def multi_pairing(self, a: list, b: list):
+        """
+        Perform pairing of a[i] and b[i] in batch
+        and compute sum of the results
+        """
+        assert len(a) == len(b), "Length of a and b must be equal"
         return self.curve.multi_pairing(a, b)
 
     def batch_mul(self, g, s):
@@ -88,7 +93,23 @@ class EllipticCurve:
         else:
             raise TypeError(f"Invalid curve type: {g[0]}")
 
-    def __call__(self, x, y, z=1):
+    def from_hex(self, hexstring: str):
+        """
+        Construct Elliptic curve point from serialized hexstring
+        """
+        b = bytes.fromhex(hexstring)
+        n = CurvePointSize[self.name].value
+
+        if len(hexstring) == n:
+            return self.curve.PointG1.from_bytes(b)
+        elif len(hexstring) == n * 2:
+            return self.curve.PointG2.from_bytes(b)
+        else:
+            raise ValueError(
+                f"Hexstring size of {n} or {n*2} expected, got {len(hexstring)}"
+            )
+
+    def __call__(self, x, y):
 
         if isinstance(x, (tuple, list)) and isinstance(y, (tuple, list)):
             return self.curve.PointG2(x[0], x[1], y[0], y[1])

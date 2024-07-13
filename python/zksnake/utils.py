@@ -18,6 +18,11 @@ def get_n_jobs():
         return -1
 
 
+def split_list(data, n):
+    """Split data into n chunks"""
+    return [data[i : i + n] for i in range(0, len(data), n)]
+
+
 class Timer:
     def __init__(self, name):
         self.start_time = 0

@@ -3,7 +3,7 @@ import pytest
 from zksnake.ecc import EllipticCurve
 from zksnake.symbolic import Symbol
 from zksnake.r1cs import ConstraintSystem
-from zksnake.groth16 import Prover, Proof, Setup, Verifier
+from zksnake.groth16 import Prover, Proof, ProvingKey, Setup, Verifier, VerifyingKey
 
 
 @pytest.fixture
@@ -41,6 +41,26 @@ def qap_data_bls12_381():
     qap = cs.compile()
 
     return qap, (pub, priv)
+
+
+@pytest.fixture
+def trusted_setup_bn254(qap_data_bn254):
+    qap, _ = qap_data_bn254
+
+    setup = Setup(qap)
+    pk, vk = setup.generate()
+
+    return pk, vk
+
+
+@pytest.fixture
+def trusted_setup_bls12_381(qap_data_bls12_381):
+    qap, _ = qap_data_bls12_381
+
+    setup = Setup(qap, "BLS12_381")
+    pk, vk = setup.generate()
+
+    return pk, vk
 
 
 def test_groth16_bn254(qap_data_bn254):
@@ -170,3 +190,27 @@ def test_proof_serialization_bls12_381():
     proof2 = Proof.from_hex(hex_proof, "BLS12_381")
 
     assert str(proof1) == str(proof2)
+
+
+def test_key_serialization_bn254(trusted_setup_bn254):
+    pk, vk = trusted_setup_bn254
+
+    pk_bytes = pk.to_bytes()
+    pk2 = ProvingKey.from_bytes(pk_bytes, crv="BN254")
+    assert pk_bytes == pk2.to_bytes()
+
+    vk_hex = vk.to_hex()
+    vk2 = VerifyingKey.from_hex(vk_hex, crv="BN254")
+    assert vk_hex == vk2.to_hex()
+
+
+def test_key_serialization_bls12_381(trusted_setup_bls12_381):
+    pk, vk = trusted_setup_bls12_381
+
+    pk_bytes = pk.to_bytes()
+    pk2 = ProvingKey.from_bytes(pk_bytes, crv="BLS12_381")
+    assert pk_bytes == pk2.to_bytes()
+
+    vk_hex = vk.to_hex()
+    vk2 = VerifyingKey.from_hex(vk_hex, crv="BLS12_381")
+    assert vk_hex == vk2.to_hex()
