@@ -2,7 +2,7 @@
 
 from ..ecc import EllipticCurve, CurvePointSize
 from ..qap import QAP
-from ..utils import get_random_int
+from ..utils import get_random_int, split_list
 
 
 class Proof:
@@ -25,41 +25,24 @@ class Proof:
         E = EllipticCurve(crv)
 
         n = CurvePointSize[crv].value
-        total_points = n * 8
+        total_points = n * 4
         assert (
             len(s) == total_points
         ), f"Length of the Proof must equal {total_points} hex bytes"
 
-        ax, ay = int(s[:n], 16), int(s[n : n * 2], 16)
-        bx1, bx2, by1, by2 = (
-            int(s[n * 2 : n * 3], 16),
-            int(s[n * 3 : n * 4], 16),
-            int(s[n * 4 : n * 5], 16),
-            int(s[n * 5 : n * 6], 16),
-        )
-        cx, cy = int(s[n * 6 : n * 7], 16), int(s[n * 7 :], 16)
+        ax = s[:n]
+        bx = s[n : n * 3]
+        cx = s[n * 3 :]
 
-        A = E(ax, ay)
-        B = E((bx1, bx2), (by1, by2))
-        C = E(cx, cy)
+        A = E.from_hex(ax)
+        B = E.from_hex(bx)
+        C = E.from_hex(cx)
 
         return Proof(A, B, C)
 
     def to_hex(self) -> str:
         """Return hex representation of the Proof"""
-        if self.A.x.bit_length() <= 256:
-            n = 64
-        else:
-            n = 96
-
-        Ax, Ay = hex(self.A.x)[2:].zfill(n), hex(self.A.y)[2:].zfill(n)
-        Cx, Cy = hex(self.C.x)[2:].zfill(n), hex(self.C.y)[2:].zfill(n)
-
-        Bx, By = self.B.x, self.B.y
-        Bx1, Bx2 = hex(Bx[0])[2:].zfill(n), hex(Bx[1])[2:].zfill(n)
-        By1, By2 = hex(By[0])[2:].zfill(n), hex(By[1])[2:].zfill(n)
-
-        return Ax + Ay + Bx1 + Bx2 + By1 + By2 + Cx + Cy
+        return self.A.to_hex() + self.B.to_hex() + self.C.to_hex()
 
 
 class ProvingKey:
@@ -85,11 +68,98 @@ class ProvingKey:
         self.target_1 = target_G1
         self.kdelta_1 = k_delta_G1
 
-    def from_hex(self, s: str):
-        raise NotImplementedError()
+    @classmethod
+    def from_bytes(cls, s: bytes, crv="BN254"):
+        """Construct ProvingKey from bytes"""
+        E = EllipticCurve(crv)
 
-    def to_hex(self) -> str:
-        raise NotImplementedError()
+        n = CurvePointSize[crv].value // 2
+
+        fixed_blocks = s[: n * 7]
+        dynamic_blocks = s[n * 7 :]
+        s = split_list(fixed_blocks, n)
+
+        assert len(s) >= 7, "Invalid proving key length"
+
+        alpha_x = s[0]
+        beta2_x = s[1] + s[2]
+        delta2_x = s[3] + s[4]
+        beta1_x = s[5]
+        delta1_x = s[6]
+
+        tau_g1_length = int.from_bytes(dynamic_blocks[:8], "little")
+        dynamic_blocks = dynamic_blocks[8:]
+        tau_g1_blocks = split_list(dynamic_blocks[: tau_g1_length * n], n)
+        dynamic_blocks = dynamic_blocks[tau_g1_length * n :]
+
+        tau_g2_length = int.from_bytes(dynamic_blocks[:8], "little")
+        dynamic_blocks = dynamic_blocks[8:]
+        tau_g2_blocks = split_list(dynamic_blocks[: tau_g2_length * n * 2], n * 2)
+        dynamic_blocks = dynamic_blocks[tau_g2_length * n * 2 :]
+
+        target_g1_length = int.from_bytes(dynamic_blocks[:8], "little")
+        dynamic_blocks = dynamic_blocks[8:]
+        target_g1_blocks = split_list(dynamic_blocks[: target_g1_length * n], n)
+        dynamic_blocks = dynamic_blocks[target_g1_length * n :]
+
+        kdelta_g1_length = int.from_bytes(dynamic_blocks[:8], "little")
+        dynamic_blocks = dynamic_blocks[8:]
+        kdelta_g1_blocks = split_list(dynamic_blocks[: kdelta_g1_length * n], n)
+        dynamic_blocks = dynamic_blocks[kdelta_g1_length * n :]
+
+        alpha_1 = E.from_hex(alpha_x.hex())
+        beta_2 = E.from_hex(beta2_x.hex())
+        delta_2 = E.from_hex(delta2_x.hex())
+        beta_1 = E.from_hex(beta1_x.hex())
+        delta_1 = E.from_hex(delta1_x.hex())
+
+        tau_1 = []
+        for block in tau_g1_blocks:
+            tau_1.append(E.from_hex(block.hex()))
+
+        tau_2 = []
+        for block in tau_g2_blocks:
+            tau_2.append(E.from_hex(block.hex()))
+
+        target_1 = []
+        for block in target_g1_blocks:
+            target_1.append(E.from_hex(block.hex()))
+
+        kdelta_1 = []
+        for block in kdelta_g1_blocks:
+            kdelta_1.append(E.from_hex(block.hex()))
+
+        return ProvingKey(
+            alpha_1, beta_1, beta_2, delta_1, delta_2, tau_1, tau_2, target_1, kdelta_1
+        )
+
+    def to_bytes(self) -> bytes:
+        """Return bytes representation of the ProvingKey"""
+        s = (
+            self.alpha_1.to_bytes()
+            + self.beta_2.to_bytes()
+            + self.delta_2.to_bytes()
+            + self.beta_1.to_bytes()
+            + self.delta_1.to_bytes()
+        )
+
+        s += int.to_bytes(len(self.tau_1), 8, "little")
+        for t in self.tau_1:
+            s += t.to_bytes()
+
+        s += int.to_bytes(len(self.tau_2), 8, "little")
+        for t in self.tau_2:
+            s += t.to_bytes()
+
+        s += int.to_bytes(len(self.target_1), 8, "little")
+        for t in self.target_1:
+            s += t.to_bytes()
+
+        s += int.to_bytes(len(self.kdelta_1), 8, "little")
+        for k in self.kdelta_1:
+            s += k.to_bytes()
+
+        return bytes(s)
 
 
 class Prover:

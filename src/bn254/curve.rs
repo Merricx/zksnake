@@ -6,7 +6,7 @@ use ark_ec::{
 use ark_ff::{QuadExtField, Zero};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use num_bigint::BigUint;
-use pyo3::{exceptions::PyValueError, prelude::*};
+use pyo3::{exceptions::PyValueError, prelude::*, types::PyType};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 #[pyclass]
@@ -102,6 +102,33 @@ impl PointG1 {
 
     pub fn is_zero(&self) -> PyResult<bool> {
         Ok(self.point.eq(&G1Affine::identity()))
+    }
+
+    pub fn to_hex(&self) -> PyResult<String> {
+        let mut b = Vec::new();
+        let _ = self.point.serialize_compressed(&mut b);
+        let hex_string: String = b.iter().map(|byte| format!("{:02x}", byte)).collect();
+        Ok(hex_string)
+    }
+
+    pub fn to_bytes(&self) -> PyResult<Vec<u8>> {
+        let mut b = Vec::new();
+        let _ = self.point.serialize_compressed(&mut b);
+
+        Ok(b)
+    }
+
+    #[classmethod]
+    pub fn from_bytes(_cls: &PyType, hex: Vec<u8>) -> PyResult<Self> {
+        match G1Affine::deserialize_compressed(&*hex) {
+            Err(e) => Err(PyValueError::new_err(format!(
+                "Cannot deserialize point: {}",
+                e.to_string()
+            ))),
+            Ok(point) => Ok(PointG1 {
+                point: point.into(),
+            }),
+        }
     }
 }
 
@@ -207,6 +234,33 @@ impl PointG2 {
 
     pub fn is_zero(&self) -> PyResult<bool> {
         Ok(self.point.eq(&G2Affine::identity()))
+    }
+
+    pub fn to_hex(&self) -> PyResult<String> {
+        let mut b = Vec::new();
+        let _ = self.point.serialize_compressed(&mut b);
+        let hex_string: String = b.iter().map(|byte| format!("{:02x}", byte)).collect();
+        Ok(hex_string)
+    }
+
+    pub fn to_bytes(&self) -> PyResult<Vec<u8>> {
+        let mut b = Vec::new();
+        let _ = self.point.serialize_compressed(&mut b);
+
+        Ok(b)
+    }
+
+    #[classmethod]
+    pub fn from_bytes(_cls: &PyType, hex: Vec<u8>) -> PyResult<Self> {
+        match G2Affine::deserialize_compressed(&*hex) {
+            Err(e) => Err(PyValueError::new_err(format!(
+                "Cannot deserialize point: {}",
+                e.to_string()
+            ))),
+            Ok(point) => Ok(PointG2 {
+                point: point.into(),
+            }),
+        }
     }
 }
 
