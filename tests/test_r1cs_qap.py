@@ -1,5 +1,6 @@
 import pytest
 
+from zksnake.groth16.qap import QAP
 from zksnake.symbolic import Symbol, SymbolArray
 from zksnake.r1cs import ConstraintSystem, ConstraintTemplate
 
@@ -17,7 +18,10 @@ def test_basic_r1cs_bn254():
 
     pub, priv = cs.solve({"x": 3}, {"y": 35})
 
-    qap = cs.compile()
+    r1cs = cs.compile()
+
+    qap = QAP()
+    qap.from_r1cs(r1cs)
 
     qap.evaluate_witness(pub + priv)
 
@@ -33,7 +37,10 @@ def test_basic_r1cs_bls12_381():
     cs.add_constraint(y - 5 - x == v1 * x)
     cs.set_public(y)
 
-    qap = cs.compile()
+    r1cs = cs.compile()
+
+    qap = QAP()
+    qap.from_r1cs(r1cs)
 
     pub, priv = cs.solve({"x": 3}, {"y": 35})
 
@@ -60,7 +67,9 @@ def test_constraint_structure():
 
     cs.set_public(y)
 
-    qap = cs.compile()
+    r1cs = cs.compile()
+    qap = QAP()
+    qap.from_r1cs(r1cs)
 
     pub, priv = cs.solve({"x": 3})
 
@@ -85,7 +94,9 @@ def test_r1cs_loop_constraint():
     cs.add_constraint(out == v[n_power - 2])
     cs.set_public(out)
 
-    qap = cs.compile()
+    r1cs = cs.compile()
+    qap = QAP()
+    qap.from_r1cs(r1cs)
 
     pub, priv = cs.solve({"inp": 2}, {"out": 2**n_power})
 

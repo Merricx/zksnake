@@ -1,5 +1,6 @@
-from .array import SparseArray
-from .polynomial import (
+from zksnake.ecc import Q_BN254
+from zksnake.r1cs import R1CS
+from ..polynomial import (
     PolynomialRing,
     ifft,
     fft,
@@ -9,29 +10,28 @@ from .polynomial import (
 
 class QAP:
 
-    def __init__(self, p):
+    def __init__(self, p=None):
         self.a = []
         self.b = []
         self.c = []
         self.n_public = 0
 
-        self.p = p
+        self.p = p or Q_BN254
 
-    def from_r1cs(self, A: SparseArray, B: SparseArray, C: SparseArray, n_public: int):
+    def from_r1cs(self, r1cs: R1CS):
         """
         Parse QAP from R1CS matrices
 
         Args:
-            A, B, C: matrix A,B,C from R1CS
-            n_public: number of public variables in R1CS
+            r1cs: R1CS object
         """
-        self.n_public = n_public
+        self.n_public = r1cs.n_public
 
-        next_power_2 = 1 << (A.n_row - 1).bit_length()
+        next_power_2 = 1 << (r1cs.A.n_row - 1).bit_length()
 
-        self.a = A
-        self.b = B
-        self.c = C
+        self.a = r1cs.A
+        self.b = r1cs.B
+        self.c = r1cs.C
 
         self.a.n_row = next_power_2
         self.b.n_row = next_power_2

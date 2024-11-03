@@ -1,8 +1,9 @@
 """Trusted setup module of Groth16 protocol"""
 
 from joblib import Parallel, delayed
+from zksnake.r1cs import R1CS
 
-from ..qap import QAP
+from .qap import QAP
 from ..ecc import EllipticCurve
 from ..polynomial import (
     evaluate_vanishing_polynomial,
@@ -15,17 +16,18 @@ from ..utils import get_random_int, get_n_jobs
 
 class Setup:
 
-    def __init__(self, qap: QAP, curve: str = "BN254"):
+    def __init__(self, r1cs: R1CS, curve: str = "BN254"):
         """
         Trusted setup object
 
         Args:
-            qap: QAP to be set up from
+            r1cs: R1CS to be set up from
             curve: `BN254` or `BLS12_381`
         """
-        self.qap = qap
         self.E = EllipticCurve(curve)
         self.order = self.E.order
+        self.qap = QAP(self.order)
+        self.qap.from_r1cs(r1cs)
 
     def generate(self) -> tuple[ProvingKey, VerifyingKey]:
         """Generate `ProvingKey` and `VerifyingKey`"""
