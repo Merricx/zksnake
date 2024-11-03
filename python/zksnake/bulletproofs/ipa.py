@@ -28,7 +28,7 @@ class InnerProductProof:
         E = EllipticCurve(crv)
         n = CurvePointSize[crv].value // 2
 
-        assert len(s) % n == 0, "Invalid proof length"
+        assert (len(s)-64) % n == 0, "Invalid proof length"
 
         Ls = []
         Rs = []

@@ -35,7 +35,7 @@ class RangeProof:
         E = EllipticCurve(crv)
         n = CurvePointSize[crv].value // 2
 
-        assert len(s) % n == 0, "Invalid proof length"
+        assert (len(s)-160) % n == 0, "Invalid proof length"
 
         point_s = split_list(s[:4*n], n)
         field_s = split_list(s[4*n:4*n+32*3], 32)
@@ -50,7 +50,7 @@ class RangeProof:
         t = int.from_bytes(field_s[0], 'little')
         t_blinding = int.from_bytes(field_s[1], 'little')
         e_blinding = int.from_bytes(field_s[2], 'little')
-        ipa_proof = ipa.InnerProductProof.from_bytes(ipa_s)
+        ipa_proof = ipa.InnerProductProof.from_bytes(ipa_s, crv)
 
         return RangeProof(A, S, T1, T2, t, t_blinding, e_blinding, ipa_proof)
 
