@@ -13,7 +13,7 @@ zksnake currently only support **Groth16** proving scheme with `BN254` and `BLS1
 
 ## Usage
 
-### Build constraints into QAP
+### Build constraints
 
 ```python
 from zksnake.symbolic import Symbol
@@ -30,7 +30,7 @@ cs.add_constraint(v1 == x*x)
 cs.add_constraint(y - 5 - x == v1*x)
 cs.set_public(y)
 
-qap = cs.compile()
+r1cs = cs.compile()
 ```
 
 Alternatively, you can import the constraints from [Circom](https://github.com/iden3/circom):
@@ -39,7 +39,7 @@ Alternatively, you can import the constraints from [Circom](https://github.com/i
 from zksnake.r1cs import ConstraintSystem
 
 cs = ConstraintSystem.from_file("circuit.r1cs", "circuit.sym")
-qap = cs.compile()
+r1cs = cs.compile()
 ```
 
 Note that some constraints that are complex or expensive (require off-circuit computation) cannot be imported directly and require you to add "hint" function to pre-define the variable value (see [Example](./examples/example_bitify_circom.py)).
@@ -50,7 +50,7 @@ Note that some constraints that are complex or expensive (require off-circuit co
 from zksnake.groth16 import Setup
 
 # one time setup
-setup = Setup(qap)
+setup = Setup(r1cs)
 prover_key, verifier_key = setup.generate()
 ```
 
@@ -63,7 +63,7 @@ from zksnake.groth16 import Prover, Verifier
 public_witness, private_witness = cs.solve({'x': 3}, {'y': 35})
 
 # proving
-prover = Prover(qap, prover_key)
+prover = Prover(r1cs, prover_key)
 proof = prover.prove(public_witness, private_witness)
 
 # verification
