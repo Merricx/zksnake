@@ -1,10 +1,12 @@
-use ark_bn254::{ Bn254, Fr, G1Affine, G1Projective, G2Affine, G2Projective };
+use ark_bn254::{ Bn254, Fq, Fr, G1Affine, G1Projective, G2Affine, G2Projective };
 use ark_ec::{ pairing::{ Pairing, PairingOutput }, AffineRepr, CurveGroup, Group, VariableBaseMSM };
-use ark_ff::{ QuadExtField, Zero };
+use ark_ff::{ field_hashers::{ DefaultFieldHasher, HashToField }, QuadExtField, Zero };
 use ark_serialize::{ CanonicalDeserialize, CanonicalSerialize };
+use bn254_hash2curve::hash2g1::HashToG1;
 use num_bigint::BigUint;
 use pyo3::{ exceptions::PyValueError, prelude::*, types::PyType };
 use rayon::iter::{ IntoParallelIterator, ParallelIterator };
+use sha2::Sha256;
 
 #[pyclass]
 #[derive(Clone, Debug, PartialEq, CanonicalSerialize, CanonicalDeserialize)]
@@ -131,9 +133,17 @@ impl PointG1 {
     }
 
     #[classmethod]
-    pub fn hash_to_curve(_cls: &PyType, data: Vec<u8>) -> PyResult<Self> {
-        let x = BigUint::from_bytes_be(&data);
-        Self::from_x(_cls, x)
+    pub fn hash_to_field(_cls: &PyType, dst: Vec<u8>, data: Vec<u8>) -> BigUint {
+        let hasher = <DefaultFieldHasher<Sha256> as HashToField<Fq>>::new(&dst);
+        let x: Vec<Fq> = hasher.hash_to_field(&data, 1);
+        x[0].into()
+    }
+
+    #[classmethod]
+    pub fn hash_to_curve(_cls: &PyType, dst: Vec<u8>, data: Vec<u8>) -> PyResult<Self> {
+        let point = HashToG1(&data, &dst);
+
+        Ok(PointG1 { point: point.into() })
     }
 
     #[classmethod]

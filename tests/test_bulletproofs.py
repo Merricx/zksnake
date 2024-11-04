@@ -1,8 +1,4 @@
 import pytest
-
-from zksnake.ecc import EllipticCurve
-from zksnake.symbolic import Symbol
-from zksnake.r1cs import ConstraintSystem
 from zksnake.bulletproofs import ipa, range_proof
 
 

@@ -1,4 +1,13 @@
-use ark_bls12_381::{ g1::Config, Bls12_381, Fr, G1Affine, G1Projective, G2Affine, G2Projective };
+use ark_bls12_381::{
+    g1::Config,
+    Bls12_381,
+    Fq,
+    Fr,
+    G1Affine,
+    G1Projective,
+    G2Affine,
+    G2Projective,
+};
 use ark_ec::{
     hashing::{ curve_maps::wb::WBMap, map_to_curve_hasher::MapToCurveBasedHasher, HashToCurve },
     pairing::{ Pairing, PairingOutput },
@@ -8,7 +17,7 @@ use ark_ec::{
     Group,
     VariableBaseMSM,
 };
-use ark_ff::{ field_hashers::DefaultFieldHasher, QuadExtField, Zero };
+use ark_ff::{ field_hashers::{ DefaultFieldHasher, HashToField }, QuadExtField, Zero };
 use ark_serialize::{ CanonicalDeserialize, CanonicalSerialize };
 use num_bigint::BigUint;
 use pyo3::{ exceptions::PyValueError, prelude::*, types::PyType };
@@ -132,14 +141,22 @@ impl PointG1 {
     }
 
     #[classmethod]
-    pub fn hash_to_curve(_cls: &PyType, data: Vec<u8>) -> PyResult<Self> {
+    pub fn hash_to_field(_cls: &PyType, dst: Vec<u8>, data: Vec<u8>) -> BigUint {
+        use sha2::Sha256;
+        let hasher = <DefaultFieldHasher<Sha256> as HashToField<Fq>>::new(&dst);
+        let x: Vec<Fq> = hasher.hash_to_field(&data, 1);
+        x[0].into()
+    }
+
+    #[classmethod]
+    pub fn hash_to_curve(_cls: &PyType, dst: Vec<u8>, data: Vec<u8>) -> PyResult<Self> {
         use sha2::Sha256;
         let hasher = MapToCurveBasedHasher::<
             Projective<Config>,
             DefaultFieldHasher<Sha256, 128>,
             WBMap<Config>
         >
-            ::new(&[1])
+            ::new(&dst)
             .unwrap();
 
         let point = hasher.hash(&data).unwrap();

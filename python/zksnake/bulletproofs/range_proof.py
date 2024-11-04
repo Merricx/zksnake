@@ -101,8 +101,8 @@ class Prover:
         self.transcript.append(A.to_bytes())
         self.transcript.append(S.to_bytes())
 
-        y = hash_to_scalar(self.transcript.get_challenge(), b'y', self.E.order)
-        z = hash_to_scalar(self.transcript.get_challenge(), b'z', self.E.order)
+        y = hash_to_scalar(self.transcript.get_challenge(), b'y', self.E.name)
+        z = hash_to_scalar(self.transcript.get_challenge(), b'z', self.E.name)
 
         l_0 = []
         l_1 = []
@@ -146,7 +146,7 @@ class Prover:
         self.transcript.append(T1.to_bytes())
         self.transcript.append(T2.to_bytes())
 
-        x = hash_to_scalar(self.transcript.get_challenge(), b'x', self.E.order)
+        x = hash_to_scalar(self.transcript.get_challenge(), b'x', self.E.name)
 
         l_list = [poly(x) for poly in l_vecpoly]
         r_list = [poly(x) for poly in r_vecpoly]
@@ -160,7 +160,7 @@ class Prover:
         self.transcript.append(t_blinding)
         self.transcript.append(e_blinding)
 
-        w = hash_to_scalar(self.transcript.get_challenge(), b'w', self.E.order)
+        w = hash_to_scalar(self.transcript.get_challenge(), b'w', self.E.name)
 
         Q = w * self.B
 
@@ -201,19 +201,19 @@ class Verifier:
         self.transcript.append(proof.A.to_bytes())
         self.transcript.append(proof.S.to_bytes())
 
-        y = hash_to_scalar(self.transcript.get_challenge(), b'y', self.E.order)
-        z = hash_to_scalar(self.transcript.get_challenge(), b'z', self.E.order)
+        y = hash_to_scalar(self.transcript.get_challenge(), b'y', self.E.name)
+        z = hash_to_scalar(self.transcript.get_challenge(), b'z', self.E.name)
 
         self.transcript.append(proof.T1.to_bytes())
         self.transcript.append(proof.T2.to_bytes())
 
-        x = hash_to_scalar(self.transcript.get_challenge(), b'x', self.E.order)
+        x = hash_to_scalar(self.transcript.get_challenge(), b'x', self.E.name)
 
         self.transcript.append(proof.t)
         self.transcript.append(proof.t_blinding)
         self.transcript.append(proof.e_blinding)
 
-        w = hash_to_scalar(self.transcript.get_challenge(), b'w', self.E.order)
+        w = hash_to_scalar(self.transcript.get_challenge(), b'w', self.E.name)
 
         self.transcript.reset()
 
@@ -235,7 +235,7 @@ class Verifier:
             self.transcript.append(proof.ipa_proof.R[i].to_bytes())
 
             u = hash_to_scalar(
-                self.transcript.get_challenge(), b'u', self.E.order)
+                self.transcript.get_challenge(), b'u', self.E.name)
 
             challenges.append(pow(u, 2, self.E.order))
             challenges_inv.append(pow(u, -2, self.E.order))

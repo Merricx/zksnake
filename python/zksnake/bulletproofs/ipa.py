@@ -119,7 +119,7 @@ class Prover:
             self.transcript.append(R.to_bytes())
 
             u = hash_to_scalar(
-                self.transcript.get_challenge(), b'u', self.E.order)
+                self.transcript.get_challenge(), b'u', self.E.name)
             u_inv = pow(u, -1, self.E.order)
             u_list.append(u)
 
@@ -174,7 +174,7 @@ class Verifier:
             self.transcript.append(proof.R[i].to_bytes())
 
             u = hash_to_scalar(
-                self.transcript.get_challenge(), b'u', self.E.order)
+                self.transcript.get_challenge(), b'u', self.E.name)
 
             challenges.append(pow(u, 2, self.E.order))
             challenges_inv.append(pow(u, -2, self.E.order))
