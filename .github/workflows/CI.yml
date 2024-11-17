@@ -62,7 +62,7 @@ jobs:
         uses: uraimo/run-on-arch-action@v2
         with:
           arch: ${{ matrix.platform.target }}
-          distro: ubuntu20.04
+          distro: ubuntu22.04
           githubToken: ${{ github.token }}
           # Copied from https://github.com/codecov/codecov-rs/blob/main/.github/workflows/publish.yml
           install: |
