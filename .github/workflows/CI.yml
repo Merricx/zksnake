@@ -74,11 +74,10 @@ jobs:
             apt-get install -y --no-install-recommends python3.12 python3.12-venv python3-pip
             python3.12 -m venv /venv
             source /venv/bin/activate
-            pip install -U pip pytest pylint
+            pip install -U pip pytest
           run: |
             set -e
             pip3 install zksnake --find-links dist --force-reinstall
-            pylint --disable=R,C,fixme,import-error python
             pytest
 
   windows:
