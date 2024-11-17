@@ -204,7 +204,7 @@ def test_constraint_template_with_hint():
                 f = lambda x, i: (x >> i) & 1
                 self.add_hint(f, b, (inp, i))
 
-    n_bit = 256
+    n_bit = 128
     inp = Symbol("i")
     bits = []
     out = SymbolArray("bit", n_bit)
