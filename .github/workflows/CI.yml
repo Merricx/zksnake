@@ -78,8 +78,8 @@ jobs:
           run: |
             set -e
             pip3 install zksnake --find-links dist --force-reinstall
-            pylint --disable=R,C,fixme,import-error python
-            pytest
+            python3 -m pylint --disable=R,C,fixme,import-error python
+            python3 -m pytest
 
   windows:
     runs-on: ${{ matrix.platform.runner }}
