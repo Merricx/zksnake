@@ -77,6 +77,7 @@ jobs:
             pip3 install pytest pylint
           run: |
             set -e
+            source /venv/bin/activate
             pip3 install zksnake --find-links dist --force-reinstall
             python3 -m pylint --disable=R,C,fixme,import-error python
             python3 -m pytest
