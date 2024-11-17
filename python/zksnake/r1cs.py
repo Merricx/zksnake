@@ -5,7 +5,6 @@ from joblib import Parallel, delayed
 from .symbolic import Symbol, SymbolArray, Equation, symeval, get_unassigned_var
 from .array import SparseArray
 from .ecc import EllipticCurve
-from .qap import QAP
 from .parser import R1CSReader
 from .utils import get_n_jobs
 
@@ -333,7 +332,8 @@ class ConstraintSystem(BaseConstraint):
         self._BaseConstraint__add_var(eq)  # pylint: disable=no-member
 
     def __get_witness_vector(self):
-        public_input = [v for v in self.vars if v in self.inputs and v in self.public]
+        public_input = [
+            v for v in self.vars if v in self.inputs and v in self.public]
         private_input = [
             v
             for v in self.vars
@@ -411,13 +411,15 @@ class ConstraintSystem(BaseConstraint):
                             target = target_l
                             coeff = coeff_l
                             left = target
-                            multiplier = pow(symeval(r, self.vars, self.p), -1, self.p)
+                            multiplier = pow(
+                                symeval(r, self.vars, self.p), -1, self.p)
 
                         elif not target_l and target_r:
                             target = target_r
                             coeff = coeff_r
                             left = target
-                            multiplier = pow(symeval(l, self.vars, self.p), -1, self.p)
+                            multiplier = pow(
+                                symeval(l, self.vars, self.p), -1, self.p)
 
                         else:
                             raise ValueError()
@@ -437,10 +439,12 @@ class ConstraintSystem(BaseConstraint):
                         # there will be 4 possible values in total:
                         # [val_1, -val_1, val_2, -val2]
                         val_1 = (
-                            (evaluated_right - diff) * inv_coeff * multiplier % self.p
+                            (evaluated_right - diff) *
+                            inv_coeff * multiplier % self.p
                         )
                         val_2 = (
-                            (evaluated_right + diff) * inv_coeff * multiplier % self.p
+                            (evaluated_right + diff) *
+                            inv_coeff * multiplier % self.p
                         )
 
                         for v in (val_1, -val_1, val_2, -val_2):
@@ -476,10 +480,12 @@ class ConstraintSystem(BaseConstraint):
                         self.vars[target.name] = 0
 
                         eval_l = (
-                            l if isinstance(l, int) else symeval(l, self.vars, self.p)
+                            l if isinstance(l, int) else symeval(
+                                l, self.vars, self.p)
                         )
                         eval_r = (
-                            r if isinstance(r, int) else symeval(r, self.vars, self.p)
+                            r if isinstance(r, int) else symeval(
+                                r, self.vars, self.p)
                         )
 
                         if not target_l:
@@ -546,7 +552,8 @@ class ConstraintSystem(BaseConstraint):
                     if isinstance(arg, Symbol) and self.vars.get(arg.name) is None:
                         break
                     elif (
-                        isinstance(arg, Symbol) and self.vars.get(arg.name) is not None
+                        isinstance(arg, Symbol) and self.vars.get(
+                            arg.name) is not None
                     ):
                         evaluated_args.append(self.vars[arg.name])
                     else:
@@ -559,7 +566,8 @@ class ConstraintSystem(BaseConstraint):
         """Evaluate the constraint system with given inputs and output"""
         output_values = output_values or {}
         if len(input_values) != len(self.inputs):
-            raise ValueError("Length of input values differ with input variables")
+            raise ValueError(
+                "Length of input values differ with input variables")
 
         for k, _ in self.vars.items():
             self.vars[k] = None
@@ -599,12 +607,12 @@ class ConstraintSystem(BaseConstraint):
                 eq = 0 == var * 0
                 self.add_constraint(eq)
 
-    def compile(self) -> QAP:
+    def compile(self) -> R1CS:
         """
-        Compile R1CS into Quadratic Arithmetic Program (QAP)
+        Compile list of constraints into R1CS
 
         Returns:
-            qap: QAP object of the constraint system
+            r1cs: R1CS object
         """
         self.__add_dummy_constraints()
         witness = self.__get_witness_vector()
@@ -621,7 +629,7 @@ class ConstraintSystem(BaseConstraint):
         else:
             n_job = 1
 
-        result = Parallel(n_jobs=n_job)(
+        result = Parallel(n_jobs=n_job, max_nbytes="100M")(
             delayed(consume_constraint)(row, constraint, witness, self.p)
             for row, constraint in enumerate(self.constraints)
         )
@@ -631,10 +639,7 @@ class ConstraintSystem(BaseConstraint):
             B.append(row[1])
             C.append(row[2])
 
-        qap = QAP(self.p)
-        qap.from_r1cs(A, B, C, len(self.public) + 1)
-
-        return qap
+        return R1CS(A, B, C, len(self.public) + 1)
 
     def solve(self, input_values: dict, output_value: dict = None) -> list:
         """
@@ -652,11 +657,12 @@ class ConstraintSystem(BaseConstraint):
         witness = self.__get_witness_vector()
 
         if not self.evaluate(input_values, output_value):
-            raise ValueError("Evaluated constraints are not satisfied with given input")
+            raise ValueError(
+                "Evaluated constraints are not satisfied with given input")
 
         w = self.__evaluate_witness_vector(witness)
 
-        return w[: len(self.public) + 1], w[len(self.public) + 1 :]
+        return w[: len(self.public) + 1], w[len(self.public) + 1:]
 
     @classmethod
     def from_file(cls, r1csfile: str, symfile: str = None):
@@ -684,4 +690,20 @@ class ConstraintSystem(BaseConstraint):
         return cs
 
     def to_file(self, filepath):
+        raise NotImplementedError
+
+
+class R1CS:
+
+    def __init__(self, A: SparseArray, B: SparseArray, C: SparseArray, n_public: int):
+        self.A = A
+        self.B = B
+        self.C = C
+        self.n_public = n_public
+
+    def to_bytes(self):
+        raise NotImplementedError
+
+    @classmethod
+    def from_bytes(cls, data):
         raise NotImplementedError

@@ -2,7 +2,6 @@ import os
 import random
 import time
 
-
 def get_random_int(n_max):
     """Get random integer in [1, n_max] range"""
     rand = random.SystemRandom()
@@ -22,6 +21,9 @@ def split_list(data, n):
     """Split data into n chunks"""
     return [data[i : i + n] for i in range(0, len(data), n)]
 
+def next_power_of_two(n: int):
+    """Get next 2^x number from n"""
+    return 1 << (n - 1).bit_length()
 
 class Timer:
     def __init__(self, name):

@@ -1,7 +1,8 @@
 """Proving module of Groth16 protocol"""
 
+from zksnake.r1cs import R1CS
 from ..ecc import EllipticCurve, CurvePointSize
-from ..qap import QAP
+from .qap import QAP
 from ..utils import get_random_int, split_list
 
 
@@ -167,24 +168,26 @@ class Prover:
     Prover object
 
     Args:
-        qap: QAP to be proved from
+        r1cs: R1CS to be proved from
         key: `ProvingKey` from trusted setup
         curve: `BN254` or `BLS12_381`
     """
 
-    def __init__(self, qap: QAP, key: ProvingKey, curve: str = "BN254"):
+    def __init__(self, r1cs: R1CS, key: ProvingKey, curve: str = "BN254"):
 
-        self.qap = qap
         self.key = key
         self.E = EllipticCurve(curve)
         self.order = self.E.order
+
+        self.qap = QAP(self.order)
+        self.qap.from_r1cs(r1cs)
 
         if key.delta_1.is_zero() or key.delta_2.is_zero():
             raise ValueError("Key delta_1 or delta_2 is zero element!")
 
     def prove(self, public_witness: list, private_witness: list) -> Proof:
         """
-        Prove statement from QAP by providing public and private witness
+        Prove statement from R1CS by providing public and private witness
         """
         assert len(self.key.kdelta_1) == len(
             private_witness
