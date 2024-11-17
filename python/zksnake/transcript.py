@@ -2,12 +2,12 @@ import hashlib
 from .ecc import EllipticCurve
 
 
-def hash_to_scalar(data: bytes, domain_separation_tag: bytes, curve: str = 'BN254', alg: str = 'sha256'):
+def hash_to_scalar(data: bytes, domain_separation_tag: bytes, curve: str = 'BN254'):
     E = EllipticCurve(curve)
     return E.curve.PointG1.hash_to_field(domain_separation_tag, data)
 
 
-def hash_to_curve(data: bytes, domain_separation_tag: bytes, curve: str = 'BN254', size: int = 1, alg: str = 'sha256'):
+def hash_to_curve(data: bytes, domain_separation_tag: bytes, curve: str = 'BN254', size: int = 1):
 
     E = EllipticCurve(curve)
 
@@ -43,6 +43,8 @@ class FiatShamirTranscript:
             self.hasher.update(data)
         elif data and isinstance(data, list) and isinstance(data[0], int):
             self.hasher.update(bytes(data))
+        else:
+            raise TypeError(f"Type of {type(data)} is not supported as transcript")
 
     def get_challenge(self):
         digest = self.hasher.digest()
