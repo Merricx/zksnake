@@ -2,7 +2,7 @@ import pytest
 
 from zksnake.ecc import EllipticCurve
 from zksnake.symbolic import Symbol
-from zksnake.r1cs import ConstraintSystem
+from zksnake.arithmetization.r1cs import ConstraintSystem
 from zksnake.groth16 import Prover, Proof, ProvingKey, Setup, Verifier, VerifyingKey
 
 

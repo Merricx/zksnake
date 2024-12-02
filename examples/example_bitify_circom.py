@@ -1,6 +1,6 @@
 import os
 from zksnake.symbolic import Symbol
-from zksnake.r1cs import ConstraintSystem
+from zksnake.arithmetization.r1cs import ConstraintSystem
 from zksnake.groth16 import Setup, Prover, Verifier
 
 folder = os.path.dirname(__file__)

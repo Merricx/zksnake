@@ -1,5 +1,6 @@
-from zksnake.ecc import Q_BN254
-from zksnake.r1cs import R1CS
+from zksnake.utils import next_power_of_two
+from ..ecc import Q_BN254
+from ..arithmetization.r1cs import R1CS
 from ..polynomial import (
     PolynomialRing,
     ifft,
@@ -52,19 +53,26 @@ class QAP:
         b = self.b.dot(witness)
         c = self.c.dot(witness)
 
+        # polynomial interpolation via IFFT
         u = PolynomialRing(ifft(a, self.p), self.p)
         v = PolynomialRing(ifft(b, self.p), self.p)
         w = PolynomialRing(ifft(c, self.p), self.p)
 
-        u_over_fft = fft(u.coeffs() + [0] * len(u.coeffs()), self.p)
-        v_over_fft = fft(v.coeffs() + [0] * len(u.coeffs()), self.p)
+        # +1 len hotfix ensure that coefficients is not in length of power of two
+        # when invoking to FFT call (TODO: find out why)
+        max_len = max(len(u.coeffs()), len(v.coeffs())) + 1
+        u_coeffs = u.coeffs() + [0] * (max_len - len(u.coeffs()))
+        v_coeffs = v.coeffs() + [0] * (max_len - len(v.coeffs()))
+
+        u_over_fft = fft(u_coeffs, self.p)
+        v_over_fft = fft(v_coeffs, self.p)
 
         # UV = IFFT( FFT(U) * FFT(V) )
         uv = mul_over_evaluation_domain(u_over_fft, v_over_fft, self.p)
         uv = PolynomialRing(ifft(uv, self.p), self.p)
 
         # H = (U * V - W) / Z
-        # subtraction swap is needed to keep the domain of the polynomial intact
+        # subtraction swap is needed to keep the evaluation domain of the polynomial intact
         hz = -(w - uv)
         h, remainder = hz.divide_by_vanishing_poly()
         if not remainder.is_zero():

@@ -1,5 +1,5 @@
 from ..symbolic import Symbol, SymbolArray
-from ..r1cs import ConstraintTemplate
+from ..arithmetization.constraints import ConstraintTemplate
 
 
 class NumToBits(ConstraintTemplate):

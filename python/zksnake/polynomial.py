@@ -12,28 +12,44 @@ POLY_OBJECT = {
 
 
 def PolynomialRing(coeffs, p):
+    """
+    Constructs a new polynomial from a list of coefficients over finite field `p`,
+    such that `... coeffs[2]*x^2 + coeffs[1]*x + coeffs[0]`.
+    """
     poly = POLY_OBJECT[p]
     return poly.PolynomialRing(coeffs)
 
 
-def fft(domain, p):
+def fft(coeffs, p):
+    """
+    Perform FFT from given `coeffs`
+    """
     poly = POLY_OBJECT[p]
-    return poly.fft(domain)
+    return poly.fft(coeffs)
 
 
-def coset_fft(domain, p):
+def coset_fft(coeffs, p):
+    """
+    Perform FFT over Coset from given `coeffs`
+    """
     poly = POLY_OBJECT[p]
-    return poly.coset_fft(domain)
+    return poly.coset_fft(coeffs)
 
 
-def ifft(domain, p):
+def ifft(coeffs, p):
+    """
+    Perform inverse FFT from given `coeffs`
+    """
     poly = POLY_OBJECT[p]
-    return poly.ifft(domain)
+    return poly.ifft(coeffs)
 
 
-def coset_ifft(domain, p):
+def coset_ifft(coeffs, p):
+    """
+    Perform inverse FFT over Coset from given `coeffs`
+    """
     poly = POLY_OBJECT[p]
-    return poly.coset_ifft(domain)
+    return poly.coset_ifft(coeffs)
 
 
 def mul_over_evaluation_domain(a, b, p):
@@ -49,3 +65,24 @@ def evaluate_vanishing_polynomial(domain, tau, p):
 def evaluate_lagrange_coefficients(domain, tau, p):
     poly = POLY_OBJECT[p]
     return poly.evaluate_lagrange_coefficients(domain, tau)
+
+def lagrange_polynomial(x, y, p):
+    """
+    Naive implementation of Lagrange interpolation from given points `(x_i, y_i)`.
+    For very big points, use iFFT instead.
+    """
+    M = len(x)
+    poly = PolynomialRing([0], p)
+    for j in range(M):
+        pt = PolynomialRing([y[j]], p)
+        for k in range(M):
+            if k == j:
+                continue
+            fac = x[j] - x[k]
+            divided_poly = [-x[k], 1]
+            res = []
+            for c in divided_poly:
+                res.append(c * pow(fac, -1, p) % p)
+            pt *= PolynomialRing(res, p)
+        poly += pt
+    return poly

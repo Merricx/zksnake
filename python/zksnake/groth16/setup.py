@@ -1,7 +1,7 @@
 """Trusted setup module of Groth16 protocol"""
 
 from joblib import Parallel, delayed
-from zksnake.r1cs import R1CS
+from ..arithmetization.r1cs import R1CS
 
 from .qap import QAP
 from ..ecc import EllipticCurve
@@ -88,7 +88,7 @@ class Setup:
         o = self.order
         tau_div_delta = Parallel(n_jobs=get_n_jobs())(
             delayed(lambda x: x * t * inv_delta % o)(power_of_tau[i])
-            for i in range(degree - 1)
+            for i in range(degree)
         )
 
         target_G1 = self.E.batch_mul(G1, tau_div_delta)

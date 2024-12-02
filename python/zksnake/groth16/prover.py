@@ -1,6 +1,6 @@
 """Proving module of Groth16 protocol"""
 
-from zksnake.r1cs import R1CS
+from ..arithmetization.r1cs import R1CS
 from ..ecc import EllipticCurve, CurvePointSize
 from .qap import QAP
 from ..utils import get_random_int, split_list

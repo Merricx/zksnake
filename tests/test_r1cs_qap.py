@@ -2,7 +2,8 @@ import pytest
 
 from zksnake.groth16.qap import QAP
 from zksnake.symbolic import Symbol, SymbolArray
-from zksnake.r1cs import ConstraintSystem, ConstraintTemplate
+from zksnake.arithmetization.constraints import ConstraintTemplate
+from zksnake.arithmetization.r1cs import ConstraintSystem
 
 
 def test_basic_r1cs_bn254():

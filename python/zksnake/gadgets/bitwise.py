@@ -1,5 +1,5 @@
 from ..symbolic import SymbolArray
-from ..r1cs import ConstraintTemplate
+from ..arithmetization.constraints import ConstraintTemplate
 from .bitify import NumToBits, BitsToNum
 
 

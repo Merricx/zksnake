@@ -6,7 +6,7 @@ https://github.com/iden3/circomlib/blob/master/circuits/poseidon.circom
 """
 
 from ...symbolic import Symbol, SymbolArray
-from ...r1cs import ConstraintTemplate
+from ...arithmetization.constraints import ConstraintTemplate
 from .constants import poseidon_bn254
 
 

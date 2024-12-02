@@ -2,7 +2,7 @@ import pytest
 from zksnake.gadgets import cmp, bitify, bitwise, binsum
 from zksnake.gadgets.hash import poseidon
 from zksnake.symbolic import Symbol, SymbolArray
-from zksnake.r1cs import ConstraintSystem
+from zksnake.arithmetization.r1cs import ConstraintSystem
 
 
 @pytest.fixture

@@ -1,6 +1,6 @@
 import time
 from zksnake.symbolic import Symbol
-from zksnake.r1cs import ConstraintSystem
+from zksnake.arithmetization.r1cs import ConstraintSystem
 
 from zksnake.groth16 import Setup, Prover, Verifier
 
