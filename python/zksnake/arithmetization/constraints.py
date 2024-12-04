@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Any, Union, Callable
 
-from ..symbolic import Symbol, SymbolArray, Equation
+from ..symbolic import Symbol, SymbolArray, Equation, get_unassigned_var, symeval
 
 class BaseConstraint:
     def __init__(
@@ -123,6 +123,208 @@ class BaseConstraint:
             self.public += public_vars.explode()
         else:
             raise TypeError(f"Invalid type of {public_vars}")
+        
+    def _consume_constraint_stack(self, constraints_stack: list):
+        skipped_constraints = []
+        for constraint in constraints_stack:
+            # print(self.vars)
+            # print(constraint)
+            # print()
+            left = constraint.left
+            right = constraint.right
+
+            if isinstance(left, Symbol) and isinstance(right, Symbol):
+                # if lhs is single assigned var, swap lhs and rhs
+                if left.op == "VAR" and self.vars[left.name] is not None:
+                    left, right = right, left
+
+                # if lhs is multiple vars but all assigned and rhs is not, swap lhs and rhs
+                elif (
+                    not get_unassigned_var(left, self.vars)[0]
+                    and get_unassigned_var(right, self.vars)[0]
+                ):
+                    left, right = right, left
+
+            try:
+                original_left = left
+                coeff = 1
+                multiplier = 1
+                if (
+                    isinstance(left, Symbol)
+                    and left.op not in ["VAR", "MUL"]
+                    and right.op in ["MUL", "DIV", "VAR"]
+                ):
+                    # Assign c in the form of c + v1 + v2 ... = (a)*(b)
+                    target, coeff = get_unassigned_var(left, self.vars)
+
+                    if target:
+                        left = target
+
+                elif isinstance(left, Symbol) and left.op == "MUL":
+                    # Assign a/b in the form of (a)*(b) = c + v1 + v2 ...
+                    target, coeff = get_unassigned_var(left, self.vars)
+
+                    if target:
+                        l = left.left
+                        r = left.right
+
+                        target_l, coeff_l = get_unassigned_var(l, self.vars)
+                        target_r, coeff_r = get_unassigned_var(r, self.vars)
+
+                        if target_l and not target_r:
+                            target = target_l
+                            coeff = coeff_l
+                            left = target
+                            multiplier = pow(
+                                symeval(r, self.vars, self.p), -1, self.p)
+
+                        elif not target_l and target_r:
+                            target = target_r
+                            coeff = coeff_r
+                            left = target
+                            multiplier = pow(
+                                symeval(l, self.vars, self.p), -1, self.p)
+
+                        else:
+                            raise ValueError()
+
+                if isinstance(left, Symbol) and left.op == "VAR":
+                    evaluated_right = symeval(right, self.vars, self.p)
+                    if self.vars[left.name] is None:
+                        # assign the value to variable in the lhs
+                        # by moving known values in lhs to rhs
+                        # and add/subtract to the evaluation of rhs
+
+                        self.vars[left.name] = 0
+                        diff = symeval(original_left, self.vars, self.p)
+
+                        inv_coeff = pow(coeff, -1, self.p)
+
+                        # there will be 4 possible values in total:
+                        # [val_1, -val_1, val_2, -val2]
+                        val_1 = (
+                            (evaluated_right - diff) *
+                            inv_coeff * multiplier % self.p
+                        )
+                        val_2 = (
+                            (evaluated_right + diff) *
+                            inv_coeff * multiplier % self.p
+                        )
+
+                        for v in (val_1, -val_1, val_2, -val_2):
+                            self.vars[left.name] = v % self.p
+                            check = symeval(original_left, self.vars, self.p)
+
+                            if check == evaluated_right:
+                                break
+
+                        assert check == evaluated_right, f"{check} != {evaluated_right}"
+
+                    else:
+                        # variable in the lhs already assigned, check the equality instead
+                        evaluated_left = self.vars[left.name]
+
+                        assert (
+                            evaluated_left == evaluated_right
+                        ), f"{evaluated_left} != {evaluated_right}"
+                elif isinstance(left, int):
+                    # lhs is constant integer, check if there is unassigned var in rhs
+
+                    l = right.left
+                    r = right.right
+
+                    # check both unassigned in l * r in case both of them is same var
+                    target_l, coeff_l = get_unassigned_var(l, self.vars)
+                    target_r, coeff_r = get_unassigned_var(r, self.vars)
+
+                    if (target_l and not target_r) or (not target_l and target_r):
+                        target = target_l or target_r
+                        coeff = coeff_l or coeff_r
+
+                        self.vars[target.name] = 0
+
+                        eval_l = (
+                            l if isinstance(l, int) else symeval(
+                                l, self.vars, self.p)
+                        )
+                        eval_r = (
+                            r if isinstance(r, int) else symeval(
+                                r, self.vars, self.p)
+                        )
+
+                        if not target_l:
+                            eval_known = eval_l
+                            eval_unknown = eval_r
+                        else:
+                            eval_known = eval_r
+                            eval_unknown = eval_l
+
+                        # 0 == (x+l) * (y+r)
+                        # l == -x
+                        if left == 0:
+                            self.vars[target.name] = 0 - eval_unknown
+
+                        # c == (x+l) * r
+                        # l == c * r^(-1) - x
+                        else:
+                            self.vars[target.name] = (
+                                left * pow(eval_known, -1, self.p) % self.p
+                            )
+                    # both of them are unassigned var, skip for now
+                    elif target_l and target_r:
+                        raise ValueError()
+
+                    evaluated_right = symeval(right, self.vars, self.p)
+
+                    assert (
+                        left % self.p == evaluated_right
+                    ), f"{left % self.p} != {evaluated_right}, {right}"
+                else:
+                    # no variable assignment, directly check if lhs == rhs hold
+                    evaluated_left = symeval(left, self.vars, self.p)
+                    evaluated_right = symeval(right, self.vars, self.p)
+
+                    assert (
+                        evaluated_left == evaluated_right
+                    ), f"{evaluated_left} != {evaluated_right}, {constraint}"
+
+            except ValueError:  # TODO! might better to avoid this
+                skipped_constraints.append(constraint)
+
+            except TypeError:  # TODO! might better to avoid this
+                skipped_constraints.append(constraint)
+
+        if skipped_constraints and len(skipped_constraints) == len(constraints_stack):
+            # print(self.vars)
+            raise ValueError(
+                f"There is more than one unknown value at : {skipped_constraints[0]}"
+            )
+
+        return skipped_constraints
+        
+    def _consume_hint(self):
+        for target, hint in self.hints.items():
+            func, args = hint
+
+            if target not in self.vars:
+                self.vars[target] = None
+                self.temp_vars.append(target)
+
+            if self.vars[target] is None:
+                evaluated_args = []
+                for arg in args:
+                    if isinstance(arg, Symbol) and self.vars.get(arg.name) is None:
+                        break
+                    elif (
+                        isinstance(arg, Symbol) and self.vars.get(
+                            arg.name) is not None
+                    ):
+                        evaluated_args.append(self.vars[arg.name])
+                    else:
+                        evaluated_args.append(arg)
+                else:
+                    result = func(*evaluated_args)
+                    self.vars[target] = int(result) % self.p
         
     def evaluate(self, input_values: dict, output_values: dict = None) -> bool:
         raise NotImplementedError

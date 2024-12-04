@@ -1,5 +1,5 @@
 from zksnake.utils import next_power_of_two
-from ..ecc import Q_BN254
+from ..constant import BN254_SCALAR_FIELD
 from ..arithmetization.r1cs import R1CS
 from ..polynomial import (
     PolynomialRing,
@@ -17,7 +17,7 @@ class QAP:
         self.c = []
         self.n_public = 0
 
-        self.p = p or Q_BN254
+        self.p = p or BN254_SCALAR_FIELD
 
     def from_r1cs(self, r1cs: R1CS):
         """
@@ -28,7 +28,7 @@ class QAP:
         """
         self.n_public = r1cs.n_public
 
-        next_power_2 = 1 << (r1cs.A.n_row - 1).bit_length()
+        next_power_2 = next_power_of_two(r1cs.A.n_row)
 
         self.a = r1cs.A
         self.b = r1cs.B
@@ -68,7 +68,7 @@ class QAP:
         v_over_fft = fft(v_coeffs, self.p)
 
         # UV = IFFT( FFT(U) * FFT(V) )
-        uv = mul_over_evaluation_domain(u_over_fft, v_over_fft, self.p)
+        uv = mul_over_evaluation_domain(self.a.n_row, u_over_fft, v_over_fft, self.p)
         uv = PolynomialRing(ifft(uv, self.p), self.p)
 
         # H = (U * V - W) / Z

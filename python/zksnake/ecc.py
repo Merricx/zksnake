@@ -1,6 +1,8 @@
 from enum import Enum
 
-from zksnake._algebra import ec_bn254, ec_bls12_381  # pylint: disable=no-name-in-module
+from zksnake._algebra import ec_bn254, ec_bls12_381 # pylint: disable=no-name-in-module
+from .constant import BLS12_381_MODULUS, BLS12_381_SCALAR_FIELD, BN254_MODULUS, BN254_SCALAR_FIELD
+
 
 
 class CurveType(Enum):
@@ -9,25 +11,17 @@ class CurveType(Enum):
     ALT_BN128 = ec_bn254
     BLS12_381 = ec_bls12_381
 
-P_BN254 = 21888242871839275222246405745257275088696311157297823662689037894645226208583
-Q_BN254 = 21888242871839275222246405745257275088548364400416034343698204186575808495617
-
-P_BLS12_381 = 4002409555221667393417789825735904156556882819939007885332058136124031650490837864442687629129015664037894272559787
-Q_BLS12_381 = (
-    52435875175126190479447740508185965837690552500527637822603658699938581184513
-)
-
 class CurveField(Enum):
-    BN128 = P_BN254
-    BN254 = P_BN254
-    ALT_BN128 = P_BN254
-    BLS12_381 = P_BLS12_381
+    BN128 = BN254_MODULUS
+    BN254 = BN254_MODULUS
+    ALT_BN128 = BN254_MODULUS
+    BLS12_381 = BLS12_381_MODULUS
 
 class CurveOrder(Enum):
-    BN128 = Q_BN254
-    BN254 = Q_BN254
-    ALT_BN128 = Q_BN254
-    BLS12_381 = Q_BLS12_381
+    BN128 = BN254_SCALAR_FIELD
+    BN254 = BN254_SCALAR_FIELD
+    ALT_BN128 = BN254_SCALAR_FIELD
+    BLS12_381 = BLS12_381_SCALAR_FIELD
 
 class CurvePointSize(Enum):
     BN128 = 64
@@ -35,6 +29,11 @@ class CurvePointSize(Enum):
     ALT_BN128 = 64
     BLS12_381 = 96
 
+def ispointG1(x):
+    return isinstance(x, (ec_bn254.PointG1, ec_bls12_381.PointG1))
+
+def ispointG2(x):
+    return isinstance(x, (ec_bn254.PointG2, ec_bls12_381.PointG2))
 
 class EllipticCurve:
     def __init__(self, curve: str):
@@ -44,17 +43,26 @@ class EllipticCurve:
         self.field_modulus = CurveField[curve].value
 
     def G1(self):
+        """
+        Return generator G1 of the curve
+        """
         return self.curve.g1()
 
     def G2(self):
+        """
+        Return generator G2 of the curve
+        """
         return self.curve.g2()
 
     def pairing(self, a, b):
+        """
+        Compute pairing, that is `e(a, b)`, where `a in G1` and `b in G2`
+        """
         return self.curve.pairing(a, b)
 
     def multi_pairing(self, a: list, b: list):
         """
-        Perform pairing of a[i] and b[i] in batch
+        Perform pairing of e(a[i], b[i]) in batch
         and compute sum of the results
         """
         assert len(a) == len(b), "Length of a and b must be equal"
@@ -98,7 +106,7 @@ class EllipticCurve:
         elif isinstance(g[0], self.curve.PointG2):
             return self.curve.multiscalar_mul_g2(g, s)
         else:
-            raise TypeError(f"Invalid curve type: {g[0]}")
+            raise TypeError(f"Invalid curve type: {type(g[0])}")
 
     def from_hex(self, hexstring: str):
         """
