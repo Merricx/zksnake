@@ -6,6 +6,7 @@ from ..polynomial import (
     ifft,
     fft,
     mul_over_evaluation_domain,
+    mul_over_fft,
 )
 
 
@@ -58,18 +59,8 @@ class QAP:
         v = PolynomialRing(ifft(b, self.p), self.p)
         w = PolynomialRing(ifft(c, self.p), self.p)
 
-        # +1 len hotfix ensure that coefficients is not in length of power of two
-        # when invoking to FFT call (TODO: find out why)
-        max_len = max(len(u.coeffs()), len(v.coeffs())) + 1
-        u_coeffs = u.coeffs() + [0] * (max_len - len(u.coeffs()))
-        v_coeffs = v.coeffs() + [0] * (max_len - len(v.coeffs()))
-
-        u_over_fft = fft(u_coeffs, self.p)
-        v_over_fft = fft(v_coeffs, self.p)
-
         # UV = IFFT( FFT(U) * FFT(V) )
-        uv = mul_over_evaluation_domain(self.a.n_row, u_over_fft, v_over_fft, self.p)
-        uv = PolynomialRing(ifft(uv, self.p), self.p)
+        uv = mul_over_fft(self.a.n_row, u, v, self.p)
 
         # H = (U * V - W) / Z
         # subtraction swap is needed to keep the evaluation domain of the polynomial intact

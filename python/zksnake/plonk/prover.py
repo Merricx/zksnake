@@ -1,7 +1,7 @@
 from ..transcript import FiatShamirTranscript
 from ..utils import Timer, batch_modinv, get_random_int, split_list
 from ..ecc import CurvePointSize, EllipticCurve
-from ..polynomial import PolynomialRing, fft, get_all_root_of_unity, ifft, mul_over_evaluation_domain, mul_over_fft
+from ..polynomial import PolynomialRing, fft, get_all_root_of_unity, ifft, mul_over_fft
 
 
 class ProvingKey:
@@ -103,7 +103,7 @@ class Prover:
             A_QL = mul_over_fft(self.n, A, QL, self.order,)
             B_QR = mul_over_fft(self.n, B, QR, self.order)
             C_QO = mul_over_fft(self.n, C, QO, self.order)
-            AB = mul_over_fft(self.n, A, B, self.order, False)
+            AB = mul_over_fft(self.n, A, B, self.order)
             AB_QM = mul_over_fft(self.n, AB, QM, self.order)
 
             G = A_QL + B_QR + AB_QM + C_QO + QC + PI
