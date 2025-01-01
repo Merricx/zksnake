@@ -531,7 +531,6 @@ impl ConstraintSystem {
                 if let Some(unassigned) = self.find_unassigned_var(&constraint.lhs) {
                     if self.assigned.insert(unassigned.clone()) {
                         let new_eq = constraint.lhs.isolate_term(&unassigned, &constraint.rhs);
-                        println!("{} = {}", &unassigned, new_eq.clone().to_expression());
                         self.sequence.push(SequenceRow::Assignment(unassigned, new_eq));
                     }
                 }
