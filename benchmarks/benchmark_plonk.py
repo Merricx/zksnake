@@ -1,21 +1,20 @@
 import time
-from zksnake.symbolic import Symbol
-from zksnake.arithmetization.plonkish import ConstraintSystem
-
+from zksnake.arithmetization import Var, ConstraintSystem
+from zksnake.arithmetization.plonkish import Plonkish
+from zksnake.constant import BN254_SCALAR_FIELD
 from zksnake.plonk import Setup, Prover, Verifier
-
 
 def run(n_power, crv):
 
     time_results = []
 
     v = []
-    inp = Symbol("inp")
-    out = Symbol("out")
+    inp = Var("inp")
+    out = Var("out")
     for i in range(n_power - 1):
-        v.append(Symbol(f"v{i}"))
+        v.append(Var(f"v{i}"))
 
-    cs = ConstraintSystem([inp], ["out"], crv)
+    cs = ConstraintSystem(['inp'], ["out"], BN254_SCALAR_FIELD)
 
     cs.add_constraint(v[0] == inp * inp)
     for i in range(1, n_power - 1):
@@ -25,11 +24,15 @@ def run(n_power, crv):
     cs.set_public(out)
 
     start = time.time()
-    plonkish = cs.compile()
+    plonkish = Plonkish(cs, crv)
+    plonkish.compile()
     end = time.time() - start
     time_results.append(end)
 
-    pub, priv = cs.solve({"inp": 2}, {"out": 2**n_power})
+    start = time.time()
+    pub, priv = plonkish.generate_witness(cs.solve({"inp": 2, "out": 2**n_power}))
+    end = time.time() - start
+    time_results.append(end)
 
     start = time.time()
     setup = Setup(plonkish, curve=crv)
@@ -52,7 +55,7 @@ def run(n_power, crv):
     return time_results
 
 
-n_constraint = [2**11, 2**12, 2**13, 2**14]
+n_constraint = [2**10, 2**11, 2**12, 2**13, 2**14, 2**15, 2**16]
 crvs = ["BN254"]
 
 results = []
@@ -62,7 +65,8 @@ for n in n_constraint:
         print(f"{n} constraints with {crv} curve")
         print("=" * 50)
         print("Compile time:", result[0])
-        print("Setup time:", result[1])
-        print("Prove time:", result[2])
-        print("Verify time:", result[3])
+        print("Witness gen time:", result[1])
+        print("Setup time:", result[2])
+        print("Prove time:", result[3])
+        print("Verify time:", result[4])
         print()

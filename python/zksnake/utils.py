@@ -28,7 +28,10 @@ def next_power_of_two(n: int):
 def is_power_of_two(n):
     return (n & (n - 1)) == 0
 
-def batch_modinv(a, m):
+def batch_modinv(a: list, m: int):
+    """
+    Compute modular inverse of `a[i]` over modulus `m` in batch
+    """
     n = len(a)
     prefix_products = [1] * n
 

@@ -1,7 +1,7 @@
 import csv
 from io import BytesIO
 from pathlib import Path
-from .symbolic import Symbol
+from ._algebra import circuit
 
 SUPPORTED_VERSION = [1]
 
@@ -175,15 +175,15 @@ class R1CSReader:
                 index, name = value
                 index = int(index)
                 if index > 0:
-                    self.wires[index] = Symbol(name)
+                    self.wires[index] = circuit.Field(name)
         else:
             public_inputs = [
-                Symbol(f"pub{i+1}") for i in range(self.header["n_pub_in"])
+                circuit.Field(f"pub{i+1}") for i in range(self.header["n_pub_in"])
             ]
             private_inputs = [
-                Symbol(f"priv{i+1}") for i in range(self.header["n_priv_in"])
+                circuit.Field(f"priv{i+1}") for i in range(self.header["n_priv_in"])
             ]
-            outputs = [Symbol(f"out{i+1}")
+            outputs = [circuit.Field(f"out{i+1}")
                        for i in range(self.header["n_pub_out"])]
 
             n_intermediate = self.header["n_wires"] - (
@@ -192,7 +192,7 @@ class R1CSReader:
                 + self.header["n_pub_out"]
                 + 1
             )
-            intermediate_vars = [Symbol(f"v{i+1}")
+            intermediate_vars = [circuit.Field(f"v{i+1}")
                                  for i in range(n_intermediate)]
 
             self.wires = (

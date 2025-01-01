@@ -1,4 +1,3 @@
-import builtins
 import hashlib
 from .ecc import EllipticCurve, ispointG1, ispointG2
 

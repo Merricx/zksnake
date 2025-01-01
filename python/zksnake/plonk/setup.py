@@ -2,7 +2,7 @@
 from ..arithmetization.plonkish import Plonkish
 from ..ecc import EllipticCurve
 from ..utils import get_random_int
-from ..polynomial import PolynomialRing, get_all_root_of_unity, get_nth_root_of_unity, ifft
+from ..polynomial import PolynomialRing, get_all_root_of_unity, ifft
 from .prover import ProvingKey
 from .verifier import VerifyingKey
 

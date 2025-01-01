@@ -1,21 +1,33 @@
 import time
-from zksnake.symbolic import Symbol
-from zksnake.arithmetization.r1cs import ConstraintSystem
-
+from zksnake.arithmetization import Var, ConstraintSystem
+from zksnake.arithmetization.r1cs import R1CS
+from zksnake.constant import BN254_SCALAR_FIELD
 from zksnake.groth16 import Setup, Prover, Verifier
 
+def evaluate_witness_vector(vars, witness, p):
+    w = []
+
+    for v in witness:
+        if v == '0':
+            w.append(1)
+        elif isinstance(v, str):
+            w.append(vars[v] % p)
+        else:
+            w.append(v % p)
+
+    return w
 
 def run(n_power, crv):
 
     time_results = []
 
     v = []
-    inp = Symbol("inp")
-    out = Symbol("out")
+    inp = Var("inp")
+    out = Var("out")
     for i in range(n_power - 1):
-        v.append(Symbol(f"v{i}"))
+        v.append(Var(f"v{i}"))
 
-    cs = ConstraintSystem([inp], ["out"], crv)
+    cs = ConstraintSystem(['inp'], ["out"], BN254_SCALAR_FIELD)
 
     cs.add_constraint(v[0] == inp * inp)
     for i in range(1, n_power - 1):
@@ -25,20 +37,24 @@ def run(n_power, crv):
     cs.set_public(out)
 
     start = time.time()
-    qap = cs.compile()
+    r1cs = R1CS(cs, crv)
+    r1cs.compile()
     end = time.time() - start
     time_results.append(end)
 
-    pub, priv = cs.solve({"inp": 2}, {"out": 2**n_power})
+    start = time.time()
+    pub, priv = r1cs.generate_witness(cs.solve({"inp": 2, "out": 2**n_power}))
+    end = time.time() - start
+    time_results.append(end)
 
     start = time.time()
-    setup = Setup(qap, crv)
+    setup = Setup(r1cs, crv)
     pk, vk = setup.generate()
     end = time.time() - start
     time_results.append(end)
 
     start = time.time()
-    prover = Prover(qap, pk, crv)
+    prover = Prover(r1cs, pk, crv)
     proof = prover.prove(pub, priv)
     end = time.time() - start
     time_results.append(end)
@@ -62,7 +78,8 @@ for n in n_constraint:
         print(f"{n} constraints with {crv} curve")
         print("=" * 50)
         print("Compile time:", result[0])
-        print("Setup time:", result[1])
-        print("Prove time:", result[2])
-        print("Verify time:", result[3])
+        print("Witness gen time:", result[1])
+        print("Setup time:", result[2])
+        print("Prove time:", result[3])
+        print("Verify time:", result[4])
         print()

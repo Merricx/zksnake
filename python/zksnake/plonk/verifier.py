@@ -1,7 +1,7 @@
 from ..ecc import EllipticCurve
 from .prover import Proof
 from ..transcript import FiatShamirTranscript
-from ..polynomial import PolynomialRing, evaluate_vanishing_polynomial, get_nth_root_of_unity, ifft
+from ..polynomial import PolynomialRing, barycentric_eval, evaluate_vanishing_polynomial, get_nth_root_of_unity, ifft
 
 class VerifyingKey:
 
@@ -82,9 +82,7 @@ class Verifier:
 
         return beta, gamma, alpha, zeta, v, u
     
-    def verify(self, proof: Proof, public_input: list):
-        
-        public_input += [0]*(self.n - len(public_input))
+    def verify(self, proof: Proof, public_input: dict):
 
         tau_QL = self.key.tau_selector_poly['L']
         tau_QR = self.key.tau_selector_poly['R']
@@ -101,13 +99,11 @@ class Verifier:
         k2 = 3
         
         L1 = PolynomialRing(ifft([1] + [0]*(self.n-1), self.order), self.order)
-        PI = PolynomialRing(ifft(public_input, self.order), self.order)
-
         omega = get_nth_root_of_unity(self.n, 1, self.order)
 
         Zh_zeta = evaluate_vanishing_polynomial(self.n, zeta, self.order)
         L1_zeta = L1(zeta)
-        PI_zeta = PI(zeta)
+        PI_zeta = barycentric_eval(self.n, public_input, zeta, self.order)
 
         r0 = (
             PI_zeta - L1_zeta * pow(alpha, 2, self.order) -
@@ -142,7 +138,7 @@ class Verifier:
         )
 
         tau_F = (
-            tau_D + proof.tau_a * v + 
+            tau_D + proof.tau_a * v +
             proof.tau_b * pow(v, 2, self.order) +
             proof.tau_c * pow(v, 3, self.order) +
             tau_sigma1 * pow(v, 4, self.order) +

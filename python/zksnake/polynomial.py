@@ -1,9 +1,10 @@
+from typing import Dict, Sequence, Tuple, Union
 # pylint: disable=no-name-in-module
 from zksnake._algebra import (
     polynomial_bn254,
     polynomial_bls12_381,
 )
-from .utils import is_power_of_two, next_power_of_two
+from .utils import next_power_of_two
 from .constant import BN254_SCALAR_FIELD, BLS12_381_SCALAR_FIELD
 
 POLY_OBJECT = {
@@ -12,15 +13,56 @@ POLY_OBJECT = {
 }
 
 
-def PolynomialRing(coeffs, p, domain_size=None):
+def PolynomialRing(coeffs: Union[Sequence[int], Dict[Tuple[int], int]], p, domain_size=None):
     """
-    Constructs a new polynomial from a list of coefficients over finite field `p`,
+    Construct univariate or multivariate polynomial
+    depending if `coeffs` is `list` or `dict`, respectively.
+
+    ## Univariate Polynomial
+    Constructs a new univariate polynomial from a list of coefficients over finite field `p`,
     such that `... coeffs[2]*x^2 + coeffs[1]*x + coeffs[0]`.
+
+    ## Multivariate Polynomial
+    Constructs a new multivariate polynomial that is
+    represented as a dictionary, where:
+        - Keys are tuples of non-negative integers representing the exponents
+          of each variable in a term (e.g., `(2, 1, 0)` for `x^2 * y^1 * z^0`).
+        - Values are the coefficients of the corresponding terms (e.g., `3` for `3 * x^2 * y`).
     """
     poly = POLY_OBJECT[p]
     if not domain_size:
         domain_size = len(coeffs)
-    return poly.PolynomialRing(coeffs, domain_size)
+
+    num_vars = 1
+    if isinstance(coeffs, list):
+        coeff_terms = []
+        for c in coeffs:
+            coeff_terms.append((c, [(0, 0)]))
+    elif isinstance(coeffs, dict):
+        coeff_terms = []
+        num_vars = len(next(iter(coeffs)))
+
+        for terms, coeff in coeffs.items():
+            sparse_terms = []
+            for v,power in enumerate(terms):
+                if power != 0:
+                    sparse_terms.append((v, power))
+            
+            coeff_terms.append((coeff, sparse_terms))
+    else:
+        raise TypeError("Coefficients must be in list or dict")
+
+    return poly.PolynomialRing(num_vars, coeff_terms, domain_size)
+
+def MultilinearPolynomial(num_vars: int, sparse_evaluations: Tuple[int, int], p: int):
+    """
+    Constructs Sparse Multilinear Polynomial from tuple of evaluations `(index, eval)`
+    of non-zero evaluation over boolean hypercube
+    """
+    poly = POLY_OBJECT[p]
+    if num_vars == 0:
+        return poly.MultilinearPolynomial.zero()
+    return poly.MultilinearPolynomial(num_vars, sparse_evaluations)
 
 def get_nth_root_of_unity(domain, i, p) -> int:
     """
@@ -73,9 +115,9 @@ def coset_ifft(coeffs, p, size=None):
     size = size or len(coeffs)
     return poly.coset_ifft(coeffs, size)
 
-def mul_over_fft(domain, a, b, p, return_poly=True):
-    a_degree = a.degree()
-    b_degree = b.degree()
+def _pad_coeffs(a, b):
+    a_degree = len(a)-1
+    b_degree = len(b)-1
 
     pad_a = []
     pad_b = []
@@ -91,15 +133,27 @@ def mul_over_fft(domain, a, b, p, return_poly=True):
     else:
         pad_a = [0]*next_power_of_two(a_degree)
         pad_b = [0]*next_power_of_two(a_degree)
+
+    a = a + pad_a
+    b = b + pad_b
+
+    return a,b
+
+def mul_over_fft(domain, a, b, p, return_poly=True):
+    a,b = _pad_coeffs(a.coeffs(), b.coeffs())
     
-    a_fft = fft(a.coeffs()+pad_a, p)
-    b_fft = fft(b.coeffs()+pad_b, p)
+    a_fft = fft(a, p)
+    b_fft = fft(b, p)
     ab_fft = mul_over_evaluation_domain(domain, a_fft, b_fft, p)
     
     if return_poly:
         return PolynomialRing(ifft(ab_fft, p), p, domain)
     
     return ab_fft
+
+def add_over_evaluation_domain(domain, a, b, p):
+    poly = POLY_OBJECT[p]
+    return poly.add_over_evaluation_domain(domain, a, b)
 
 def mul_over_evaluation_domain(domain, a, b, p):
     poly = POLY_OBJECT[p]
@@ -114,6 +168,19 @@ def evaluate_vanishing_polynomial(domain, tau, p):
 def evaluate_lagrange_coefficients(domain, tau, p):
     poly = POLY_OBJECT[p]
     return poly.evaluate_lagrange_coefficients(domain, tau)
+
+def barycentric_eval(domain, sparse_eval: dict, x, p):
+    """
+    Evaluate a polynomial at a given point x using sparse evaluation form.
+    """
+    omega = get_nth_root_of_unity(domain, 1, p)
+
+    for i in sparse_eval:
+        sum_i = 0
+        w_i = pow(omega, i, p)
+        sum_i += (sparse_eval[i] * w_i) * pow(x - w_i, -1, p)
+    
+    return (pow(x, domain, p) - 1) * pow(domain, -1, p) * sum_i
 
 def lagrange_polynomial(x, y, p):
     """

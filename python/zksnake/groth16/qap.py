@@ -1,11 +1,9 @@
-from zksnake.utils import next_power_of_two
+from ..utils import next_power_of_two
 from ..constant import BN254_SCALAR_FIELD
 from ..arithmetization.r1cs import R1CS
 from ..polynomial import (
     PolynomialRing,
     ifft,
-    fft,
-    mul_over_evaluation_domain,
     mul_over_fft,
 )
 
@@ -27,6 +25,8 @@ class QAP:
         Args:
             r1cs: R1CS object
         """
+        assert r1cs.A is not None, "R1CS is not compiled"
+
         self.n_public = r1cs.n_public
 
         next_power_2 = next_power_of_two(r1cs.A.n_row)

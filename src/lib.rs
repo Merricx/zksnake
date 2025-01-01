@@ -1,6 +1,7 @@
 mod array;
 mod bls12_381;
 mod bn254;
+mod arithmetization;
 use pyo3::prelude::*;
 
 fn register_bn254_module(py: Python, parent_module: &PyModule) -> PyResult<()> {
@@ -44,6 +45,7 @@ fn register_bls12_381_module(py: Python, parent_module: &PyModule) -> PyResult<(
 fn register_polynomial_module(py: Python, parent_module: &PyModule) -> PyResult<()> {
     let poly_bn254_module = PyModule::new(py, "polynomial_bn254")?;
     poly_bn254_module.add_class::<bn254::polynomial::PolynomialRing>()?;
+    poly_bn254_module.add_class::<bn254::mle::MultilinearPolynomial>()?;
     poly_bn254_module.add_function(
         wrap_pyfunction!(bn254::polynomial::get_nth_root_of_unity, poly_bn254_module)?
     )?;
@@ -63,6 +65,9 @@ fn register_polynomial_module(py: Python, parent_module: &PyModule) -> PyResult<
     )?;
     poly_bn254_module.add_function(
         wrap_pyfunction!(bn254::polynomial::evaluate_lagrange_coefficients, poly_bn254_module)?
+    )?;
+    poly_bn254_module.add_function(
+        wrap_pyfunction!(bn254::polynomial::add_over_evaluation_domain, poly_bn254_module)?
     )?;
     poly_bn254_module.add_function(
         wrap_pyfunction!(bn254::polynomial::mul_over_evaluation_domain, poly_bn254_module)?
@@ -110,11 +115,11 @@ fn register_polynomial_module(py: Python, parent_module: &PyModule) -> PyResult<
     Ok(())
 }
 
-fn register_array_module(py: Python, parent_module: &PyModule) -> PyResult<()> {
-    let array_module = PyModule::new(py, "array")?;
-    array_module.add_class::<array::SparseArray>()?;
-
-    parent_module.add_submodule(array_module)?;
+fn register_circuit_module(py: Python, parent_module: &PyModule) -> PyResult<()> {
+    let circuit_module = PyModule::new(py, "circuit")?;
+    circuit_module.add_class::<arithmetization::circuit::Field>()?;
+    circuit_module.add_class::<arithmetization::circuit::ConstraintSystem>()?;
+    parent_module.add_submodule(circuit_module)?;
 
     Ok(())
 }
@@ -125,6 +130,6 @@ fn _algebra(_py: Python, m: &PyModule) -> PyResult<()> {
     register_bn254_module(_py, m)?;
     register_bls12_381_module(_py, m)?;
     register_polynomial_module(_py, m)?;
-    register_array_module(_py, m)?;
+    register_circuit_module(_py, m)?;
     Ok(())
 }

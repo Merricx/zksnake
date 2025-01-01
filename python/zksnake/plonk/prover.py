@@ -29,6 +29,20 @@ class ProvingKey:
         self.tau_selector_poly = tau_selector
         self.tau_permutation_poly = tau_permutation
 
+    @classmethod
+    def from_bytes(cls, s: bytes, crv="BN254"):
+        """Construct ProvingKey from bytes"""
+
+    def to_bytes(self) -> bytes:
+        """Return bytes representation of the ProvingKey"""
+        s = b''
+
+        s += int.to_bytes(len(self.tau_g1), 8, "little")
+        for t in self.tau_g1:
+            s += t.to_bytes()
+
+        s += self.tau_g2
+
 class Prover:
     def __init__(self, key: ProvingKey, label: str = "PlonK"):
         self.key = key
@@ -36,16 +50,19 @@ class Prover:
         self.E = key.E
         self.order = key.order
         self.label = label
+        self.roots = get_all_root_of_unity(self.n, self.order)
 
-    def prove(self, public_witness, private_witness):
+    def prove(self, public_witness: dict, private_witness: list):
 
         a = private_witness[::3] + [0]*(self.n - len(private_witness[::3]))
         b = private_witness[1::3] + [0]*(self.n - len(private_witness[1::3]))
         c = private_witness[2::3] + [0]*(self.n - len(private_witness[2::3]))
-        public_witness += [0]*(self.n - len(public_witness))
+        
+        full_public_witness = [0]*(self.n)
+        for k,v in public_witness.items():
+            full_public_witness[k] = v
 
         transcript = FiatShamirTranscript(self.label.encode())
-        roots = get_all_root_of_unity(self.n, self.order)
 
         # vanishing polynomial X^n - 1
         Zh = PolynomialRing([-1 % self.order]+[0]*(self.n-1)+[1], self.order)
@@ -71,8 +88,8 @@ class Prover:
         A = PolynomialRing(ifft(a, self.order), self.order)
         B = PolynomialRing(ifft(b, self.order), self.order)
         C = PolynomialRing(ifft(c, self.order), self.order)
-        PI = PolynomialRing(ifft(public_witness, self.order), self.order)
-
+        PI = PolynomialRing(ifft(full_public_witness, self.order), self.order)
+        
         transcript.append(self.n)
         transcript.append(self.key.tau_g1)
         transcript.append(self.key.tau_g2)
@@ -89,7 +106,7 @@ class Prover:
         # ROUND 1
         #########################################################################################
 
-        with Timer('round1'):
+        with Timer('round1 A'):
 
             zero_pad = [0]*(self.n-2)
             blinding_a = PolynomialRing([get_random_int(self.order-1) for _ in range(2)]+zero_pad, self.order)
@@ -100,13 +117,16 @@ class Prover:
             B = B+blinding_b.multiply_by_vanishing_poly()
             C = C+blinding_c.multiply_by_vanishing_poly()
 
-            A_QL = mul_over_fft(self.n, A, QL, self.order,)
+        with Timer('round1 B'):
+            A_QL = mul_over_fft(self.n, A, QL, self.order)
             B_QR = mul_over_fft(self.n, B, QR, self.order)
             C_QO = mul_over_fft(self.n, C, QO, self.order)
             AB = mul_over_fft(self.n, A, B, self.order)
             AB_QM = mul_over_fft(self.n, AB, QM, self.order)
 
             G = A_QL + B_QR + AB_QM + C_QO + QC + PI
+
+        with Timer('round1 C'):
 
             tau_a = self.E.multiexp(self.key.tau_g1, A.coeffs())
             tau_b = self.E.multiexp(self.key.tau_g1, B.coeffs())
@@ -177,7 +197,7 @@ class Prover:
 
             alpha = transcript.get_challenge_scalar() % self.order
             
-            Z_omega = PolynomialRing([coeff * roots[i % self.n] % self.order for i, coeff in enumerate(Z.coeffs())], self.order)
+            Z_omega = PolynomialRing([coeff * self.roots[i % self.n] % self.order for i, coeff in enumerate(Z.coeffs())], self.order)
             L1 = PolynomialRing(ifft([1] + [0]*(self.n-1), self.order), self.order)
 
             nom_poly_Z = mul_over_fft(self.n, nom_poly, Z, self.order)
@@ -278,7 +298,7 @@ class Prover:
 
             assert remainder.is_zero()
 
-            divisor_W_zeta_omega = PolynomialRing([-(zeta*roots[1]) % self.order, 1], self.order)
+            divisor_W_zeta_omega = PolynomialRing([-(zeta*self.roots[1]) % self.order, 1], self.order)
             W_zeta_omega, remainder = (Z - zeta_Z_omega) / divisor_W_zeta_omega
 
             assert remainder.is_zero()
