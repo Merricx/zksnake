@@ -94,6 +94,9 @@ fn register_polynomial_module(py: Python, parent_module: &PyModule) -> PyResult<
         wrap_pyfunction!(bls12_381::polynomial::coset_ifft, poly_bls12_381_module)?
     )?;
     poly_bls12_381_module.add_function(
+        wrap_pyfunction!(bls12_381::polynomial::add_over_evaluation_domain, poly_bls12_381_module)?
+    )?;
+    poly_bls12_381_module.add_function(
         wrap_pyfunction!(bls12_381::polynomial::mul_over_evaluation_domain, poly_bls12_381_module)?
     )?;
     poly_bls12_381_module.add_function(

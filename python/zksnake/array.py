@@ -25,12 +25,13 @@ class SparseArray:
         """Add new triplet to the array"""
         for triplet in triplets:
             row, col, value = triplet
-            if row not in self.triplets_map:
-                self.triplets_map[row] = [(col, value)]
-            else:
-                self.triplets_map[row] += [(col, value)]
+            if value != 0:
+                if row not in self.triplets_map:
+                    self.triplets_map[row] = [(col, value)]
+                else:
+                    self.triplets_map[row] += [(col, value)]
 
-            self.triplets.append(tuple(triplet))
+                self.triplets.append(tuple(triplet))
 
     def dot(self, vector):
         """dot product with vector"""

@@ -23,7 +23,7 @@ def hash_to_curve(data: bytes, domain_separation_tag: bytes, curve: str = 'BN254
 
 class FiatShamirTranscript:
 
-    def __init__(self, label: bytes, alg='sha256'):
+    def __init__(self, label: bytes = b'', alg='sha256'):
         self.alg = alg
         self.label = label
         self.hasher = hashlib.new(alg, label)

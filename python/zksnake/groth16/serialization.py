@@ -1,14 +1,9 @@
-"""Proving module of Groth16 protocol"""
-
-from ..arithmetization.r1cs import R1CS
 from ..ecc import EllipticCurve, CurvePointSize
-from .qap import QAP
-from ..utils import get_random_int, split_list
-
+from ..utils import split_list
 
 class Proof:
 
-    def __init__(self, A=None, B=None, C=None):
+    def __init__(self, A, B, C):
         self.A = A
         self.B = B
         self.C = C
@@ -162,73 +157,62 @@ class ProvingKey:
 
         return bytes(s)
 
+class VerifyingKey:
+    def __init__(
+        self,
+        alpha_G1,  # vk_alpha_1
+        beta_G2,  # vk_beta_2
+        gamma_G2,  # vk_gamma_2
+        delta_G2,  # vk_delta_2
+        IC,  # ic
+    ):
+        self.alpha_1 = alpha_G1
+        self.beta_2 = beta_G2
+        self.gamma_2 = gamma_G2
+        self.delta_2 = delta_G2
+        self.ic = IC
 
-class Prover:
-    """
-    Prover object
+    @classmethod
+    def from_hex(cls, s: str, crv="BN254"):
+        """Construct VerifyingKey from hexstring"""
+        E = EllipticCurve(crv)
 
-    Args:
-        r1cs: R1CS to be proved from
-        key: `ProvingKey` from trusted setup
-        curve: `BN254` or `BLS12_381`
-    """
+        n = CurvePointSize[crv].value
 
-    def __init__(self, r1cs: R1CS, key: ProvingKey, curve: str = "BN254"):
+        assert len(s) >= n * 7, "Invalid verifying key length"
 
-        self.key = key
-        self.E = EllipticCurve(curve)
-        self.order = self.E.order
+        fixed_blocks = split_list(s[: n * 7], n)
+        dynamic_blocks = s[n * 7 :]
 
-        self.qap = QAP(self.order)
-        self.qap.from_r1cs(r1cs)
+        alpha_x = fixed_blocks[0]
+        beta_x = fixed_blocks[1] + fixed_blocks[2]
+        gamma_x = fixed_blocks[3] + fixed_blocks[4]
+        delta_x = fixed_blocks[5] + fixed_blocks[6]
 
-        if key.delta_1.is_zero() or key.delta_2.is_zero():
-            raise ValueError("Key delta_1 or delta_2 is zero element!")
+        ic = []
+        dynamic_blocks = dynamic_blocks[16:]  # skip length header
+        dynamic_blocks = split_list(dynamic_blocks, n)
+        for block in dynamic_blocks:
+            ic.append(E.from_hex(block))
 
-    def prove(self, public_witness: list, private_witness: list) -> Proof:
-        """
-        Prove statement from R1CS by providing public and private witness
-        """
-        assert len(self.key.kdelta_1) == len(
-            private_witness
-        ), "Length of kdelta_1 and private_witness must be equal"
+        alpha_1 = E.from_hex(alpha_x)
+        beta_2 = E.from_hex(beta_x)
+        gamma_2 = E.from_hex(gamma_x)
+        delta_2 = E.from_hex(delta_x)
 
-        r = get_random_int(self.order - 1)
-        s = get_random_int(self.order - 1)
+        return VerifyingKey(alpha_1, beta_2, gamma_2, delta_2, ic)
 
-        try:
-            U, V, _, H = self.qap.evaluate_witness(public_witness + private_witness)
-        except ValueError as exc:
-            raise ValueError("Failed to evaluate with the given witness") from exc
-
-        A = (
-            self.E.multiexp(self.key.tau_1, U.coeffs())
-            + self.key.alpha_1
-            + (self.key.delta_1 * r)
-        )
-        B1 = (
-            self.E.multiexp(self.key.tau_1, V.coeffs())
-            + self.key.beta_1
-            + (self.key.delta_1 * s)
-        )
-        B2 = (
-            self.E.multiexp(self.key.tau_2, V.coeffs())
-            + self.key.beta_2
-            + (self.key.delta_2 * s)
-        )
-        HZ = self.E.multiexp(self.key.target_1, H.coeffs())
-
-        if len(private_witness) > 0:
-            sum_delta_witness = self.E.multiexp(self.key.kdelta_1, private_witness)
-        else:  # all inputs are public
-            sum_delta_witness = self.E.G1() * 0
-
-        C = (
-            HZ
-            + sum_delta_witness
-            + (A * s)
-            + (B1 * r)
-            + (-self.key.delta_1 * (r * s % self.order))
+    def to_hex(self) -> str:
+        """Return hex representation of the VerifyingKey"""
+        s = (
+            self.alpha_1.to_hex()
+            + self.beta_2.to_hex()
+            + self.gamma_2.to_hex()
+            + self.delta_2.to_hex()
         )
 
-        return Proof(A, B2, C)
+        s += int.to_bytes(len(self.ic), 8, "little").hex()
+        for ic in self.ic:
+            s += ic.to_hex()
+
+        return s

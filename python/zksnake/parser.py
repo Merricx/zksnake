@@ -1,6 +1,7 @@
 import csv
 from io import BytesIO
 from pathlib import Path
+# pylint: disable=no-name-in-module
 from ._algebra import circuit
 
 SUPPORTED_VERSION = [1]

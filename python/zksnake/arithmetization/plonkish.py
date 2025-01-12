@@ -59,9 +59,9 @@ class Plonkish:
         for k,v in solve_result.items():
             if k in self.cs.public_vars:
                 pub_w[k] = v
-            else:
-                priv_w[k] = v
-    
+            
+            priv_w[k] = v
+
         private_witness = []
         pi = {}
         pi_index = 0
@@ -88,6 +88,7 @@ class Plonkish:
         """
         a,b,c = private_witness[::3], private_witness[1::3], private_witness[2::3]
 
+        # gate constraints
         for i in range(self.unpadded_length):
             pi = public_witness.get(i, None) or 0
             g = (
@@ -100,7 +101,16 @@ class Plonkish:
 
             if g % self.p != 0:
                 return False
-            
+
+        # copy constraints
+        a += [0]*(self.length - len(a))
+        b += [0]*(self.length - len(b))
+        c += [0]*(self.length - len(c))
+        flatten_witness = a+b+c
+        for src,dst in enumerate(self.permutation):
+            if flatten_witness[src] != flatten_witness[dst]:
+                return False
+
         return True
 
     def to_bytes(self):

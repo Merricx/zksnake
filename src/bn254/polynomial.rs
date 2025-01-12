@@ -675,29 +675,25 @@ pub fn mul_over_evaluation_domain(
     a: Vec<BigUint>,
     b: Vec<BigUint>
 ) -> PyResult<Vec<BigUint>> {
-    let mut evals_a = vec![];
-    let mut evals_b = vec![];
-    for c in &a {
-        evals_a.push(Fr::from(c.to_owned()));
+    let mut evals_a = vec![Fr::from(0); size];
+    let mut evals_b = vec![Fr::from(0); size];
+    for i in 0..size {
+        if i < a.len() {
+            evals_a[i] = Fr::from(a[i].to_owned());
+        }
+
+        if i < b.len() {
+            evals_b[i] = Fr::from(b[i].to_owned());
+        }
     }
 
-    for c in &b {
-        evals_b.push(Fr::from(c.to_owned()));
-    }
+    let result: Vec<Fr> = evals_a
+        .par_iter()
+        .zip(evals_b)
+        .map(|(a, b)| *a * b)
+        .collect();
 
-    let domain: GeneralEvaluationDomain<Fr> = EvaluationDomain::new(size).unwrap();
-    let result = EvaluationDomain::mul_polynomials_in_evaluation_domain(
-        &domain,
-        &evals_a,
-        &evals_b
-    );
-
-    Ok(
-        result
-            .par_iter()
-            .map(|x| x.to_owned().into())
-            .collect()
-    )
+    Ok(result.into_iter().map(Into::into).collect())
 }
 
 #[pyfunction]

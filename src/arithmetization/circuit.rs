@@ -577,6 +577,8 @@ impl ConstraintSystem {
         }
 
         let mut queue: VecDeque<_> = self.sequence.iter().cloned().collect();
+        let max_loop = self.sequence.len() * 256;
+        let mut current_loop = 0;
 
         while let Some(mut seq) = queue.pop_front() {
             match seq {
@@ -652,6 +654,11 @@ impl ConstraintSystem {
                         );
                     }
                 }
+            }
+
+            current_loop += 1;
+            if current_loop > max_loop {
+                panic!("Evaluation timeout: solution might not exist for the given constraints");
             }
         }
 

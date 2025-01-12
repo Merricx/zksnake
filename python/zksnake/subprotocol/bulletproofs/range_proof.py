@@ -1,12 +1,13 @@
-from ..utils import get_random_int, next_power_of_two, split_list
-from ..polynomial import PolynomialRing
-from ..ecc import CurvePointSize, EllipticCurve
-from ..transcript import FiatShamirTranscript, hash_to_curve, hash_to_scalar
+from ...utils import get_random_int, split_list
+from ...polynomial import PolynomialRing
+from ...ecc import CurvePointSize, EllipticCurve
+from ...transcript import FiatShamirTranscript, hash_to_curve, hash_to_scalar
 from . import ipa
 
-class RangeProof:
+class RangeProofObject:
 
-    def __init__(self, A, S, T1, T2, t, t_blinding, e_blinding, ipa_proof: ipa.InnerProductProof):
+    def __init__(self, V, A, S, T1, T2, t, t_blinding, e_blinding, ipa_proof: ipa.InnerProductProof):
+        self.V = V
         self.A = A
         self.S = S
         self.T1 = T1
@@ -18,6 +19,7 @@ class RangeProof:
 
     def to_bytes(self) -> bytes:
         s = b""
+        s += bytes(self.V.to_bytes())
         s += bytes(self.A.to_bytes())
         s += bytes(self.S.to_bytes())
         s += bytes(self.T1.to_bytes())
@@ -37,28 +39,29 @@ class RangeProof:
 
         assert (len(s)-160) % n == 0, "Invalid proof length"
 
-        point_s = split_list(s[:4*n], n)
-        field_s = split_list(s[4*n:4*n+32*3], 32)
-        ipa_s = s[4*n+32*3:]
+        point_s = split_list(s[:5*n], n)
+        field_s = split_list(s[5*n:5*n+32*3], 32)
+        ipa_s = s[5*n+32*3:]
 
-        assert len(point_s) == 4 and len(field_s) == 3, "Malformed proof structure"
+        assert len(point_s) == 5 and len(field_s) == 3, "Malformed proof structure"
 
-        A = E.from_hex(point_s[0].hex())
-        S = E.from_hex(point_s[1].hex())
-        T1 = E.from_hex(point_s[2].hex())
-        T2 = E.from_hex(point_s[3].hex())
+        V = E.from_hex(point_s[0].hex())
+        A = E.from_hex(point_s[1].hex())
+        S = E.from_hex(point_s[2].hex())
+        T1 = E.from_hex(point_s[3].hex())
+        T2 = E.from_hex(point_s[4].hex())
         t = int.from_bytes(field_s[0], 'little')
         t_blinding = int.from_bytes(field_s[1], 'little')
         e_blinding = int.from_bytes(field_s[2], 'little')
         ipa_proof = ipa.InnerProductProof.from_bytes(ipa_s, crv)
 
-        return RangeProof(A, S, T1, T2, t, t_blinding, e_blinding, ipa_proof)
+        return RangeProofObject(V, A, S, T1, T2, t, t_blinding, e_blinding, ipa_proof)
 
-class Prover:
+class RangeProof:
 
     def __init__(self, bitsize: int, curve, transcript: FiatShamirTranscript = None, seed=b'RangeProof'):
         assert bitsize < 2**32
-        self.n = next_power_of_two(bitsize)
+        self.n = bitsize
         self.E = EllipticCurve(curve)
         self.G = hash_to_curve(seed, b'G', curve, self.n)
         self.H = hash_to_curve(seed, b'H', curve, self.n)
@@ -79,8 +82,16 @@ class Prover:
             r += [(v - 1) % self.E.order]
 
         return l, r
+    
+    def __delta(self, y, z):
+        sum_pow_2_y = sum([pow(y, i, self.E.order) for i in range(self.n)]) % self.E.order
+        z_pow_3 = pow(z, 3, self.E.order)
+        sum_2 = sum([pow(2, i, self.E.order) for i in range(self.n)]) % self.E.order
+        return (((z - pow(z, 2, self.E.order)) * sum_pow_2_y) - (z_pow_3 * sum_2)) % self.E.order
 
     def prove(self, v: int):
+
+        self.transcript.reset()
 
         # bit vectors of v
         a = [(v >> i) & 1 for i in range(self.n)]
@@ -164,7 +175,7 @@ class Prover:
 
         Q = w * self.B
 
-        ipa_prover = ipa.Prover(self.n, self.E.name, self.transcript)
+        ipa_prover = ipa.InnerProductArgument(self.n, self.E.name, self.transcript)
 
         ipa_prover.G = self.G
         ipa_prover.H = [pow(y, -i, p) * self.H[i] for i in range(self.n)]
@@ -172,32 +183,12 @@ class Prover:
 
         ipa_proof, _ = ipa_prover.prove(l_list, r_list)
 
-        return RangeProof(A, S, T1, T2, t, t_blinding, e_blinding, ipa_proof), V
-
-
-class Verifier:
-
-    def __init__(self, bitsize: int, curve, transcript: FiatShamirTranscript = None, seed=b'RangeProof'):
-        assert bitsize < 2**32
-        self.n = bitsize
-        self.E = EllipticCurve(curve)
-        self.G = hash_to_curve(seed, b'G', curve, self.n)
-        self.H = hash_to_curve(seed, b'H', curve, self.n)
-        self.B = hash_to_curve(seed, b'B', curve, 1)
-        self.B_blinding = hash_to_curve(seed, b'Blinding', curve, 1)
-
-        self.transcript = transcript or FiatShamirTranscript(
-            self.n.to_bytes(32, 'big'))
+        return RangeProofObject(V, A, S, T1, T2, t, t_blinding, e_blinding, ipa_proof)
         
-    def __delta(self, y, z):
-        sum_pow_2_y = sum([pow(y, i, self.E.order) for i in range(self.n)]) % self.E.order
-        z_pow_3 = pow(z, 3, self.E.order)
-        sum_2 = sum([pow(2, i, self.E.order) for i in range(self.n)]) % self.E.order
-        return (((z - pow(z, 2, self.E.order)) * sum_pow_2_y) - (z_pow_3 * sum_2)) % self.E.order
-        
-    def verify(self, proof: RangeProof, commitment):
+    def verify(self, proof: RangeProofObject):
 
-        self.transcript.append(commitment.to_bytes())
+        self.transcript.reset()
+        self.transcript.append(proof.V.to_bytes())
         self.transcript.append(proof.A.to_bytes())
         self.transcript.append(proof.S.to_bytes())
 
@@ -264,7 +255,7 @@ class Verifier:
         points = [
             proof.A,
             proof.S,
-            commitment,
+            proof.V,
             proof.T1,
             proof.T2,
             self.B,

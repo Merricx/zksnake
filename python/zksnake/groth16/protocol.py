@@ -1,5 +1,3 @@
-"""Trusted setup module of Groth16 protocol"""
-
 from joblib import Parallel, delayed
 from ..arithmetization.r1cs import R1CS
 
@@ -9,28 +7,29 @@ from ..polynomial import (
     evaluate_vanishing_polynomial,
     evaluate_lagrange_coefficients,
 )
-from .prover import ProvingKey
-from .verifier import VerifyingKey
+from .serialization import Proof, ProvingKey, VerifyingKey
 from ..utils import get_random_int, get_n_jobs
 
+class Groth16:
+    """
+    Groth16 proof system Class
 
-class Setup:
+    Args:
+        r1cs: R1CS to be set up from
+        curve: `BN254` or `BLS12_381`
+    """
 
     def __init__(self, r1cs: R1CS, curve: str = "BN254"):
-        """
-        Trusted setup object
-
-        Args:
-            r1cs: R1CS to be set up from
-            curve: `BN254` or `BLS12_381`
-        """
         self.E = EllipticCurve(curve)
         self.order = self.E.order
         self.qap = QAP(self.order)
         self.qap.from_r1cs(r1cs)
 
-    def generate(self) -> tuple[ProvingKey, VerifyingKey]:
-        """Generate `ProvingKey` and `VerifyingKey`"""
+        self.proving_key = None
+        self.verifying_key = None
+
+    def setup(self):
+        """Trusted setup to generate `ProvingKey` and `VerifyingKey`"""
 
         G1 = self.E.G1()
         G2 = self.E.G2()
@@ -112,4 +111,72 @@ class Setup:
         )
         vkey = VerifyingKey(alpha_G1, beta_G2, gamma_G2, delta_G2, k_gamma_G1)
 
-        return pkey, vkey
+        self.proving_key = pkey
+        self.verifying_key = vkey
+
+    def prove(self, public_witness: list, private_witness: list) -> Proof:
+        """
+        Prove statement from R1CS by providing public and private witness
+        """
+        assert self.proving_key, "ProvingKey has not been generated"
+
+        assert len(self.proving_key.kdelta_1) == len(
+            private_witness
+        ), "Length of kdelta_1 and private_witness must be equal"
+
+        r = get_random_int(self.order - 1)
+        s = get_random_int(self.order - 1)
+
+        try:
+            U, V, _, H = self.qap.evaluate_witness(public_witness + private_witness)
+        except ValueError as exc:
+            raise ValueError("Failed to evaluate with the given witness") from exc
+
+        A = (
+            self.E.multiexp(self.proving_key.tau_1, U.coeffs())
+            + self.proving_key.alpha_1
+            + (self.proving_key.delta_1 * r)
+        )
+        B1 = (
+            self.E.multiexp(self.proving_key.tau_1, V.coeffs())
+            + self.proving_key.beta_1
+            + (self.proving_key.delta_1 * s)
+        )
+        B2 = (
+            self.E.multiexp(self.proving_key.tau_2, V.coeffs())
+            + self.proving_key.beta_2
+            + (self.proving_key.delta_2 * s)
+        )
+        HZ = self.E.multiexp(self.proving_key.target_1, H.coeffs())
+
+        if len(private_witness) > 0:
+            sum_delta_witness = self.E.multiexp(self.proving_key.kdelta_1, private_witness)
+        else:  # all inputs are public
+            sum_delta_witness = self.E.G1() * 0
+
+        C = (
+            HZ
+            + sum_delta_witness
+            + (A * s)
+            + (B1 * r)
+            + (-self.proving_key.delta_1 * (r * s % self.order))
+        )
+
+        return Proof(A, B2, C)
+
+    def verify(self, proof: Proof, public_witness: list) -> bool:
+        """
+        Verify proof by providing public witness
+        """
+        assert self.verifying_key, "VerifyingKey has not been generated"
+        assert len(self.verifying_key.ic) == len(
+            public_witness
+        ), "Length of IC and public_witness must be equal"
+
+        sum_gamma_witness = self.E.multiexp(self.verifying_key.ic, public_witness)
+
+        # e(A, B) == e(alpha, beta) + e(sum_gamma_witness, gamma) + e(C, delta)
+        return self.E.pairing(proof.A, proof.B) == self.E.multi_pairing(
+            [self.verifying_key.alpha_1, sum_gamma_witness, proof.C],
+            [self.verifying_key.beta_2, self.verifying_key.gamma_2, self.verifying_key.delta_2],
+        )

@@ -1,6 +1,6 @@
 import os
 from zksnake.arithmetization.r1cs import R1CS
-from zksnake.groth16 import Setup, Prover, Verifier
+from zksnake.groth16 import Groth16
 
 
 folder = os.path.dirname(__file__)
@@ -21,13 +21,11 @@ r1cs.compile()
 
 pub, priv = r1cs.generate_witness(solution)
 
-setup = Setup(r1cs)
-pkey, vkey = setup.generate()
+groth16 = Groth16(r1cs)
+groth16.setup()
 
-prover = Prover(r1cs, pkey)
-proof = prover.prove(pub, priv)
+proof = groth16.prove(pub, priv)
 print("Proof:", proof.to_hex())
 
-verifier = Verifier(vkey)
-assert verifier.verify(proof, pub)
+assert groth16.verify(proof, pub)
 print("Proof is valid!")

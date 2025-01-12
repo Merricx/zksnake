@@ -1,6 +1,6 @@
-from ..utils import next_power_of_two, split_list
-from ..transcript import FiatShamirTranscript, hash_to_curve, hash_to_scalar
-from ..ecc import CurvePointSize, EllipticCurve
+from ...utils import next_power_of_two, split_list
+from ...transcript import FiatShamirTranscript, hash_to_curve, hash_to_scalar
+from ...ecc import CurvePointSize, EllipticCurve
 
 
 class InnerProductProof:
@@ -46,7 +46,7 @@ class InnerProductProof:
         return InnerProductProof(a, b, Ls, Rs)
 
 
-class Prover:
+class InnerProductArgument:
 
     def __init__(self, size, curve, transcript: FiatShamirTranscript = None, seed=b'InnerProductProof', Q=None):
         self.n = next_power_of_two(size)
@@ -140,19 +140,6 @@ class Prover:
         b = b[0]
 
         return InnerProductProof(a, b, L_list, R_list), Cp
-
-
-class Verifier:
-
-    def __init__(self, size, curve, transcript: FiatShamirTranscript = None, seed=b'InnerProductProof'):
-        self.n = next_power_of_two(size)
-        self.E = EllipticCurve(curve)
-        self.G = hash_to_curve(seed, b'G', curve, self.n)
-        self.H = hash_to_curve(seed, b'H', curve, self.n)
-        self.Q = hash_to_curve(seed, b'Q', curve, 1)
-
-        self.transcript = transcript or FiatShamirTranscript(
-            self.n.to_bytes(32, 'big'))
 
     def verify(self, proof: InnerProductProof, commitment):
 

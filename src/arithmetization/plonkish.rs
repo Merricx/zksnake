@@ -115,9 +115,7 @@ fn consume_constraint(
             qc += val;
         }
         super::circuit::Gate::Input(name) => {
-            if !public_input.contains(name) {
-                ql = BigUint::one();
-            }
+            ql = BigUint::one();
             w[0] = name.to_string();
 
             qr = BigUint::zero();
@@ -135,21 +133,11 @@ fn consume_constraint(
                 ql = BigUint::zero();
                 qr = BigUint::zero();
             } else if var_mul <= 1 {
-                if !public_input.contains(&touched_var[0]) {
-                    ql %= modulus;
-                } else {
-                    ql = BigUint::zero();
-                }
+                ql %= modulus;
                 w[0] = touched_var[0].to_string();
 
                 qr = BigUint::zero();
             } else if var_mul == 2 {
-                if public_input.contains(&touched_var[0]) {
-                    ql = BigUint::zero();
-                }
-                if public_input.contains(&touched_var[1]) {
-                    qr = BigUint::zero();
-                }
                 ql %= modulus;
                 qr %= modulus;
 
@@ -175,20 +163,12 @@ fn consume_constraint(
                 ql = BigUint::zero();
                 qr = BigUint::zero();
             } else if var_mul <= 1 {
-                if !public_input.contains(&touched_var[0]) {
-                    ql %= modulus;
-                } else {
-                    ql = BigUint::zero();
-                }
+                ql %= modulus;
                 w[0] = touched_var[0].to_string();
 
                 qr = BigUint::zero();
             } else if var_mul == 2 {
-                if public_input.contains(&touched_var[0]) {
-                    ql = BigUint::zero();
-                } else {
-                    ql %= modulus;
-                }
+                ql %= modulus;
                 if public_input.contains(&touched_var[1]) {
                     qr = BigUint::zero();
                 } else {
@@ -215,26 +195,13 @@ fn consume_constraint(
             if var_mul == 0 {
                 qc = q_const;
             } else if var_mul == 1 {
-                if !public_input.contains(&touched_var[0]) {
-                    ql = q_var % modulus;
-                }
-
+                ql = q_var % modulus;
                 w[0] = touched_var[0].to_string();
             } else if var_mul == 2 {
                 w[0] = touched_var[0].to_string();
                 w[1] = touched_var[1].to_string();
 
-                ql = BigUint::zero();
-                qr = BigUint::zero();
-
-                let is_left_public = public_input.contains(&touched_var[0]);
-                let is_right_public = public_input.contains(&touched_var[1]);
-
-                if is_left_public && is_right_public {
-                    qm = BigUint::zero();
-                } else {
-                    qm = q_var % modulus;
-                }
+                qm = q_var % modulus;
             } else {
                 panic!(
                     "More than two variables in single gate: {}",

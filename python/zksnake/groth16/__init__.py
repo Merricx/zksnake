@@ -1,3 +1,5 @@
-from .prover import *
-from .setup import *
-from .verifier import *
+"""
+Groth16 proof system
+"""
+from .protocol import Groth16
+from .serialization import Proof, ProvingKey, VerifyingKey

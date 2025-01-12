@@ -1,7 +1,6 @@
 from __future__ import annotations
 # pylint: disable=no-name-in-module
 from zksnake._algebra import circuit
-from zksnake.constant import BN254_SCALAR_FIELD
 
 from ..parser import R1CSReader
 from ..array import SparseArray

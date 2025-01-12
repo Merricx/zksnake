@@ -98,13 +98,13 @@ def coset_fft(coeffs, p, size=None):
     return poly.coset_fft(coeffs, size)
 
 
-def ifft(coeffs, p, size=None):
+def ifft(evals, p, size=None):
     """
-    Perform inverse FFT from given `coeffs`
+    Perform inverse FFT from given `evals`
     """
     poly = POLY_OBJECT[p]
-    size = size or len(coeffs)
-    return poly.ifft(coeffs, size)
+    size = size or len(evals)
+    return poly.ifft(evals, size)
 
 
 def coset_ifft(coeffs, p, size=None):
@@ -140,20 +140,27 @@ def _pad_coeffs(a, b):
     return a,b
 
 def mul_over_fft(domain, a, b, p, return_poly=True):
+    # print('mul')
+    # print(len(a.coeffs()), len(b.coeffs()))
     a,b = _pad_coeffs(a.coeffs(), b.coeffs())
-    
+    # print(len(a), len(b))
+
     a_fft = fft(a, p)
     b_fft = fft(b, p)
-    ab_fft = mul_over_evaluation_domain(domain, a_fft, b_fft, p)
+    ab_fft = mul_over_evaluation_domain(len(a_fft), a_fft, b_fft, p)
     
     if return_poly:
         return PolynomialRing(ifft(ab_fft, p), p, domain)
     
     return ab_fft
 
-def add_over_evaluation_domain(domain, a, b, p):
+def add_over_evaluation_domain(domain, evals: list, p):
     poly = POLY_OBJECT[p]
-    return poly.add_over_evaluation_domain(domain, a, b)
+    result = evals[0]
+    for adder in evals[1:]:
+        result = poly.add_over_evaluation_domain(domain, result, adder)
+    
+    return result
 
 def mul_over_evaluation_domain(domain, a, b, p):
     poly = POLY_OBJECT[p]
@@ -175,12 +182,12 @@ def barycentric_eval(domain, sparse_eval: dict, x, p):
     """
     omega = get_nth_root_of_unity(domain, 1, p)
 
+    sum_i = 0
     for i in sparse_eval:
-        sum_i = 0
         w_i = pow(omega, i, p)
         sum_i += (sparse_eval[i] * w_i) * pow(x - w_i, -1, p)
     
-    return (pow(x, domain, p) - 1) * pow(domain, -1, p) * sum_i
+    return (pow(x, domain, p) - 1) * pow(domain, -1, p) * sum_i % p
 
 def lagrange_polynomial(x, y, p):
     """

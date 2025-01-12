@@ -3,7 +3,7 @@ import pytest
 from zksnake.constant import BLS12_381_SCALAR_FIELD, BN254_SCALAR_FIELD
 from zksnake.ecc import EllipticCurve
 from zksnake.arithmetization import Var, ConstraintSystem, R1CS
-from zksnake.groth16 import Prover, Proof, ProvingKey, Setup, Verifier, VerifyingKey
+from zksnake.groth16 import Groth16, Proof, ProvingKey, VerifyingKey
 
 
 @pytest.fixture
@@ -49,20 +49,20 @@ def r1cs_data_bls12_381():
 def trusted_setup_bn254(r1cs_data_bn254):
     r1cs, _ = r1cs_data_bn254
 
-    setup = Setup(r1cs)
-    pk, vk = setup.generate()
+    groth16 = Groth16(r1cs)
+    groth16.setup()
 
-    return pk, vk
+    return groth16
 
 
 @pytest.fixture
 def trusted_setup_bls12_381(r1cs_data_bls12_381):
     r1cs, _ = r1cs_data_bls12_381
 
-    setup = Setup(r1cs, "BLS12_381")
-    pk, vk = setup.generate()
+    groth16 = Groth16(r1cs, "BLS12_381")
+    groth16.setup()
 
-    return pk, vk
+    return groth16
 
 
 def test_groth16_bn254(r1cs_data_bn254):
@@ -70,14 +70,11 @@ def test_groth16_bn254(r1cs_data_bn254):
     r1cs, witness = r1cs_data_bn254
     pub, priv = witness
 
-    setup = Setup(r1cs)
-    pk, vk = setup.generate()
+    groth16 = Groth16(r1cs)
+    groth16.setup()
 
-    prover = Prover(r1cs, pk)
-    proof = prover.prove(pub, priv)
-
-    verifier = Verifier(vk)
-    assert verifier.verify(proof, pub)
+    proof = groth16.prove(pub, priv)
+    assert groth16.verify(proof, pub)
 
 
 def test_groth16_bls12_381(r1cs_data_bls12_381):
@@ -85,14 +82,11 @@ def test_groth16_bls12_381(r1cs_data_bls12_381):
     r1cs, witness = r1cs_data_bls12_381
     pub, priv = witness
 
-    setup = Setup(r1cs, "BLS12_381")
-    pk, vk = setup.generate()
+    groth16 = Groth16(r1cs, "BLS12_381")
+    groth16.setup()
 
-    prover = Prover(r1cs, pk, "BLS12_381")
-    proof = prover.prove(pub, priv)
-
-    verifier = Verifier(vk, "BLS12_381")
-    assert verifier.verify(proof, pub)
+    proof = groth16.prove(pub, priv)
+    assert groth16.verify(proof, pub)
 
 
 def test_groth16_from_circom():
@@ -114,16 +108,12 @@ def test_groth16_from_circom():
 
     pub, priv = r1cs.generate_witness(solved)
 
-    setup = Setup(r1cs)
+    groth16 = Groth16(r1cs)
+    groth16.setup()
 
-    pkey, vkey = setup.generate()
+    proof = groth16.prove(pub, priv)
 
-    prover = Prover(r1cs, pkey)
-    verifier = Verifier(vkey)
-
-    proof = prover.prove(pub, priv)
-
-    assert verifier.verify(proof, pub)
+    assert groth16.verify(proof, pub)
 
 
 def test_unused_public_input():
@@ -145,18 +135,15 @@ def test_unused_public_input():
     r1cs.compile()
     pub, priv = r1cs.generate_witness(cs.solve({"x": 3, "unused": 1337}))
 
-    setup = Setup(r1cs)
-    pkey, vkey = setup.generate()
+    groth16 = Groth16(r1cs)
+    groth16.setup()
 
-    prover = Prover(r1cs, pkey)
-    verifier = Verifier(vkey)
-
-    proof = prover.prove(pub, priv)
+    proof = groth16.prove(pub, priv)
 
     # try to forge public witness with same proof
-    assert verifier.verify(proof, pub)
+    assert groth16.verify(proof, pub)
     pub[2] = 1330000000
-    assert verifier.verify(proof, pub) is False
+    assert groth16.verify(proof, pub) is False
 
 
 def test_proof_serialization_bn254():
@@ -198,7 +185,8 @@ def test_proof_serialization_bls12_381():
 
 
 def test_key_serialization_bn254(trusted_setup_bn254):
-    pk, vk = trusted_setup_bn254
+    pk = trusted_setup_bn254.proving_key
+    vk = trusted_setup_bn254.verifying_key
 
     pk_bytes = pk.to_bytes()
     pk2 = ProvingKey.from_bytes(pk_bytes, crv="BN254")
@@ -210,7 +198,8 @@ def test_key_serialization_bn254(trusted_setup_bn254):
 
 
 def test_key_serialization_bls12_381(trusted_setup_bls12_381):
-    pk, vk = trusted_setup_bls12_381
+    pk = trusted_setup_bls12_381.proving_key
+    vk = trusted_setup_bls12_381.verifying_key
 
     pk_bytes = pk.to_bytes()
     pk2 = ProvingKey.from_bytes(pk_bytes, crv="BLS12_381")

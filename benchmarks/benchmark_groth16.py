@@ -2,7 +2,7 @@ import time
 from zksnake.arithmetization import Var, ConstraintSystem
 from zksnake.arithmetization.r1cs import R1CS
 from zksnake.constant import BN254_SCALAR_FIELD
-from zksnake.groth16 import Setup, Prover, Verifier
+from zksnake.groth16 import Groth16
 
 def evaluate_witness_vector(vars, witness, p):
     w = []
@@ -48,20 +48,18 @@ def run(n_power, crv):
     time_results.append(end)
 
     start = time.time()
-    setup = Setup(r1cs, crv)
-    pk, vk = setup.generate()
+    groth16 = Groth16(r1cs, crv)
+    groth16.setup()
     end = time.time() - start
     time_results.append(end)
 
     start = time.time()
-    prover = Prover(r1cs, pk, crv)
-    proof = prover.prove(pub, priv)
+    proof = groth16.prove(pub, priv)
     end = time.time() - start
     time_results.append(end)
 
     start = time.time()
-    verifier = Verifier(vk, crv)
-    assert verifier.verify(proof, pub)
+    assert groth16.verify(proof, pub)
     end = time.time() - start
     time_results.append(end)
 

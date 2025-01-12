@@ -2,7 +2,7 @@ import time
 from zksnake.arithmetization import Var, ConstraintSystem
 from zksnake.arithmetization.plonkish import Plonkish
 from zksnake.constant import BN254_SCALAR_FIELD
-from zksnake.plonk import Setup, Prover, Verifier
+from zksnake.plonk import Plonk
 
 def run(n_power, crv):
 
@@ -35,20 +35,18 @@ def run(n_power, crv):
     time_results.append(end)
 
     start = time.time()
-    setup = Setup(plonkish, curve=crv)
-    pk, vk = setup.generate()
+    plonk = Plonk(plonkish, curve=crv)
+    plonk.setup()
     end = time.time() - start
     time_results.append(end)
 
     start = time.time()
-    prover = Prover(pk)
-    proof = prover.prove(pub, priv)
+    proof = plonk.prove(pub, priv)
     end = time.time() - start
     time_results.append(end)
 
     start = time.time()
-    verifier = Verifier(vk)
-    assert verifier.verify(proof, pub)
+    assert plonk.verify(proof, pub)
     end = time.time() - start
     time_results.append(end)
 
