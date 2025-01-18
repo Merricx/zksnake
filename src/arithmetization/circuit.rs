@@ -646,6 +646,7 @@ impl ConstraintSystem {
                         self.vars.entry(name.to_string()).and_modify(|v| {
                             *v = final_int;
                         });
+                        evaluated.insert(name.to_string());
                     } else {
                         return Err(
                             PyErr::new::<pyo3::exceptions::PyTypeError, _>(

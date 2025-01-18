@@ -158,9 +158,9 @@ def test_proof_serialization_bn254():
 
     proof1 = Proof(A, B, C)
 
-    hex_proof = proof1.to_hex()
+    hex_proof = proof1.to_bytes()
 
-    proof2 = Proof.from_hex(hex_proof)
+    proof2 = Proof.from_bytes(hex_proof)
 
     assert str(proof1) == str(proof2)
 
@@ -177,9 +177,9 @@ def test_proof_serialization_bls12_381():
 
     proof1 = Proof(A, B, C)
 
-    hex_proof = proof1.to_hex()
+    hex_proof = proof1.to_bytes()
 
-    proof2 = Proof.from_hex(hex_proof, "BLS12_381")
+    proof2 = Proof.from_bytes(hex_proof, "BLS12_381")
 
     assert str(proof1) == str(proof2)
 
@@ -192,9 +192,9 @@ def test_key_serialization_bn254(trusted_setup_bn254):
     pk2 = ProvingKey.from_bytes(pk_bytes, crv="BN254")
     assert pk_bytes == pk2.to_bytes()
 
-    vk_hex = vk.to_hex()
-    vk2 = VerifyingKey.from_hex(vk_hex, crv="BN254")
-    assert vk_hex == vk2.to_hex()
+    vk_bytes = vk.to_bytes()
+    vk2 = VerifyingKey.from_bytes(vk_bytes, crv="BN254")
+    assert vk_bytes == vk2.to_bytes()
 
 
 def test_key_serialization_bls12_381(trusted_setup_bls12_381):
@@ -205,6 +205,6 @@ def test_key_serialization_bls12_381(trusted_setup_bls12_381):
     pk2 = ProvingKey.from_bytes(pk_bytes, crv="BLS12_381")
     assert pk_bytes == pk2.to_bytes()
 
-    vk_hex = vk.to_hex()
-    vk2 = VerifyingKey.from_hex(vk_hex, crv="BLS12_381")
-    assert vk_hex == vk2.to_hex()
+    vk_bytes = vk.to_bytes()
+    vk2 = VerifyingKey.from_bytes(vk_bytes, crv="BLS12_381")
+    assert vk_bytes == vk2.to_bytes()

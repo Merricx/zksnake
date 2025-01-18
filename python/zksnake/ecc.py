@@ -24,10 +24,10 @@ class CurveOrder(Enum):
     BLS12_381 = BLS12_381_SCALAR_FIELD
 
 class CurvePointSize(Enum):
-    BN128 = 64
-    BN254 = 64
-    ALT_BN128 = 64
-    BLS12_381 = 96
+    BN128 = 32
+    BN254 = 32
+    ALT_BN128 = 32
+    BLS12_381 = 48
 
 def ispointG1(x):
     return isinstance(x, (ec_bn254.PointG1, ec_bls12_381.PointG1))
@@ -113,7 +113,7 @@ class EllipticCurve:
         Construct Elliptic curve point from serialized hexstring
         """
         b = bytes.fromhex(hexstring)
-        n = CurvePointSize[self.name].value
+        n = CurvePointSize[self.name].value * 2
 
         if len(hexstring) == n:
             return self.curve.PointG1.from_bytes(b)

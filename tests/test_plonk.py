@@ -21,9 +21,9 @@ def plonkish_data_bn254():
     v6 = Var('v6')
 
     cs = ConstraintSystem(["x"], ["y"], BN254_SCALAR_FIELD)
-    cs.add_constraint(z == x)
-    cs.add_constraint(v0==z*z)
-    cs.add_constraint(v1==z*z)
+    cs.add_constraint(z  == x)
+    cs.add_constraint(v0 == z*z)
+    cs.add_constraint(v1 == z*z)
     cs.add_constraint(v2 == v1 * x)
     cs.add_constraint(v3 == v0 * 2 * 3)
     cs.add_constraint(v4 == 2*v1 * v2*3)
@@ -56,9 +56,9 @@ def plonkish_data_bls12_381():
     v6 = Var('v6')
 
     cs = ConstraintSystem(["x"], ["y"], BLS12_381_SCALAR_FIELD)
-    cs.add_constraint(z == 1337)
-    cs.add_constraint(v0==x*x)
-    cs.add_constraint(v1==x*z)
+    cs.add_constraint(z  == x)
+    cs.add_constraint(v0 == z*z)
+    cs.add_constraint(v1 == z*z)
     cs.add_constraint(v2 == v1 * x)
     cs.add_constraint(v3 == v0 * 2 * 3)
     cs.add_constraint(v4 == 2*v1 * v2*3)
@@ -86,8 +86,8 @@ def test_plonk_bn254(plonkish_data_bn254):
 
     proof = plonk.prove(pub, priv)
 
-    hex_proof = proof.to_hex()
-    assert plonk.verify(Proof.from_hex(hex_proof), pub)
+    proof_bytes = proof.to_bytes()
+    assert plonk.verify(Proof.from_bytes(proof_bytes), pub)
 
 
 def test_plonk_bls12_381(plonkish_data_bls12_381):
@@ -100,8 +100,8 @@ def test_plonk_bls12_381(plonkish_data_bls12_381):
 
     proof = plonk.prove(pub, priv)
 
-    hex_proof = proof.to_hex()
-    assert plonk.verify(Proof.from_hex(hex_proof, "BLS12_381"), pub)
+    proof_bytes = proof.to_bytes()
+    assert plonk.verify(Proof.from_bytes(proof_bytes, "BLS12_381"), pub)
 
 def test_key_serialization_bn254(plonkish_data_bn254):
 

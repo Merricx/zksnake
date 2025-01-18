@@ -15,8 +15,8 @@ class Proof:
         return self.__str__()
 
     @classmethod
-    def from_hex(cls, s: str, crv="BN254"):
-        """Parse Proof from hexstring"""
+    def from_bytes(cls, s: bytes, crv="BN254"):
+        """Parse Proof from serialized bytes"""
 
         E = EllipticCurve(crv)
 
@@ -24,21 +24,21 @@ class Proof:
         total_points = n * 4
         assert (
             len(s) == total_points
-        ), f"Length of the Proof must equal {total_points} hex bytes"
+        ), f"Length of the Proof must equal {total_points} bytes"
 
         ax = s[:n]
         bx = s[n : n * 3]
         cx = s[n * 3 :]
 
-        A = E.from_hex(ax)
-        B = E.from_hex(bx)
-        C = E.from_hex(cx)
+        A = E.from_hex(ax.hex())
+        B = E.from_hex(bx.hex())
+        C = E.from_hex(cx.hex())
 
         return Proof(A, B, C)
 
-    def to_hex(self) -> str:
-        """Return hex representation of the Proof"""
-        return self.A.to_hex() + self.B.to_hex() + self.C.to_hex()
+    def to_bytes(self) -> bytes:
+        """Return bytes representation of the Proof"""
+        return bytes(self.A.to_bytes() + self.B.to_bytes() + self.C.to_bytes())
 
 
 class ProvingKey:
@@ -69,7 +69,7 @@ class ProvingKey:
         """Construct ProvingKey from bytes"""
         E = EllipticCurve(crv)
 
-        n = CurvePointSize[crv].value // 2
+        n = CurvePointSize[crv].value
 
         fixed_blocks = s[: n * 7]
         dynamic_blocks = s[n * 7 :]
@@ -173,8 +173,8 @@ class VerifyingKey:
         self.ic = IC
 
     @classmethod
-    def from_hex(cls, s: str, crv="BN254"):
-        """Construct VerifyingKey from hexstring"""
+    def from_bytes(cls, s: bytes, crv="BN254"):
+        """Construct VerifyingKey from bytes"""
         E = EllipticCurve(crv)
 
         n = CurvePointSize[crv].value
@@ -190,29 +190,29 @@ class VerifyingKey:
         delta_x = fixed_blocks[5] + fixed_blocks[6]
 
         ic = []
-        dynamic_blocks = dynamic_blocks[16:]  # skip length header
+        dynamic_blocks = dynamic_blocks[8:]  # skip length header
         dynamic_blocks = split_list(dynamic_blocks, n)
         for block in dynamic_blocks:
-            ic.append(E.from_hex(block))
+            ic.append(E.from_hex(block.hex()))
 
-        alpha_1 = E.from_hex(alpha_x)
-        beta_2 = E.from_hex(beta_x)
-        gamma_2 = E.from_hex(gamma_x)
-        delta_2 = E.from_hex(delta_x)
+        alpha_1 = E.from_hex(alpha_x.hex())
+        beta_2 = E.from_hex(beta_x.hex())
+        gamma_2 = E.from_hex(gamma_x.hex())
+        delta_2 = E.from_hex(delta_x.hex())
 
         return VerifyingKey(alpha_1, beta_2, gamma_2, delta_2, ic)
 
-    def to_hex(self) -> str:
-        """Return hex representation of the VerifyingKey"""
-        s = (
-            self.alpha_1.to_hex()
-            + self.beta_2.to_hex()
-            + self.gamma_2.to_hex()
-            + self.delta_2.to_hex()
+    def to_bytes(self) -> bytes:
+        """Return bytes representation of the VerifyingKey"""
+        s = bytes(
+            self.alpha_1.to_bytes()
+            + self.beta_2.to_bytes()
+            + self.gamma_2.to_bytes()
+            + self.delta_2.to_bytes()
         )
 
-        s += int.to_bytes(len(self.ic), 8, "little").hex()
+        s += int.to_bytes(len(self.ic), 8, "little")
         for ic in self.ic:
-            s += ic.to_hex()
+            s += bytes(ic.to_bytes())
 
         return s

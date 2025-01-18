@@ -5,7 +5,7 @@ from zksnake.groth16 import Groth16
 
 folder = os.path.dirname(__file__)
 cs = R1CS.from_file(
-    "./tests/stub/test_poseidon.r1cs", "./tests/stub/test_poseidon.sym"
+    folder + "/circom/poseidon.r1cs", folder + "/circom/poseidon.sym"
 )
 
 solution = cs.solve(
@@ -25,7 +25,7 @@ groth16 = Groth16(r1cs)
 groth16.setup()
 
 proof = groth16.prove(pub, priv)
-print("Proof:", proof.to_hex())
+print("Proof:", proof.to_bytes().hex())
 
 assert groth16.verify(proof, pub)
 print("Proof is valid!")

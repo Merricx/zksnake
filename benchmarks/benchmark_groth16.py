@@ -4,19 +4,6 @@ from zksnake.arithmetization.r1cs import R1CS
 from zksnake.constant import BN254_SCALAR_FIELD
 from zksnake.groth16 import Groth16
 
-def evaluate_witness_vector(vars, witness, p):
-    w = []
-
-    for v in witness:
-        if v == '0':
-            w.append(1)
-        elif isinstance(v, str):
-            w.append(vars[v] % p)
-        else:
-            w.append(v % p)
-
-    return w
-
 def run(n_power, crv):
 
     time_results = []

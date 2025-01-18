@@ -40,17 +40,17 @@ class Proof:
         self.zeta_omega = zeta_omega
 
     @classmethod
-    def from_hex(cls, s: str, crv="BN254"):
-        """Parse Proof from hexstring"""
+    def from_bytes(cls, s: bytes, crv="BN254"):
+        """Parse Proof from serialized bytes"""
 
         E = EllipticCurve(crv)
 
         n = CurvePointSize[crv].value
         total_points = n * 9
-        total_scalars = 32*2 * 6
+        total_scalars = 32 * 6
         assert (
             len(s) == total_points + total_scalars
-        ), f"Length of the Proof must equal {total_points + total_scalars} hex bytes"
+        ), f"Length of the Proof must equal {total_points + total_scalars} bytes"
 
         ax = s[:n]
         bx = s[n : n * 2]
@@ -62,17 +62,17 @@ class Proof:
         wzx = s[n * 7 : n * 8]
         wzox = s[n * 8 : n * 9]
 
-        scalars = split_list(bytes.fromhex(s[n*9:]), 32)
+        scalars = split_list(s[n*9:], 32)
 
-        tau_a = E.from_hex(ax)
-        tau_b = E.from_hex(bx)
-        tau_c = E.from_hex(cx)
-        tau_z = E.from_hex(zx)
-        tau_t_lo = E.from_hex(tlox)
-        tau_t_mid = E.from_hex(tmix)
-        tau_t_hi = E.from_hex(thix)
-        tau_w_zeta = E.from_hex(wzx)
-        tau_w_zeta_omega = E.from_hex(wzox)
+        tau_a = E.from_hex(ax.hex())
+        tau_b = E.from_hex(bx.hex())
+        tau_c = E.from_hex(cx.hex())
+        tau_z = E.from_hex(zx.hex())
+        tau_t_lo = E.from_hex(tlox.hex())
+        tau_t_mid = E.from_hex(tmix.hex())
+        tau_t_hi = E.from_hex(thix.hex())
+        tau_w_zeta = E.from_hex(wzx.hex())
+        tau_w_zeta_omega = E.from_hex(wzox.hex())
 
         zeta_a = int.from_bytes(scalars[0], 'little')
         zeta_b = int.from_bytes(scalars[1], 'little')
@@ -88,30 +88,30 @@ class Proof:
             zeta_a, zeta_b, zeta_c, zeta_sigma1, zeta_sigma2, zeta_omega
         )
 
-    def to_hex(self) -> str:
-        """Return hex representation of the Proof"""
-        points_hex = (
-            self.tau_a.to_hex() +
-            self.tau_b.to_hex() +
-            self.tau_c.to_hex() +
-            self.tau_z.to_hex() +
-            self.tau_t_lo.to_hex() +
-            self.tau_t_mid.to_hex() +
-            self.tau_t_hi.to_hex() +
-            self.tau_W_zeta.to_hex() +
-            self.tau_W_zeta_omega.to_hex()
+    def to_bytes(self) -> bytes:
+        """Return bytes representation of the Proof"""
+        points = bytes(
+            self.tau_a.to_bytes() +
+            self.tau_b.to_bytes() +
+            self.tau_c.to_bytes() +
+            self.tau_z.to_bytes() +
+            self.tau_t_lo.to_bytes() +
+            self.tau_t_mid.to_bytes() +
+            self.tau_t_hi.to_bytes() +
+            self.tau_W_zeta.to_bytes() +
+            self.tau_W_zeta_omega.to_bytes()
         )
 
-        scalar_hex = (
+        scalar = (
             self.zeta_a.to_bytes(32, 'little') +
             self.zeta_b.to_bytes(32, 'little') +
             self.zeta_c.to_bytes(32, 'little') +
             self.zeta_sigma1.to_bytes(32, 'little') +
             self.zeta_sigma2.to_bytes(32, 'little') +
             self.zeta_omega.to_bytes(32, 'little')
-        ).hex()
+        )
 
-        return points_hex + scalar_hex
+        return points + scalar
     
 class ProvingKey:
     def __init__(
@@ -145,7 +145,7 @@ class ProvingKey:
     def from_bytes(cls, s: bytes, crv="BN254"):
         """Construct ProvingKey from bytes"""
         E = EllipticCurve(crv)
-        n = CurvePointSize[crv].value // 2
+        n = CurvePointSize[crv].value
 
         tau_g1 = []
         length = int.from_bytes(s[:8], 'little')
@@ -291,7 +291,7 @@ class VerifyingKey:
     def from_bytes(cls, s: bytes, crv="BN254"):
         """Construct ProvingKey from bytes"""
         E = EllipticCurve(crv)
-        n = CurvePointSize[crv].value // 2
+        n = CurvePointSize[crv].value
 
         domain = int.from_bytes(s[:8], 'little')
         s = s[8:]

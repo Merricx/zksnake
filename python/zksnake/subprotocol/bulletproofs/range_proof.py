@@ -1,7 +1,7 @@
 from ...utils import get_random_int, split_list
 from ...polynomial import PolynomialRing
 from ...ecc import CurvePointSize, EllipticCurve
-from ...transcript import FiatShamirTranscript, hash_to_curve, hash_to_scalar
+from ...transcript import FiatShamirTranscript, hash_to_curve
 from . import ipa
 
 class RangeProofObject:
@@ -35,7 +35,7 @@ class RangeProofObject:
     def from_bytes(cls, s: bytes, crv="BN254"):
         
         E = EllipticCurve(crv)
-        n = CurvePointSize[crv].value // 2
+        n = CurvePointSize[crv].value
 
         assert (len(s)-160) % n == 0, "Invalid proof length"
 
@@ -108,12 +108,13 @@ class RangeProof:
         A = self.E.multiexp(self.G, a_L) + self.E.multiexp(self.H, a_R) + a_blinding * self.B_blinding
         S = self.E.multiexp(self.G, s_L) + self.E.multiexp(self.H, s_R) + s_blinding * self.B_blinding
         
-        self.transcript.append(V.to_bytes())
-        self.transcript.append(A.to_bytes())
-        self.transcript.append(S.to_bytes())
+        self.transcript.append(V)
+        self.transcript.append(A)
+        self.transcript.append(S)
 
-        y = hash_to_scalar(self.transcript.get_challenge(), b'y', self.E.name)
-        z = hash_to_scalar(self.transcript.get_challenge(), b'z', self.E.name)
+        y = self.transcript.get_challenge_scalar() % self.E.order
+        self.transcript.append(y)
+        z = self.transcript.get_challenge_scalar() % self.E.order
 
         l_0 = []
         l_1 = []
@@ -154,10 +155,10 @@ class RangeProof:
         T1 = t1 * self.B + t1_blinding * self.B_blinding
         T2 = t2 * self.B + t2_blinding * self.B_blinding
 
-        self.transcript.append(T1.to_bytes())
-        self.transcript.append(T2.to_bytes())
+        self.transcript.append(T1)
+        self.transcript.append(T2)
 
-        x = hash_to_scalar(self.transcript.get_challenge(), b'x', self.E.name)
+        x = self.transcript.get_challenge_scalar() % self.E.order
 
         l_list = [poly(x) for poly in l_vecpoly]
         r_list = [poly(x) for poly in r_vecpoly]
@@ -171,7 +172,7 @@ class RangeProof:
         self.transcript.append(t_blinding)
         self.transcript.append(e_blinding)
 
-        w = hash_to_scalar(self.transcript.get_challenge(), b'w', self.E.name)
+        w = self.transcript.get_challenge_scalar() % self.E.order
 
         Q = w * self.B
 
@@ -188,31 +189,32 @@ class RangeProof:
     def verify(self, proof: RangeProofObject):
 
         self.transcript.reset()
-        self.transcript.append(proof.V.to_bytes())
-        self.transcript.append(proof.A.to_bytes())
-        self.transcript.append(proof.S.to_bytes())
+        self.transcript.append(proof.V)
+        self.transcript.append(proof.A)
+        self.transcript.append(proof.S)
 
-        y = hash_to_scalar(self.transcript.get_challenge(), b'y', self.E.name)
-        z = hash_to_scalar(self.transcript.get_challenge(), b'z', self.E.name)
+        y = self.transcript.get_challenge_scalar() % self.E.order
+        self.transcript.append(y)
+        z = self.transcript.get_challenge_scalar() % self.E.order
 
-        self.transcript.append(proof.T1.to_bytes())
-        self.transcript.append(proof.T2.to_bytes())
+        self.transcript.append(proof.T1)
+        self.transcript.append(proof.T2)
 
-        x = hash_to_scalar(self.transcript.get_challenge(), b'x', self.E.name)
+        x = self.transcript.get_challenge_scalar() % self.E.order
 
         self.transcript.append(proof.t)
         self.transcript.append(proof.t_blinding)
         self.transcript.append(proof.e_blinding)
 
-        w = hash_to_scalar(self.transcript.get_challenge(), b'w', self.E.name)
+        w = self.transcript.get_challenge_scalar() % self.E.order
 
         self.transcript.reset()
 
         for g in self.G:
-            self.transcript.append(g.to_bytes())
+            self.transcript.append(g)
         for i, h in enumerate(self.H):
             hprime = pow(y, -i, self.E.order) * h
-            self.transcript.append(hprime.to_bytes())
+            self.transcript.append(hprime)
 
         c = get_random_int(self.E.order)
 
@@ -222,11 +224,10 @@ class RangeProof:
 
         all_inv = 1
         for i in range(k):
-            self.transcript.append(proof.ipa_proof.L[i].to_bytes())
-            self.transcript.append(proof.ipa_proof.R[i].to_bytes())
+            self.transcript.append(proof.ipa_proof.L[i])
+            self.transcript.append(proof.ipa_proof.R[i])
 
-            u = hash_to_scalar(
-                self.transcript.get_challenge(), b'u', self.E.name)
+            u = self.transcript.get_challenge_scalar() % self.E.order
 
             challenges.append(pow(u, 2, self.E.order))
             challenges_inv.append(pow(u, -2, self.E.order))

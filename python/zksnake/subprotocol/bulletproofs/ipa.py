@@ -1,5 +1,5 @@
 from ...utils import next_power_of_two, split_list
-from ...transcript import FiatShamirTranscript, hash_to_curve, hash_to_scalar
+from ...transcript import FiatShamirTranscript, hash_to_curve
 from ...ecc import CurvePointSize, EllipticCurve
 
 
@@ -26,7 +26,7 @@ class InnerProductProof:
     def from_bytes(cls, s: bytes, crv="BN254"):
 
         E = EllipticCurve(crv)
-        n = CurvePointSize[crv].value // 2
+        n = CurvePointSize[crv].value
 
         assert (len(s)-64) % n == 0, "Invalid proof length"
 
@@ -79,9 +79,9 @@ class InnerProductArgument:
         b = b + [0 for _ in range(self.n - len(b))]
 
         for g in self.G:
-            self.transcript.append(g.to_bytes())
+            self.transcript.append(g)
         for h in self.H:
-            self.transcript.append(h.to_bytes())
+            self.transcript.append(h)
 
         ab = self.__inner_product(a, b)
 
@@ -115,11 +115,10 @@ class InnerProductArgument:
             L_list.append(L)
             R_list.append(R)
 
-            self.transcript.append(L.to_bytes())
-            self.transcript.append(R.to_bytes())
+            self.transcript.append(L)
+            self.transcript.append(R)
 
-            u = hash_to_scalar(
-                self.transcript.get_challenge(), b'u', self.E.name)
+            u = self.transcript.get_challenge_scalar() % self.E.order
             u_inv = pow(u, -1, self.E.order)
             u_list.append(u)
 
@@ -147,9 +146,9 @@ class InnerProductArgument:
         assert len(proof.L) < 32, "Argument size is too big"
 
         for g in self.G:
-            self.transcript.append(g.to_bytes())
+            self.transcript.append(g)
         for h in self.H:
-            self.transcript.append(h.to_bytes())
+            self.transcript.append(h)
 
         k = len(proof.L)
         challenges = []
@@ -157,11 +156,10 @@ class InnerProductArgument:
 
         all_inv = 1
         for i in range(k):
-            self.transcript.append(proof.L[i].to_bytes())
-            self.transcript.append(proof.R[i].to_bytes())
+            self.transcript.append(proof.L[i])
+            self.transcript.append(proof.R[i])
 
-            u = hash_to_scalar(
-                self.transcript.get_challenge(), b'u', self.E.name)
+            u = self.transcript.get_challenge_scalar() % self.E.order
 
             challenges.append(pow(u, 2, self.E.order))
             challenges_inv.append(pow(u, -2, self.E.order))
