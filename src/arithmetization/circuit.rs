@@ -1,6 +1,7 @@
+use ark_ff::Zero;
 use num_bigint::BigUint;
 use pyo3::{ prelude::*, types::{ PyDict, PyInt } };
-use std::collections::{ HashMap, HashSet, VecDeque };
+use std::{ collections::{ HashMap, HashSet, VecDeque }, error::Error };
 
 use super::{ plonkish, r1cs::{ compile, get_witness_vector } };
 
@@ -43,39 +44,57 @@ impl Node {
         Node { gate, value: None }
     }
 
-    pub fn evaluate(&mut self, inputs: &HashMap<String, BigUint>, modulus: &BigUint) -> BigUint {
+    pub fn empty() -> Self {
+        Node { gate: Gate::Const(BigUint::zero()), value: None }
+    }
+
+    pub fn evaluate(
+        &mut self,
+        inputs: &HashMap<String, BigUint>,
+        modulus: &BigUint
+    ) -> Result<BigUint, Box<dyn Error>> {
         if let Some(val) = self.value.clone() {
-            return val;
+            return Ok(val);
         }
 
         let result = match &mut self.gate {
             Gate::Input(name) =>
-                inputs.get(name).expect("Missing one or more variable on evaluation").clone(),
-            Gate::Add(left, right) =>
-                (left.evaluate(inputs, modulus) + right.evaluate(inputs, modulus)) % modulus,
-            Gate::Sub(left, right) => {
-                let l = left.evaluate(inputs, modulus);
-                let r = right.evaluate(inputs, modulus);
-                if l < r {
-                    return modulus - (r - l);
+                match inputs.get(name) {
+                    Some(v) => v.clone(),
+                    None => {
+                        return Err("Missing one or more variable on evaluation".into());
+                    }
                 }
-                (l - r) % modulus
+            Gate::Add(left, right) =>
+                (left.evaluate(inputs, modulus)? + right.evaluate(inputs, modulus)?) % modulus,
+            Gate::Sub(left, right) => {
+                let l = left.evaluate(inputs, modulus)?;
+                let r = right.evaluate(inputs, modulus)?;
+                if l < r {
+                    modulus - (r - l)
+                } else {
+                    (l - r) % modulus
+                }
             }
 
             Gate::Mul(left, right) =>
-                (left.evaluate(inputs, modulus) * right.evaluate(inputs, modulus)) % modulus,
-            Gate::Div(left, right) =>
-                left.evaluate(inputs, modulus) *
-                    right
-                        .evaluate(inputs, modulus)
-                        .modinv(modulus)
-                        .expect("Modular inverse not found"),
-            Gate::Neg(node) => modulus - node.evaluate(inputs, modulus),
+                (left.evaluate(inputs, modulus)? * right.evaluate(inputs, modulus)?) % modulus,
+            Gate::Div(left, right) => {
+                let r = right.evaluate(inputs, modulus)?.modinv(modulus);
+                match r {
+                    Some(v) => { left.evaluate(inputs, modulus)? * v }
+                    None => {
+                        return Err("Modular inverse not found".into());
+                    }
+                }
+            }
+
+            Gate::Neg(node) => modulus - node.evaluate(inputs, modulus)?,
             Gate::Const(val) => val.clone(),
         };
 
         self.value = Some(result.clone());
-        result
+        Ok(result % modulus)
     }
 
     pub fn to_expression(&self) -> String {
@@ -94,7 +113,7 @@ impl Node {
         }
     }
 
-    pub fn isolate_term(&self, target: &str, right: &Node) -> Node {
+    pub fn isolate_term(&self, target: &str, right: &Node) -> Result<Node, Box<dyn Error>> {
         match &self.gate {
             Gate::Add(left, right_node) => {
                 if left.contains_target(target) {
@@ -106,7 +125,7 @@ impl Node {
                     let new_rhs = Node::new(Gate::Sub(Box::new(right.clone()), left.clone()));
                     right_node.isolate_term(target, &new_rhs)
                 } else {
-                    panic!("Target term not found in Add gate");
+                    Err("Target term not found in Add gate".into())
                 }
             }
             Gate::Sub(left, right_node) => {
@@ -119,12 +138,12 @@ impl Node {
                     let new_rhs = Node::new(Gate::Sub(Box::new(right.clone()), left.clone()));
                     right_node.isolate_term(target, &new_rhs)
                 } else {
-                    panic!("Target term not found in Sub gate");
+                    Err("Target term not found in Sub gate".into())
                 }
             }
             Gate::Mul(left, right_node) => {
                 if left.contains_target(target) {
-                    // Move -right_node to the RHS: right / right_node
+                    // Move right_node to the RHS: right / right_node
                     let new_rhs = Node::new(Gate::Div(Box::new(right.clone()), right_node.clone()));
                     left.isolate_term(target, &new_rhs)
                 } else if right_node.contains_target(target) {
@@ -132,15 +151,17 @@ impl Node {
                     let new_rhs = Node::new(Gate::Div(Box::new(right.clone()), left.clone()));
                     right_node.isolate_term(target, &new_rhs)
                 } else {
-                    panic!("Target term not found in Mul gate");
+                    Err("Target term not found in Mul gate".into())
                 }
             }
-            Gate::Input(name) if name == target => right.clone(),
+            Gate::Input(name) if name == target => Ok(right.clone()),
             _ =>
-                panic!(
-                    "Unable to rearrange non-linear equation: {} = {}",
-                    self.to_expression(),
-                    right.to_expression()
+                Err(
+                    format!(
+                        "Unable to rearrange non-linear equation: {} = {}",
+                        self.to_expression(),
+                        right.to_expression()
+                    ).into()
                 ),
         }
     }
@@ -195,8 +216,8 @@ impl Equation {
         inputs: HashMap<String, BigUint>,
         modulus: BigUint
     ) -> (BigUint, BigUint) {
-        let left = self.lhs.evaluate(&inputs, &modulus);
-        let right = self.rhs.evaluate(&inputs, &modulus);
+        let left = self.lhs.evaluate(&inputs, &modulus).unwrap();
+        let right = self.rhs.evaluate(&inputs, &modulus).unwrap();
 
         (left, right)
     }
@@ -225,7 +246,7 @@ impl Field {
     }
 
     pub fn evaluate(&mut self, inputs: HashMap<String, BigUint>, modulus: BigUint) -> BigUint {
-        self.inner.evaluate(&inputs, &modulus)
+        self.inner.evaluate(&inputs, &modulus).unwrap()
     }
 
     fn __add__(lhs: PyRef<Self>, rhs: &PyAny) -> PyResult<Self> {
@@ -530,7 +551,9 @@ impl ConstraintSystem {
             _ => {
                 if let Some(unassigned) = self.find_unassigned_var(&constraint.lhs) {
                     if self.assigned.insert(unassigned.clone()) {
-                        let new_eq = constraint.lhs.isolate_term(&unassigned, &constraint.rhs);
+                        let new_eq = constraint.lhs
+                            .isolate_term(&unassigned, &constraint.rhs)
+                            .unwrap();
                         self.sequence.push(SequenceRow::Assignment(unassigned, new_eq));
                     }
                 }
@@ -583,15 +606,20 @@ impl ConstraintSystem {
         while let Some(mut seq) = queue.pop_front() {
             match seq {
                 SequenceRow::Constraint(ref mut constraint) => {
-                    let mut list_vars = vec![];
-                    constraint.lhs.extract_vars(&mut list_vars);
-                    constraint.rhs.extract_vars(&mut list_vars);
+                    let mut lhs_list_vars = vec![];
+                    let mut rhs_list_vars = vec![];
+                    constraint.lhs.extract_vars(&mut lhs_list_vars);
+                    constraint.rhs.extract_vars(&mut rhs_list_vars);
 
-                    let is_subset = list_vars.iter().all(|item| evaluated.contains(item));
+                    let unknown_vars: Vec<_> = lhs_list_vars
+                        .iter()
+                        .chain(rhs_list_vars.iter())
+                        .filter(|&item| !evaluated.contains(item))
+                        .collect();
 
-                    if is_subset {
-                        let lhs = constraint.lhs.evaluate(&self.vars, &self.modulus);
-                        let rhs = constraint.rhs.evaluate(&self.vars, &self.modulus);
+                    if unknown_vars.len() == 0 {
+                        let lhs = constraint.lhs.evaluate(&self.vars, &self.modulus).unwrap();
+                        let rhs = constraint.rhs.evaluate(&self.vars, &self.modulus).unwrap();
 
                         assert_eq!(
                             lhs,
@@ -600,6 +628,38 @@ impl ConstraintSystem {
                             constraint.lhs.to_expression(),
                             constraint.rhs.to_expression()
                         );
+                    } else if unknown_vars.len() == 1 {
+                        // println!("original: {}", constraint.__repr__().unwrap());
+                        // print!("isolating : {}", unknown_vars[0]);
+                        let mut _new_eq = Node::empty();
+
+                        if lhs_list_vars.contains(unknown_vars[0]) {
+                            _new_eq = constraint.lhs
+                                .isolate_term(unknown_vars[0], &constraint.rhs)
+                                .unwrap();
+                        } else {
+                            _new_eq = constraint.rhs
+                                .isolate_term(unknown_vars[0], &constraint.lhs)
+                                .unwrap();
+                        }
+
+                        let result = _new_eq.evaluate(&self.vars, &self.modulus);
+                        match result {
+                            Ok(value) => {
+                                // println!(" --> {}", value);
+                                self.vars
+                                    .entry(unknown_vars[0].to_string())
+                                    .and_modify(|v| {
+                                        *v = value.clone();
+                                    })
+                                    .or_insert(value);
+
+                                evaluated.insert(unknown_vars[0].to_string());
+                            }
+                            Err(_) => {}
+                        }
+
+                        queue.push_back(seq);
                     } else {
                         queue.push_back(seq);
                     }
@@ -612,7 +672,9 @@ impl ConstraintSystem {
                     let is_subset = list_vars.iter().all(|item| evaluated.contains(item));
 
                     if is_subset {
-                        let result = node.evaluate(&self.vars, &self.modulus);
+                        // print!("Assigning: {}", name);
+                        let result = node.evaluate(&self.vars, &self.modulus).unwrap();
+                        // println!(" --> {}", result);
                         self.vars
                             .entry(name.to_string())
                             .and_modify(|v| {
@@ -626,39 +688,49 @@ impl ConstraintSystem {
                     }
                 }
 
-                SequenceRow::Hint(name, func, args) => {
-                    let scope = PyDict::new(py);
+                SequenceRow::Hint(ref name, ref func, ref args) => {
+                    let is_subset = args.iter().all(|item| evaluated.contains(item));
 
-                    for arg in args {
-                        let value = self.vars
-                            .get(&arg)
-                            .expect(&format!("Argument not exist: {}", arg));
-                        scope.set_item(arg.to_string(), value)?;
-                    }
+                    if is_subset {
+                        let scope = PyDict::new(py);
 
-                    let result = func.call(py, (), Some(scope))?;
+                        // print!("Hinting: {}", name);
 
-                    if let Ok(py_int) = result.downcast::<PyInt>(py) {
-                        let final_int = BigUint::parse_bytes(
-                            py_int.to_string().as_bytes(),
-                            10
-                        ).expect("Non deterministic result must be Integer");
-                        self.vars.entry(name.to_string()).and_modify(|v| {
-                            *v = final_int;
-                        });
-                        evaluated.insert(name.to_string());
+                        for arg in args {
+                            let value = self.vars
+                                .get(arg)
+                                .expect(&format!("Argument not exist: {}", arg));
+                            scope.set_item(arg.to_string(), value)?;
+                        }
+
+                        let result = func.call(py, (), Some(scope))?;
+
+                        if let Ok(py_int) = result.downcast::<PyInt>(py) {
+                            let final_int = BigUint::parse_bytes(
+                                py_int.to_string().as_bytes(),
+                                10
+                            ).expect("Non deterministic result must be Integer");
+                            // println!(" --> {}", final_int);
+                            self.vars.entry(name.to_string()).and_modify(|v| {
+                                *v = final_int;
+                            });
+                            evaluated.insert(name.to_string());
+                        } else {
+                            return Err(
+                                PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                                    "Non deterministic result must be Integer"
+                                )
+                            );
+                        }
                     } else {
-                        return Err(
-                            PyErr::new::<pyo3::exceptions::PyTypeError, _>(
-                                "Non deterministic result must be Integer"
-                            )
-                        );
+                        queue.push_back(seq);
                     }
                 }
             }
 
             current_loop += 1;
             if current_loop > max_loop {
+                // println!("{:?}", evaluated);
                 panic!("Evaluation timeout: solution might not exist for the given constraints");
             }
         }

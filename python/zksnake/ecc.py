@@ -23,6 +23,12 @@ class CurveOrder(Enum):
     ALT_BN128 = BN254_SCALAR_FIELD
     BLS12_381 = BLS12_381_SCALAR_FIELD
 
+class CurveScalarSize(Enum):
+    BN128 = 32
+    BN254 = 32
+    ALT_BN128 = 32
+    BLS12_381 = 32
+
 class CurvePointSize(Enum):
     BN128 = 32
     BN254 = 32
@@ -63,7 +69,7 @@ class EllipticCurve:
     def multi_pairing(self, a: list, b: list):
         """
         Perform pairing of e(a[i], b[i]) in batch
-        and compute sum of the results
+        and compute its product
         """
         assert len(a) == len(b), "Length of a and b must be equal"
         return self.curve.multi_pairing(a, b)
