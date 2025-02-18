@@ -20,7 +20,6 @@ class GkrPolynomial(SumcheckPolynomial):
         self.mul_i = mul_i
         self.w_b = w_b
         self.w_c = w_c
-        self.mlpoly = None
 
     def to_evaluations(self):
         evals = []
@@ -40,10 +39,8 @@ class GkrPolynomial(SumcheckPolynomial):
                         mul_i[idx] * (value_b * value_c)
                     ) % self.p
                     evals.append(result)
-                    # sparse_eval.append((idx, result))
                 else:
                     evals.append(0)
-                # idx += 1
 
         return evals
 
@@ -85,15 +82,15 @@ class GkrPolynomial(SumcheckPolynomial):
         return g1
 
     def round_function(self, r):
-        fixed = self.partial_evaluate(r)
+        fixed = self.partial_evaluate(r[::-1])
         uni_poly = fixed.to_univariate()
 
         return uni_poly
 
 class LayeredCircuit:
     def __init__(self, inputs: List[str]):
-        self.layers = [[]]  # List of layers, where each layer is a list of gates
-        self.inputs = inputs  # Dictionary to store inputs to the circuit
+        self.layers = [[]]
+        self.inputs = inputs
         self._used_vars = []
         self._current_layer = 0
         self._allowed_inputs = set(inputs)
@@ -119,7 +116,8 @@ class LayeredCircuit:
         if gate_type in ["ADD", "MUL"]:
             if input1 not in self._allowed_inputs or input2 not in self._allowed_inputs:
                 raise ValueError(
-                    f"Gate inputs {input1}, {input2} must be from outputs from previous layers or inputs from first layer"
+                    f"Gate inputs {input1}, {input2} must be from outputs "+
+                    "from previous layers or inputs from first layer"
                 )
 
             if output in self._used_vars:
@@ -278,10 +276,6 @@ class GKR:
         add_ext_i, mul_ext_i = self._selector_polynomial(i, r)
         w_i = MultilinearPolynomial(num_vars_next_i, w_evals, self.order)
 
-        # print(add_ext_i)
-        # print(mul_ext_i)
-        # print(w_i)
-
         return GkrPolynomial(add_ext_i.num_vars, self.order, add_ext_i, mul_ext_i, w_i, w_i)
 
     def _init_transcript(self, input_map, outputs):
@@ -348,16 +342,15 @@ class GKR:
         for i in range(self.depth):
             # print('layer', i)
             f = self._sumcheck_polynomial(evaluation_layers, i, r)
-            # print(sum(f.to_evaluations()) % self.order)
             n_next = f.n // 2
-            b = self._get_transcript_challenge(n_next)
-            c = self._get_transcript_challenge(n_next)
 
             # P and V apply sumcheck on the relation between W_0 and W_1
-            sumcheck = Sumcheck(f.n, self.order)
-            challenges = b + c
-            sum_claim, proof = sumcheck.prove_arbitrary(f, challenges)
+            sumcheck = Sumcheck(f.n, self.order, self.transcript)
+            sum_claim, proof, challenges = sumcheck.prove_arbitrary(f)
             assert sum_claim == m, "Wiring pattern of the circuit might be incorrect"
+
+            b = challenges[:n_next]
+            c = challenges[n_next:]
 
             l = [PolynomialRing(
                 [b_val, (c_val - b_val) % self.order], self.order)
@@ -409,17 +402,18 @@ class GKR:
         for i in range(self.depth):
             # print('layer', i)
             add_ext_i, mul_ext_i = self._selector_polynomial(i, r)
-
             n_next = add_ext_i.num_vars // 2
-            b = self._get_transcript_challenge(n_next)
-            c = self._get_transcript_challenge(n_next)
 
-            sumcheck = Sumcheck(add_ext_i.num_vars, self.order)
-            challenges = b + c
+            sumcheck = Sumcheck(add_ext_i.num_vars, self.order, self.transcript)
 
             round_proof = proofs[i]
-            if not sumcheck.verify(m, round_proof[:-1], challenges):
+            challenges = sumcheck.verify(m, round_proof[:-1], 2)
+
+            if not challenges:
                 return False
+
+            b = challenges[:n_next]
+            c = challenges[n_next:]
 
             # last sumcheck round
             l = [PolynomialRing(

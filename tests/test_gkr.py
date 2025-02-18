@@ -1,7 +1,9 @@
 import pytest, random
 
 from zksnake.constant import BLS12_381_SCALAR_FIELD, BN254_SCALAR_FIELD
+from zksnake.polynomial import MultilinearPolynomial
 from zksnake.subprotocol.gkr import GKR, LayeredCircuit
+from zksnake.subprotocol.sumcheck import Sumcheck
 
 @pytest.fixture
 def circuit_data():
@@ -16,13 +18,16 @@ def circuit_data():
     circuit2.add_gate('MUL', 'x', 'y', 'z2')
     circuit2.add_gate('MUL', 'x', 'y', 'z3')
     circuit2.add_gate('MUL', 'u', 'v', 'w')
+    circuit2.add_gate('ADD', 'x', 'x', 'xx')
     circuit2.add_layer()
     circuit2.add_gate('MUL', 'z1', 'z2', 'zz')
     circuit2.add_gate('MUL', 'z1', 'z3', 'zzz')
     circuit2.add_gate('MUL', 'w', 'w', 'ww')
+    circuit2.add_gate('ADD', 'xx', 'xx', 'xxx')
     circuit2.add_layer()
     circuit2.add_gate('ADD', 'zzz', 'zz', 'a')
     circuit2.add_gate('MUL', 'zzz', 'ww', 'b')
+    circuit2.add_gate('MUL', 'xxx', 'xxx', 'xxxx')
 
     circuit3 = LayeredCircuit(['a1', 'a2', 'a3', 'a4'])
     circuit3.add_gate('MUL', 'a1', 'a1', 'b1')
@@ -62,3 +67,14 @@ def test_e2e_gkr_bls12_381(circuit_data):
         output, proof = gkr.prove(inp)
 
         assert gkr.verify(inp, output, proof)
+
+def test_sumcheck():
+
+    random.seed('sumcheck')
+    g = MultilinearPolynomial(4, [(5, 1), (6, 1), (7, 1)], BN254_SCALAR_FIELD)
+
+    sumcheck = Sumcheck(g.num_vars, BN254_SCALAR_FIELD)
+
+    sum_claim, proof, _ = sumcheck.prove(g)
+
+    assert sumcheck.verify(sum_claim, proof, 1, g)

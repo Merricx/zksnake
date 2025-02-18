@@ -16,29 +16,42 @@ from ..polynomial import (
 from .serialization import ProvingKey, VerifyingKey, Proof
 
 class Plonk():
+    """
+    PlonK proof system (https://eprint.iacr.org/2019/953.pdf).
 
-    def __init__(self, constraints: Plonkish, curve: str = "BN254", G1_tau = None, G2_tau = None):
+    The implementation follows the original version of the paper (vanilla PlonK).
+    """
+
+    def __init__(self, constraints: Plonkish, curve: str = "BN254"):
         self.E = EllipticCurve(curve)
         self.order = self.E.order
         self.constraints = constraints
-        self.G1_tau = G1_tau
-        self.G2_tau = G2_tau
+        self.G1_tau = None
+        self.G2_tau = None
         self.label = 'PlonK'
 
         self.proving_key = None
         self.verifying_key = None
         self._roots = []
 
-    def setup(self):
-        """Universal trusted setup to generate `ProvingKey` and `VerifyingKey`"""
+    def setup(self, g1_tau = None, g2_tau = None):
+        """Universal trusted setup to generate `ProvingKey` and `VerifyingKey`.
+        
+        Optionally, `g1_tau` and `g2_tau` can be provided to reuse the trusted setup
+        from other sources
+        """
 
-        if not self.G1_tau:
+        if not g1_tau:
             tau = get_random_int(self.order-1)
             power_of_tau = [pow(tau, i, self.order) for i in range(self.constraints.length+7)]
             self.G1_tau = self.E.batch_mul(self.E.G1(), power_of_tau)
             self.G2_tau = self.E.G2() * tau
         else:
-            assert len(self.G1_tau) >= self.constraints.length+7, "Constraints too big for the given G1_tau"
+            assert len(self.G1_tau) >= self.constraints.length+7, (
+                "Constraints are too big for the given g1_tau"
+            )
+            self.G1_tau = g1_tau
+            self.G2_tau = g2_tau
 
         roots = get_all_root_of_unity(self.constraints.length, self.order)
 
@@ -51,7 +64,7 @@ class Plonk():
         id3 = [k2 * root % self.order for root in roots]
         ids = list(id1+id2+id3)
         permutation = self.constraints.permutation
-        
+
         sigma1 = [ids[permutation[i]] for i in range(n)]
         sigma2 = [ids[permutation[i + n]] for i in range(n)]
         sigma3 = [ids[permutation[i + 2*n]] for i in range(n)]

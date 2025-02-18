@@ -12,7 +12,7 @@ from ..utils import get_random_int, get_n_jobs
 
 class Groth16:
     """
-    Groth16 proof system Class
+    Groth16 proof system (https://eprint.iacr.org/2016/260.pdf)
 
     Args:
         r1cs: R1CS to be set up from
