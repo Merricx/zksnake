@@ -382,8 +382,8 @@ class Plonk():
                  selector_poly['M'] * zeta_A * zeta_B +
                  selector_poly['C'] + PI(zeta)
                 ) +
-                alpha * ((zeta_A + beta * zeta + gamma) * 
-                (zeta_B + beta * k1 * zeta + gamma) * 
+                alpha * ((zeta_A + beta * zeta + gamma) *
+                (zeta_B + beta * k1 * zeta + gamma) *
                 (zeta_C + beta * k2 * zeta + gamma) * Z -
                 (zeta_A + beta * zeta_sigma1 + gamma) *
                 (zeta_B + beta * zeta_sigma2 + gamma) *
@@ -393,7 +393,7 @@ class Plonk():
             )
 
             W_zeta = (
-                R + 
+                R +
                 (A - zeta_A) * v +
                 (B - zeta_B) * pow(v, 2, self.order) +
                 (C - zeta_C) * pow(v, 3, self.order) +
@@ -541,8 +541,8 @@ class Plonk():
             ) * tau_sigma3 -
 
             Zh_zeta * (
-                proof.tau_t_lo + 
-                pow(zeta, n, self.order) * proof.tau_t_mid + 
+                proof.tau_t_lo +
+                pow(zeta, n, self.order) * proof.tau_t_mid +
                 pow(zeta, n*2, self.order) * proof.tau_t_hi
             )
         )
@@ -556,7 +556,7 @@ class Plonk():
         )
 
         tau_E = ((
-            -r0 + 
+            -r0 +
             v * proof.zeta_a +
             pow(v, 2, self.order) * proof.zeta_b +
             pow(v, 3, self.order) * proof.zeta_c +

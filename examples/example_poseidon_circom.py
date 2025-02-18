@@ -4,11 +4,11 @@ from zksnake.groth16 import Groth16
 
 
 folder = os.path.dirname(__file__)
-cs = R1CS.from_file(
+r1cs = R1CS.from_file(
     folder + "/circom/poseidon.r1cs", folder + "/circom/poseidon.sym"
 )
 
-solution = cs.solve(
+solution = r1cs.constraint_system.solve(
     {
         "main.a": 1,
         "main.b": 2,
@@ -16,7 +16,6 @@ solution = cs.solve(
     },
 )
 
-r1cs = R1CS(cs)
 r1cs.compile()
 
 pub, priv = r1cs.generate_witness(solution)

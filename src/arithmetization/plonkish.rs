@@ -1,7 +1,7 @@
 use ark_ff::{ One, Zero };
 use num_bigint::BigUint;
 use rayon::prelude::*;
-use super::circuit::{ ConstraintSystem, Equation, Node };
+use super::symbolic::{ ConstraintSystem, Equation, Node };
 
 fn transform(
     eq: &Node,
@@ -12,25 +12,25 @@ fn transform(
     modulus: &BigUint
 ) {
     match &eq.gate {
-        super::circuit::Gate::Input(name) => {
+        super::symbolic::Gate::Input(name) => {
             *var_mul += 1;
             touched_var.push(name.to_string());
         }
-        super::circuit::Gate::Add(left, right) => {
+        super::symbolic::Gate::Add(left, right) => {
             transform(left, q_var, q_constant, var_mul, touched_var, modulus);
             transform(right, q_var, q_constant, var_mul, touched_var, modulus);
         }
-        super::circuit::Gate::Sub(left, right) => {
+        super::symbolic::Gate::Sub(left, right) => {
             transform(left, q_var, q_constant, var_mul, touched_var, modulus);
             transform(right, q_var, q_constant, var_mul, touched_var, modulus);
         }
-        super::circuit::Gate::Mul(left, right) => {
+        super::symbolic::Gate::Mul(left, right) => {
             match (&left.gate, &right.gate) {
-                (_, super::circuit::Gate::Const(value)) => {
+                (_, super::symbolic::Gate::Const(value)) => {
                     transform(left, q_var, q_constant, var_mul, touched_var, modulus);
                     *q_var *= value;
                 }
-                (super::circuit::Gate::Const(value), _) => {
+                (super::symbolic::Gate::Const(value), _) => {
                     *q_var *= value;
                     transform(right, q_var, q_constant, var_mul, touched_var, modulus);
                 }
@@ -40,11 +40,11 @@ fn transform(
                 }
             }
         }
-        super::circuit::Gate::Neg(left) => {
+        super::symbolic::Gate::Neg(left) => {
             transform(left, q_var, q_constant, var_mul, touched_var, modulus);
             *q_var = modulus - q_var.clone();
         }
-        super::circuit::Gate::Const(val) => {
+        super::symbolic::Gate::Const(val) => {
             *q_constant += val;
         }
         _ => {
@@ -99,9 +99,9 @@ fn consume_constraint(
     let lhs = constraint.lhs.clone();
     let rhs = constraint.rhs.clone();
 
-    if let super::circuit::Gate::Const(left) = lhs.gate {
+    if let super::symbolic::Gate::Const(left) = lhs.gate {
         qc = modulus - left;
-    } else if let super::circuit::Gate::Input(var) = lhs.gate {
+    } else if let super::symbolic::Gate::Input(var) = lhs.gate {
         if !public_input.contains(&var) {
             qo = modulus - BigUint::one();
         }
@@ -111,16 +111,16 @@ fn consume_constraint(
     }
 
     match &rhs.gate {
-        super::circuit::Gate::Const(val) => {
+        super::symbolic::Gate::Const(val) => {
             qc += val;
         }
-        super::circuit::Gate::Input(name) => {
+        super::symbolic::Gate::Input(name) => {
             ql = BigUint::one();
             w[0] = name.to_string();
 
             qr = BigUint::zero();
         }
-        super::circuit::Gate::Add(left, right) => {
+        super::symbolic::Gate::Add(left, right) => {
             ql = BigUint::one();
             qr = BigUint::one();
 
@@ -150,7 +150,7 @@ fn consume_constraint(
                 );
             }
         }
-        super::circuit::Gate::Sub(left, right) => {
+        super::symbolic::Gate::Sub(left, right) => {
             ql = BigUint::one();
             qr = BigUint::one();
 
@@ -184,7 +184,7 @@ fn consume_constraint(
                 );
             }
         }
-        super::circuit::Gate::Mul(_, _) => {
+        super::symbolic::Gate::Mul(_, _) => {
             let mut q_var = BigUint::one();
             let mut q_const = BigUint::zero();
 
@@ -209,10 +209,10 @@ fn consume_constraint(
                 );
             }
         }
-        super::circuit::Gate::Div(_, _) => {
+        super::symbolic::Gate::Div(_, _) => {
             panic!("Division operation is not supported");
         }
-        super::circuit::Gate::Neg(left) => {
+        super::symbolic::Gate::Neg(left) => {
             ql = BigUint::one();
             qr = BigUint::zero();
 

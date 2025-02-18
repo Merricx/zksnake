@@ -629,8 +629,6 @@ impl ConstraintSystem {
                             constraint.rhs.to_expression()
                         );
                     } else if unknown_vars.len() == 1 {
-                        // println!("original: {}", constraint.__repr__().unwrap());
-                        // print!("isolating : {}", unknown_vars[0]);
                         let mut _new_eq = Node::empty();
 
                         if lhs_list_vars.contains(unknown_vars[0]) {
@@ -646,7 +644,6 @@ impl ConstraintSystem {
                         let result = _new_eq.evaluate(&self.vars, &self.modulus);
                         match result {
                             Ok(value) => {
-                                // println!(" --> {}", value);
                                 self.vars
                                     .entry(unknown_vars[0].to_string())
                                     .and_modify(|v| {
@@ -672,9 +669,7 @@ impl ConstraintSystem {
                     let is_subset = list_vars.iter().all(|item| evaluated.contains(item));
 
                     if is_subset {
-                        // print!("Assigning: {}", name);
                         let result = node.evaluate(&self.vars, &self.modulus).unwrap();
-                        // println!(" --> {}", result);
                         self.vars
                             .entry(name.to_string())
                             .and_modify(|v| {
@@ -694,8 +689,6 @@ impl ConstraintSystem {
                     if is_subset {
                         let scope = PyDict::new(py);
 
-                        // print!("Hinting: {}", name);
-
                         for arg in args {
                             let value = self.vars
                                 .get(arg)
@@ -710,7 +703,7 @@ impl ConstraintSystem {
                                 py_int.to_string().as_bytes(),
                                 10
                             ).expect("Non deterministic result must be Integer");
-                            // println!(" --> {}", final_int);
+
                             self.vars.entry(name.to_string()).and_modify(|v| {
                                 *v = final_int;
                             });
@@ -730,8 +723,9 @@ impl ConstraintSystem {
 
             current_loop += 1;
             if current_loop > max_loop {
-                // println!("{:?}", evaluated);
-                panic!("Evaluation timeout: solution might not exist for the given constraints");
+                PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
+                    "Evaluation timeout: unique solution might not exist for the given constraints"
+                );
             }
         }
 

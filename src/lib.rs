@@ -75,6 +75,7 @@ fn register_polynomial_module(py: Python, parent_module: &PyModule) -> PyResult<
 
     let poly_bls12_381_module = PyModule::new(py, "polynomial_bls12_381")?;
     poly_bls12_381_module.add_class::<bls12_381::polynomial::PolynomialRing>()?;
+    poly_bls12_381_module.add_class::<bls12_381::mle::MultilinearPolynomial>()?;
     poly_bls12_381_module.add_function(
         wrap_pyfunction!(bls12_381::polynomial::get_nth_root_of_unity, poly_bls12_381_module)?
     )?;
@@ -120,8 +121,8 @@ fn register_polynomial_module(py: Python, parent_module: &PyModule) -> PyResult<
 
 fn register_circuit_module(py: Python, parent_module: &PyModule) -> PyResult<()> {
     let circuit_module = PyModule::new(py, "circuit")?;
-    circuit_module.add_class::<arithmetization::circuit::Field>()?;
-    circuit_module.add_class::<arithmetization::circuit::ConstraintSystem>()?;
+    circuit_module.add_class::<arithmetization::symbolic::Field>()?;
+    circuit_module.add_class::<arithmetization::symbolic::ConstraintSystem>()?;
     parent_module.add_submodule(circuit_module)?;
 
     Ok(())

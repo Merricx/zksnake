@@ -91,11 +91,11 @@ def test_groth16_bls12_381(r1cs_data_bls12_381):
 
 def test_groth16_from_circom():
 
-    cs = R1CS.from_file(
+    r1cs = R1CS.from_file(
         "./tests/stub/test_poseidon.r1cs", "./tests/stub/test_poseidon.sym"
     )
 
-    solved = cs.solve(
+    solved = r1cs.constraint_system.solve(
         {
             "main.a": 1,
             "main.b": 2,
@@ -103,7 +103,6 @@ def test_groth16_from_circom():
         },
     )
 
-    r1cs = R1CS(cs)
     r1cs.compile()
 
     pub, priv = r1cs.generate_witness(solved)

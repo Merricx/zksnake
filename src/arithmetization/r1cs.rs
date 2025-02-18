@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use ark_ff::One;
 use num_bigint::BigUint;
 use rayon::prelude::*;
-use super::circuit::{ ConstraintSystem, Equation, Node };
+use super::symbolic::{ ConstraintSystem, Equation, Node };
 
 fn transform(
     row: usize,
@@ -14,14 +14,14 @@ fn transform(
     is_neg: bool
 ) {
     match &eq.gate {
-        super::circuit::Gate::Const(c) => {
+        super::symbolic::Gate::Const(c) => {
             if is_neg {
                 v.push((row, 0, modulus - c.to_owned()));
             } else {
                 v.push((row, 0, c.to_owned()));
             }
         }
-        super::circuit::Gate::Input(name) => {
+        super::symbolic::Gate::Input(name) => {
             let index = witness_map
                 .iter()
                 .position(|x| x == name)
@@ -32,17 +32,17 @@ fn transform(
                 v.push((row, index, BigUint::one()));
             }
         }
-        super::circuit::Gate::Add(left, right) => {
+        super::symbolic::Gate::Add(left, right) => {
             transform(row, left, witness_map, v, modulus, is_neg);
             transform(row, right, witness_map, v, modulus, is_neg);
         }
-        super::circuit::Gate::Sub(left, right) => {
+        super::symbolic::Gate::Sub(left, right) => {
             transform(row, left, witness_map, v, modulus, is_neg);
             transform(row, right, witness_map, v, modulus, true);
         }
-        super::circuit::Gate::Mul(left, right) => {
+        super::symbolic::Gate::Mul(left, right) => {
             match (&left.gate, &right.gate) {
-                (super::circuit::Gate::Input(name), super::circuit::Gate::Const(value)) => {
+                (super::symbolic::Gate::Input(name), super::symbolic::Gate::Const(value)) => {
                     let index = witness_map
                         .iter()
                         .position(|x| x == name)
@@ -53,7 +53,7 @@ fn transform(
                         v.push((row, index, value.to_owned()));
                     }
                 }
-                (super::circuit::Gate::Const(value), super::circuit::Gate::Input(name)) => {
+                (super::symbolic::Gate::Const(value), super::symbolic::Gate::Input(name)) => {
                     let index = witness_map
                         .iter()
                         .position(|x| x == name)
@@ -69,8 +69,8 @@ fn transform(
                 }
             }
         }
-        super::circuit::Gate::Div(_, _) => panic!("Invalid R1CS: {}", eq.to_expression()),
-        super::circuit::Gate::Neg(left) => {
+        super::symbolic::Gate::Div(_, _) => panic!("Invalid R1CS: {}", eq.to_expression()),
+        super::symbolic::Gate::Neg(left) => {
             transform(row, left, witness_map, v, modulus, true);
         }
     }
@@ -90,37 +90,37 @@ fn consume_constraint(
     let rhs = constraint.rhs.clone();
 
     match &rhs.gate {
-        super::circuit::Gate::Const(_) => {
+        super::symbolic::Gate::Const(_) => {
             transform(row, &rhs, witness_map, &mut a, modulus, false);
             b.push((row, 0, BigUint::one()));
             transform(row, &lhs, witness_map, &mut c, modulus, false);
         }
-        super::circuit::Gate::Input(_) => {
+        super::symbolic::Gate::Input(_) => {
             transform(row, &rhs, witness_map, &mut a, modulus, false);
             b.push((row, 0, BigUint::one()));
             transform(row, &lhs, witness_map, &mut c, modulus, false);
         }
-        super::circuit::Gate::Add(_, _) => {
+        super::symbolic::Gate::Add(_, _) => {
             transform(row, &rhs, witness_map, &mut a, modulus, false);
             b.push((row, 0, BigUint::one()));
             transform(row, &lhs, witness_map, &mut c, modulus, false);
         }
-        super::circuit::Gate::Sub(_, _) => {
+        super::symbolic::Gate::Sub(_, _) => {
             transform(row, &rhs, witness_map, &mut a, modulus, true);
             b.push((row, 0, BigUint::one()));
             transform(row, &lhs, witness_map, &mut c, modulus, false);
         }
-        super::circuit::Gate::Mul(rhs_left, rhs_right) => {
+        super::symbolic::Gate::Mul(rhs_left, rhs_right) => {
             transform(row, rhs_left, witness_map, &mut a, modulus, false);
             transform(row, rhs_right, witness_map, &mut b, modulus, false);
             transform(row, &lhs, witness_map, &mut c, modulus, false);
         }
-        super::circuit::Gate::Div(rhs_left, rhs_right) => {
+        super::symbolic::Gate::Div(rhs_left, rhs_right) => {
             transform(row, rhs_left, witness_map, &mut c, modulus, false);
             transform(row, rhs_right, witness_map, &mut b, modulus, false);
             transform(row, &lhs, witness_map, &mut a, modulus, false);
         }
-        super::circuit::Gate::Neg(_) => {
+        super::symbolic::Gate::Neg(_) => {
             transform(row, &rhs, witness_map, &mut a, modulus, true);
             b.push((row, 0, BigUint::one()));
             transform(row, &lhs, witness_map, &mut c, modulus, false);

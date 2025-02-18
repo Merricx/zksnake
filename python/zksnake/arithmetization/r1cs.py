@@ -12,7 +12,7 @@ class R1CS:
         self.A = None
         self.B = None
         self.C = None
-        self.cs = cs
+        self.constraint_system = cs
         self.n_public = len(cs.public_vars) + 1
         self.p = EllipticCurve(curve).order
 
@@ -20,10 +20,10 @@ class R1CS:
         """
         Compile Constraint System into R1CS Sparse Array
         """
-        compiled = self.cs.compile_to_r1cs()
+        compiled = self.constraint_system.compile_to_r1cs()
 
-        row_length = self.cs.num_constraints()
-        col_length = self.cs.num_witness() + 1
+        row_length = self.constraint_system.num_constraints()
+        col_length = self.constraint_system.num_witness() + 1
 
         A = SparseArray([[]], row_length, col_length, self.p)
         B = SparseArray([[]], row_length, col_length, self.p)
@@ -44,7 +44,7 @@ class R1CS:
         """
         w = []
 
-        for v in self.cs.get_witness_vector():
+        for v in self.constraint_system.get_witness_vector():
             if v == '0':
                 w.append(1)
             elif isinstance(v, str):
@@ -101,7 +101,7 @@ class R1CS:
         outputs_str = [str(x) for x in outputs]
 
         cs = circuit.ConstraintSystem(inputs_str, outputs_str, p)
-        for wire in result["wires"][private_offset:]:
+        for wire in result["wires"][1:]:
             cs.add_variable(wire)
 
         cs.set_public(outputs)
@@ -110,4 +110,4 @@ class R1CS:
         for constraint in result["constraints"]:
             cs.add_constraint(constraint)
 
-        return cs
+        return R1CS(cs, curve)

@@ -51,14 +51,14 @@ class Groth16:
         delta_G1 = G1 * delta
         delta_G2 = G2 * delta
 
-        degree = self.qap.a.n_row
-        n_constraint = self.qap.a.n_col
+        n_constraints = self.qap.a.n_row
+        n_witness = self.qap.a.n_col
 
-        lagrange_coeffs = evaluate_lagrange_coefficients(degree, tau, self.order)
+        lagrange_coeffs = evaluate_lagrange_coefficients(n_constraints, tau, self.order)
 
-        L = [0] * n_constraint
-        R = [0] * n_constraint
-        O = [0] * n_constraint
+        L = [0] * n_witness
+        R = [0] * n_witness
+        O = [0] * n_witness
 
         for i, coeff in enumerate(lagrange_coeffs):
             multipliers = self.qap.a.triplets_map.get(i, [])
@@ -75,19 +75,19 @@ class Groth16:
 
         K = [
             (L[i] * beta + R[i] * alpha + O[i]) % self.order
-            for i in range(n_constraint)
+            for i in range(n_witness)
         ]
 
-        t = evaluate_vanishing_polynomial(degree, tau, self.order)
+        t = evaluate_vanishing_polynomial(n_constraints, tau, self.order)
 
-        power_of_tau = [pow(tau, i, self.order) for i in range(degree)]
+        power_of_tau = [pow(tau, i, self.order) for i in range(n_constraints)]
         tau_G1 = self.E.batch_mul(G1, power_of_tau)
         tau_G2 = self.E.batch_mul(G2, power_of_tau)
 
         o = self.order
         tau_div_delta = Parallel(n_jobs=get_n_jobs())(
             delayed(lambda x: x * t * inv_delta % o)(power_of_tau[i])
-            for i in range(degree)
+            for i in range(n_constraints)
         )
 
         target_G1 = self.E.batch_mul(G1, tau_div_delta)
