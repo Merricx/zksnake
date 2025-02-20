@@ -1,28 +1,28 @@
-
 from zksnake.polynomial import PolynomialRing
 from ..utils import split_list
 from ..ecc import CurvePointSize, EllipticCurve
 
+
 class Proof:
 
     def __init__(
-            self,
-            tau_a,
-            tau_b,
-            tau_c,
-            tau_z,
-            tau_t_lo,
-            tau_t_mid,
-            tau_t_hi,
-            tau_W_zeta,
-            tau_W_zeta_omega,
-            zeta_a,
-            zeta_b,
-            zeta_c,
-            zeta_sigma1,
-            zeta_sigma2,
-            zeta_omega
-        ):
+        self,
+        tau_a,
+        tau_b,
+        tau_c,
+        tau_z,
+        tau_t_lo,
+        tau_t_mid,
+        tau_t_hi,
+        tau_W_zeta,
+        tau_W_zeta_omega,
+        zeta_a,
+        zeta_b,
+        zeta_c,
+        zeta_sigma1,
+        zeta_sigma2,
+        zeta_omega,
+    ):
         self.tau_a = tau_a
         self.tau_b = tau_b
         self.tau_c = tau_c
@@ -62,7 +62,7 @@ class Proof:
         wzx = s[n * 7 : n * 8]
         wzox = s[n * 8 : n * 9]
 
-        scalars = split_list(s[n*9:], 32)
+        scalars = split_list(s[n * 9 :], 32)
 
         tau_a = E.from_hex(ax.hex())
         tau_b = E.from_hex(bx.hex())
@@ -74,45 +74,57 @@ class Proof:
         tau_w_zeta = E.from_hex(wzx.hex())
         tau_w_zeta_omega = E.from_hex(wzox.hex())
 
-        zeta_a = int.from_bytes(scalars[0], 'little')
-        zeta_b = int.from_bytes(scalars[1], 'little')
-        zeta_c = int.from_bytes(scalars[2], 'little')
-        zeta_sigma1 = int.from_bytes(scalars[3], 'little')
-        zeta_sigma2 = int.from_bytes(scalars[4], 'little')
-        zeta_omega = int.from_bytes(scalars[5], 'little')
+        zeta_a = int.from_bytes(scalars[0], "little")
+        zeta_b = int.from_bytes(scalars[1], "little")
+        zeta_c = int.from_bytes(scalars[2], "little")
+        zeta_sigma1 = int.from_bytes(scalars[3], "little")
+        zeta_sigma2 = int.from_bytes(scalars[4], "little")
+        zeta_omega = int.from_bytes(scalars[5], "little")
 
         return Proof(
-            tau_a, tau_b, tau_c, tau_z,
-            tau_t_lo, tau_t_mid, tau_t_hi,
-            tau_w_zeta, tau_w_zeta_omega,
-            zeta_a, zeta_b, zeta_c, zeta_sigma1, zeta_sigma2, zeta_omega
+            tau_a,
+            tau_b,
+            tau_c,
+            tau_z,
+            tau_t_lo,
+            tau_t_mid,
+            tau_t_hi,
+            tau_w_zeta,
+            tau_w_zeta_omega,
+            zeta_a,
+            zeta_b,
+            zeta_c,
+            zeta_sigma1,
+            zeta_sigma2,
+            zeta_omega,
         )
 
     def to_bytes(self) -> bytes:
         """Return bytes representation of the Proof"""
         points = bytes(
-            self.tau_a.to_bytes() +
-            self.tau_b.to_bytes() +
-            self.tau_c.to_bytes() +
-            self.tau_z.to_bytes() +
-            self.tau_t_lo.to_bytes() +
-            self.tau_t_mid.to_bytes() +
-            self.tau_t_hi.to_bytes() +
-            self.tau_W_zeta.to_bytes() +
-            self.tau_W_zeta_omega.to_bytes()
+            self.tau_a.to_bytes()
+            + self.tau_b.to_bytes()
+            + self.tau_c.to_bytes()
+            + self.tau_z.to_bytes()
+            + self.tau_t_lo.to_bytes()
+            + self.tau_t_mid.to_bytes()
+            + self.tau_t_hi.to_bytes()
+            + self.tau_W_zeta.to_bytes()
+            + self.tau_W_zeta_omega.to_bytes()
         )
 
         scalar = (
-            self.zeta_a.to_bytes(32, 'little') +
-            self.zeta_b.to_bytes(32, 'little') +
-            self.zeta_c.to_bytes(32, 'little') +
-            self.zeta_sigma1.to_bytes(32, 'little') +
-            self.zeta_sigma2.to_bytes(32, 'little') +
-            self.zeta_omega.to_bytes(32, 'little')
+            self.zeta_a.to_bytes(32, "little")
+            + self.zeta_b.to_bytes(32, "little")
+            + self.zeta_c.to_bytes(32, "little")
+            + self.zeta_sigma1.to_bytes(32, "little")
+            + self.zeta_sigma2.to_bytes(32, "little")
+            + self.zeta_omega.to_bytes(32, "little")
         )
 
         return points + scalar
-    
+
+
 class ProvingKey:
     def __init__(
         self,
@@ -125,7 +137,7 @@ class ProvingKey:
         tau_selector,
         tau_permutation,
         lagrange_evals,
-        curve: str = "BN254"
+        curve: str = "BN254",
     ):
         self.E = EllipticCurve(curve)
         self.order = self.E.order
@@ -148,12 +160,12 @@ class ProvingKey:
         n = CurvePointSize[crv].value
 
         tau_g1 = []
-        length = int.from_bytes(s[:8], 'little')
-        points = split_list(s[8:8+length*n], n)
+        length = int.from_bytes(s[:8], "little")
+        points = split_list(s[8 : 8 + length * n], n)
         for point in points:
             tau_g1.append(E.from_hex(point.hex()))
 
-        s = s[8+length*n:]
+        s = s[8 + length * n :]
 
         tau_selector_poly = {}
         selector_polys = []
@@ -164,11 +176,11 @@ class ProvingKey:
             selector_polys.append(E.from_hex(point.hex()))
 
         tau_selector_poly = {
-            'L': selector_polys[0],
-            'R': selector_polys[1],
-            'O': selector_polys[2],
-            'M': selector_polys[3],
-            'C': selector_polys[4],
+            "L": selector_polys[0],
+            "R": selector_polys[1],
+            "O": selector_polys[2],
+            "M": selector_polys[3],
+            "C": selector_polys[4],
         }
 
         for _ in range(3):
@@ -179,25 +191,25 @@ class ProvingKey:
         contents = []
         n = 32
         while len(s) > 0:
-            length = int.from_bytes(s[:8], 'little')
-            raw_bytes = split_list(s[8:8+length*n], n)
+            length = int.from_bytes(s[:8], "little")
+            raw_bytes = split_list(s[8 : 8 + length * n], n)
             contents.append([])
             for b in raw_bytes:
-                scalars = int.from_bytes(b, 'little')
+                scalars = int.from_bytes(b, "little")
                 contents[-1].append(scalars)
 
-            s = s[8+length*n:]
+            s = s[8 + length * n :]
 
         assert len(contents) == 17, "Malformed ProvingKey structure"
 
         domain = len(contents[0])
 
         selector_poly = {
-            'L': PolynomialRing(contents[0], E.order),
-            'R': PolynomialRing(contents[1], E.order),
-            'O': PolynomialRing(contents[2], E.order),
-            'M': PolynomialRing(contents[3], E.order),
-            'C': PolynomialRing(contents[4], E.order),
+            "L": PolynomialRing(contents[0], E.order),
+            "R": PolynomialRing(contents[1], E.order),
+            "O": PolynomialRing(contents[2], E.order),
+            "M": PolynomialRing(contents[3], E.order),
+            "C": PolynomialRing(contents[4], E.order),
         }
 
         permutation_poly = [
@@ -213,25 +225,31 @@ class ProvingKey:
         ]
 
         selector_evals = {
-            'L': contents[11],
-            'R': contents[12],
-            'O': contents[13],
-            'M': contents[14],
-            'C': contents[15],
+            "L": contents[11],
+            "R": contents[12],
+            "O": contents[13],
+            "M": contents[14],
+            "C": contents[15],
         }
 
         lagrange_evals = contents[16]
 
         return ProvingKey(
-            domain, tau_g1, selector_poly, selector_evals,
-            permutation_poly, identity_poly,
-            tau_selector_poly, tau_permutation_poly,
-            lagrange_evals, crv
+            domain,
+            tau_g1,
+            selector_poly,
+            selector_evals,
+            permutation_poly,
+            identity_poly,
+            tau_selector_poly,
+            tau_permutation_poly,
+            lagrange_evals,
+            crv,
         )
 
     def to_bytes(self) -> bytes:
         """Return bytes representation of the ProvingKey"""
-        s = b''
+        s = b""
         int_bytesize = 32
 
         s += int.to_bytes(len(self.tau_g1), 8, "little")
@@ -247,38 +265,34 @@ class ProvingKey:
         for _, poly in self.selector_poly.items():
             s += int.to_bytes(len(poly.coeffs()), 8, "little")
             for coeff in poly.coeffs():
-                s += int.to_bytes(coeff, int_bytesize, 'little')
+                s += int.to_bytes(coeff, int_bytesize, "little")
 
         for poly in self.permutation_poly:
             s += int.to_bytes(len(poly.coeffs()), 8, "little")
             for coeff in poly.coeffs():
-                s += int.to_bytes(coeff, int_bytesize, 'little')
+                s += int.to_bytes(coeff, int_bytesize, "little")
 
         for poly in self.identity_poly:
             s += int.to_bytes(len(poly.coeffs()), 8, "little")
             for coeff in poly.coeffs():
-                s += int.to_bytes(coeff, int_bytesize, 'little')
+                s += int.to_bytes(coeff, int_bytesize, "little")
 
         for _, evals in self.selector_eval.items():
             s += int.to_bytes(len(evals), 8, "little")
             for e in evals:
-                s += int.to_bytes(e, int_bytesize, 'little')
+                s += int.to_bytes(e, int_bytesize, "little")
 
         s += int.to_bytes(len(self.lagrange_evals), 8, "little")
         for e in self.lagrange_evals:
-            s += int.to_bytes(e, int_bytesize, 'little')
+            s += int.to_bytes(e, int_bytesize, "little")
 
         return s
+
 
 class VerifyingKey:
 
     def __init__(
-        self,
-        n,
-        tau_G2,
-        tau_selector_poly,
-        tau_permutation_poly,
-        curve: str = "BN254"
+        self, n, tau_G2, tau_selector_poly, tau_permutation_poly, curve: str = "BN254"
     ):
         self.E = EllipticCurve(curve)
         self.order = self.E.order
@@ -293,11 +307,11 @@ class VerifyingKey:
         E = EllipticCurve(crv)
         n = CurvePointSize[crv].value
 
-        domain = int.from_bytes(s[:8], 'little')
+        domain = int.from_bytes(s[:8], "little")
         s = s[8:]
 
-        tau_g2 = E.from_hex(s[:n*2].hex())
-        s = s[n*2:]
+        tau_g2 = E.from_hex(s[: n * 2].hex())
+        s = s[n * 2 :]
 
         tau_selector_poly = {}
         selector_polys = []
@@ -308,11 +322,11 @@ class VerifyingKey:
             selector_polys.append(E.from_hex(point.hex()))
 
         tau_selector_poly = {
-            'L': selector_polys[0],
-            'R': selector_polys[1],
-            'O': selector_polys[2],
-            'M': selector_polys[3],
-            'C': selector_polys[4],
+            "L": selector_polys[0],
+            "R": selector_polys[1],
+            "O": selector_polys[2],
+            "M": selector_polys[3],
+            "C": selector_polys[4],
         }
 
         for _ in range(3):
@@ -320,12 +334,14 @@ class VerifyingKey:
             s = s[n:]
             tau_permutation_poly.append(E.from_hex(point.hex()))
 
-        return VerifyingKey(domain, tau_g2, tau_selector_poly, tau_permutation_poly, crv)
+        return VerifyingKey(
+            domain, tau_g2, tau_selector_poly, tau_permutation_poly, crv
+        )
 
     def to_bytes(self) -> bytes:
         """Return bytes representation of the ProvingKey"""
-        s = b''
-        s += int.to_bytes(self.n, 8, 'little')
+        s = b""
+        s += int.to_bytes(self.n, 8, "little")
         s += bytes(self.tau_g2.to_bytes())
 
         for _, point in self.tau_selector_poly.items():

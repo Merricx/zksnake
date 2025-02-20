@@ -1,4 +1,5 @@
 from typing import Dict, Sequence, Tuple, Union
+
 # pylint: disable=no-name-in-module
 from zksnake._algebra import (
     polynomial_bn254,
@@ -13,7 +14,9 @@ POLY_OBJECT = {
 }
 
 
-def PolynomialRing(coeffs: Union[Sequence[int], Dict[Tuple[int], int]], p, domain_size=None):
+def PolynomialRing(
+    coeffs: Union[Sequence[int], Dict[Tuple[int], int]], p, domain_size=None
+):
     """
     Construct univariate or multivariate polynomial
     depending if `coeffs` is `list` or `dict`, respectively.
@@ -44,15 +47,16 @@ def PolynomialRing(coeffs: Union[Sequence[int], Dict[Tuple[int], int]], p, domai
 
         for terms, coeff in coeffs.items():
             sparse_terms = []
-            for v,power in enumerate(terms):
+            for v, power in enumerate(terms):
                 if power != 0:
                     sparse_terms.append((v, power))
-            
+
             coeff_terms.append((coeff, sparse_terms))
     else:
         raise TypeError("Coefficients must be in list or dict")
 
     return poly.PolynomialRing(num_vars, coeff_terms, domain_size)
+
 
 def MultilinearPolynomial(num_vars: int, sparse_evaluations: Tuple[int, int], p: int):
     """
@@ -64,6 +68,7 @@ def MultilinearPolynomial(num_vars: int, sparse_evaluations: Tuple[int, int], p:
         return poly.MultilinearPolynomial.zero()
     return poly.MultilinearPolynomial(num_vars, sparse_evaluations)
 
+
 def get_nth_root_of_unity(domain, i, p) -> int:
     """
     get `i`th root of unity over evaluation domain of size `domain`
@@ -73,12 +78,14 @@ def get_nth_root_of_unity(domain, i, p) -> int:
     poly = POLY_OBJECT[p]
     return poly.get_nth_root_of_unity(domain, i)
 
+
 def get_all_root_of_unity(domain, p) -> list:
     """
     get all elements of evaluation domain of size `domain`
     """
     poly = POLY_OBJECT[p]
     return poly.get_all_root_of_unity(domain)
+
 
 def fft(coeffs, p, size=None):
     """
@@ -115,9 +122,10 @@ def coset_ifft(coeffs, p, size=None):
     size = size or len(coeffs)
     return poly.coset_ifft(coeffs, size)
 
+
 def _pad_coeffs(a, b):
-    a_degree = len(a)-1
-    b_degree = len(b)-1
+    a_degree = len(a) - 1
+    b_degree = len(b) - 1
 
     pad_a = []
     pad_b = []
@@ -125,56 +133,73 @@ def _pad_coeffs(a, b):
         max_pad = max(a_degree, b_degree)
         length = next_power_of_two(max_pad)
         if a_degree > b_degree:
-            pad_a = [0]*length
-            pad_b = [0]*(a_degree+length-b_degree)
+            pad_a = [0] * length
+            pad_b = [0] * (a_degree + length - b_degree)
         else:
-            pad_b = [0]*length
-            pad_a = [0]*(b_degree+length-a_degree)
+            pad_b = [0] * length
+            pad_a = [0] * (b_degree + length - a_degree)
     else:
-        pad_a = [0]*next_power_of_two(a_degree)
-        pad_b = [0]*next_power_of_two(a_degree)
+        pad_a = [0] * next_power_of_two(a_degree)
+        pad_b = [0] * next_power_of_two(a_degree)
 
     a = a + pad_a
     b = b + pad_b
 
-    return a,b
+    return a, b
+
 
 def mul_over_fft(domain, a, b, p, return_poly=True):
-    # print('mul')
-    # print(len(a.coeffs()), len(b.coeffs()))
-    a,b = _pad_coeffs(a.coeffs(), b.coeffs())
-    # print(len(a), len(b))
+    """
+    Multiply two polynomials (in coefficient form) `a` and `b` over FFT domain.
+    If `return_poly` is `False`, return the evaluation form instead of polynomial.
+    """
+    a, b = _pad_coeffs(a.coeffs(), b.coeffs())
 
     a_fft = fft(a, p)
     b_fft = fft(b, p)
     ab_fft = mul_over_evaluation_domain(len(a_fft), a_fft, b_fft, p)
-    
+
     if return_poly:
         return PolynomialRing(ifft(ab_fft, p), p, domain)
-    
+
     return ab_fft
 
+
 def add_over_evaluation_domain(domain, evals: list, p):
+    """
+    Add multiple polynomials in evaluation form.
+    """
     poly = POLY_OBJECT[p]
     result = evals[0]
     for adder in evals[1:]:
         result = poly.add_over_evaluation_domain(domain, result, adder)
-    
+
     return result
 
+
 def mul_over_evaluation_domain(domain, a, b, p):
+    """
+    Multiply two polynomials in evaluation form.
+    """
     poly = POLY_OBJECT[p]
     return poly.mul_over_evaluation_domain(domain, a, b)
 
 
-def evaluate_vanishing_polynomial(domain, tau, p):
+def evaluate_vanishing_polynomial(domain, x, p):
+    """
+    Evaluate vanishing polynomial defined by this domain at the point `x`.
+    """
     poly = POLY_OBJECT[p]
-    return poly.evaluate_vanishing_polynomial(domain, tau)
+    return poly.evaluate_vanishing_polynomial(domain, x)
 
 
-def evaluate_lagrange_coefficients(domain, tau, p):
+def evaluate_lagrange_coefficients(domain, x, p):
+    """
+    Evaluate all the lagrange polynomials defined by this domain at the point `x`.
+    """
     poly = POLY_OBJECT[p]
-    return poly.evaluate_lagrange_coefficients(domain, tau)
+    return poly.evaluate_lagrange_coefficients(domain, x)
+
 
 def barycentric_eval(domain, sparse_eval: dict, x, p):
     """
@@ -186,13 +211,14 @@ def barycentric_eval(domain, sparse_eval: dict, x, p):
     for i in sparse_eval:
         w_i = pow(omega, i, p)
         sum_i += (sparse_eval[i] * w_i) * pow(x - w_i, -1, p)
-    
+
     return (pow(x, domain, p) - 1) * pow(domain, -1, p) * sum_i % p
 
-def lagrange_polynomial(x, y, p):
+
+def lagrange_interpolation(x, y, p):
     """
     Naive implementation of Lagrange interpolation from given points `(x_i, y_i)`.
-    For very big points, use iFFT instead.
+    For very large points, use iFFT instead.
     """
     M = len(x)
     poly = PolynomialRing([0], p)

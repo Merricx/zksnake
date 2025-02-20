@@ -2,6 +2,7 @@ import os
 import random
 import time
 
+
 def get_random_int(n_max):
     """Get random integer in [1, n_max] range"""
     rand = random.SystemRandom()
@@ -21,12 +22,15 @@ def split_list(data, n):
     """Split data into n chunks"""
     return [data[i : i + n] for i in range(0, len(data), n)]
 
+
 def next_power_of_two(n: int):
     """Get next 2^x number from n"""
     return 1 << (n - 1).bit_length()
 
+
 def is_power_of_two(n):
     return (n & (n - 1)) == 0
+
 
 def batch_modinv(a: list, m: int):
     """
@@ -49,6 +53,7 @@ def batch_modinv(a: list, m: int):
         suffix_inverse = (suffix_inverse * a[i]) % m
 
     return inverses
+
 
 class Timer:
     def __init__(self, name):

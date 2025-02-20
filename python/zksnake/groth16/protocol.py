@@ -10,6 +10,7 @@ from ..polynomial import (
 from .serialization import Proof, ProvingKey, VerifyingKey
 from ..utils import get_random_int, get_n_jobs
 
+
 class Groth16:
     """
     Groth16 proof system (https://eprint.iacr.org/2016/260.pdf)
@@ -73,10 +74,7 @@ class Groth16:
             for col, value in multipliers:
                 O[col] += coeff * value
 
-        K = [
-            (L[i] * beta + R[i] * alpha + O[i]) % self.order
-            for i in range(n_witness)
-        ]
+        K = [(L[i] * beta + R[i] * alpha + O[i]) % self.order for i in range(n_witness)]
 
         t = evaluate_vanishing_polynomial(n_constraints, tau, self.order)
 
@@ -150,7 +148,9 @@ class Groth16:
         HZ = self.E.multiexp(self.proving_key.target_1, H.coeffs())
 
         if len(private_witness) > 0:
-            sum_delta_witness = self.E.multiexp(self.proving_key.kdelta_1, private_witness)
+            sum_delta_witness = self.E.multiexp(
+                self.proving_key.kdelta_1, private_witness
+            )
         else:  # all inputs are public
             sum_delta_witness = self.E.G1() * 0
 
@@ -178,5 +178,9 @@ class Groth16:
         # e(A, B) == e(alpha, beta) + e(sum_gamma_witness, gamma) + e(C, delta)
         return self.E.pairing(proof.A, proof.B) == self.E.multi_pairing(
             [self.verifying_key.alpha_1, sum_gamma_witness, proof.C],
-            [self.verifying_key.beta_2, self.verifying_key.gamma_2, self.verifying_key.delta_2],
+            [
+                self.verifying_key.beta_2,
+                self.verifying_key.gamma_2,
+                self.verifying_key.delta_2,
+            ],
         )

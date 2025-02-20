@@ -17,8 +17,8 @@ class InnerProductProof:
             s += bytes(L.to_bytes())
             s += bytes(R.to_bytes())
 
-        s += self.a.to_bytes(32, 'little')
-        s += self.b.to_bytes(32, 'little')
+        s += self.a.to_bytes(32, "little")
+        s += self.b.to_bytes(32, "little")
 
         return bytes(s)
 
@@ -28,7 +28,7 @@ class InnerProductProof:
         E = EllipticCurve(crv)
         n = CurvePointSize[crv].value
 
-        assert (len(s)-64) % n == 0, "Invalid proof length"
+        assert (len(s) - 64) % n == 0, "Invalid proof length"
 
         Ls = []
         Rs = []
@@ -38,25 +38,31 @@ class InnerProductProof:
 
         for i in range(0, len(s), 2):
             Ls.append(E.from_hex(s[i].hex()))
-            Rs.append(E.from_hex(s[i+1].hex()))
+            Rs.append(E.from_hex(s[i + 1].hex()))
 
-        a = int.from_bytes(field_s[0], 'little')
-        b = int.from_bytes(field_s[1], 'little')
+        a = int.from_bytes(field_s[0], "little")
+        b = int.from_bytes(field_s[1], "little")
 
         return InnerProductProof(a, b, Ls, Rs)
 
 
 class InnerProductArgument:
 
-    def __init__(self, size, curve, transcript: FiatShamirTranscript = None, seed=b'InnerProductProof', Q=None):
+    def __init__(
+        self,
+        size,
+        curve,
+        transcript: FiatShamirTranscript = None,
+        seed=b"InnerProductProof",
+        Q=None,
+    ):
         self.n = next_power_of_two(size)
         self.E = EllipticCurve(curve)
-        self.G = hash_to_curve(seed, b'G', curve, self.n)
-        self.H = hash_to_curve(seed, b'H', curve, self.n)
-        self.Q = Q or hash_to_curve(seed, b'Q', curve, 1)
+        self.G = hash_to_curve(seed, b"G", curve, self.n)
+        self.H = hash_to_curve(seed, b"H", curve, self.n)
+        self.Q = Q or hash_to_curve(seed, b"Q", curve, 1)
 
-        self.transcript = transcript or FiatShamirTranscript(
-            self.n.to_bytes(32, 'big'))
+        self.transcript = transcript or FiatShamirTranscript(self.n.to_bytes(32, "big"))
 
     def __inner_product(self, a, b):
         return sum(a * b for a, b in zip(a, b)) % self.E.order
@@ -86,8 +92,7 @@ class InnerProductArgument:
         ab = self.__inner_product(a, b)
 
         # vector commitment of Cp = <a,G> + <b,H> + <a,b> * Q
-        Cp = self.E.multiexp(self.G, a) + \
-             self.E.multiexp(self.H, b) + ab * self.Q
+        Cp = self.E.multiexp(self.G, a) + self.E.multiexp(self.H, b) + ab * self.Q
 
         L_list = []
         R_list = []
@@ -105,12 +110,16 @@ class InnerProductArgument:
             G_low, G_hi = self.__split_half(G)
             H_low, H_hi = self.__split_half(H)
 
-            L = self.E.multiexp(G_hi, a_low) + \
-                self.E.multiexp(H_low, b_hi) + \
-                self.__inner_product(a_low, b_hi) * self.Q
-            R = self.E.multiexp(G_low, a_hi) + \
-                self.E.multiexp(H_hi, b_low) + \
-                self.__inner_product(a_hi, b_low) * self.Q
+            L = (
+                self.E.multiexp(G_hi, a_low)
+                + self.E.multiexp(H_low, b_hi)
+                + self.__inner_product(a_low, b_hi) * self.Q
+            )
+            R = (
+                self.E.multiexp(G_low, a_hi)
+                + self.E.multiexp(H_hi, b_low)
+                + self.__inner_product(a_hi, b_low) * self.Q
+            )
 
             L_list.append(L)
             R_list.append(R)
@@ -167,23 +176,24 @@ class InnerProductArgument:
 
         s = [all_inv]
         for i in range(1, self.n):
-            lg_i = (32 - 1 - (32 - i.bit_length()))
+            lg_i = 32 - 1 - (32 - i.bit_length())
             l = 1 << lg_i
 
             u_lg_i_sq = challenges[(k - 1) - lg_i]
             s.append(s[i - l] * u_lg_i_sq)
 
         a_s = [proof.a * x % self.E.order for x in s]
-        b_s_inv = [proof.b * pow(x, -1, self.E.order) %
-                   self.E.order for x in s]
+        b_s_inv = [proof.b * pow(x, -1, self.E.order) % self.E.order for x in s]
 
         sum_LR = self.E.curve.PointG1.identity()
         for j in range(k):
-            sum_LR += proof.L[j] * challenges[j] + \
-                proof.R[j] * challenges_inv[j]
+            sum_LR += proof.L[j] * challenges[j] + proof.R[j] * challenges_inv[j]
 
-        rhs = self.E.multiexp(self.G, a_s) + \
-            self.E.multiexp(self.H, b_s_inv) + \
-            proof.a * proof.b * self.Q - sum_LR
+        rhs = (
+            self.E.multiexp(self.G, a_s)
+            + self.E.multiexp(self.H, b_s_inv)
+            + proof.a * proof.b * self.Q
+            - sum_LR
+        )
 
         return commitment == rhs

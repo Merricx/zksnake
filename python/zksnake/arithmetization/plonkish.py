@@ -1,13 +1,15 @@
 from __future__ import annotations
+
 # pylint: disable=no-name-in-module
 from zksnake._algebra import circuit
 
 from ..ecc import EllipticCurve
 from ..utils import next_power_of_two
 
+
 class Plonkish:
 
-    def __init__(self, cs: circuit.ConstraintSystem, curve: str="BN254"):
+    def __init__(self, cs: circuit.ConstraintSystem, curve: str = "BN254"):
         size = cs.num_constraints()
         self.cs = cs
         self.unpadded_length = size
@@ -23,7 +25,7 @@ class Plonkish:
 
     def compile(self):
         """
-        Compile Constraint System into R1CS Sparse Array
+        Compile Constraint System into Plonk Polynomials (coefficient form)
         """
         compiled = self.cs.compile_to_plonkish()
 
@@ -41,11 +43,11 @@ class Plonkish:
             qC += [c[4]]
             witness_map.extend(c[5])
 
-        self.qL = qL + [0]*(self.length - len(qL))
-        self.qR = qR + [0]*(self.length - len(qR))
-        self.qO = qO + [0]*(self.length - len(qO))
-        self.qM = qM + [0]*(self.length - len(qM))
-        self.qC = qC + [0]*(self.length - len(qC))
+        self.qL = qL + [0] * (self.length - len(qL))
+        self.qR = qR + [0] * (self.length - len(qR))
+        self.qO = qO + [0] * (self.length - len(qO))
+        self.qM = qM + [0] * (self.length - len(qM))
+        self.qC = qC + [0] * (self.length - len(qC))
         self.witness_map = witness_map
 
         self.permutation = compiled[1]
@@ -56,10 +58,10 @@ class Plonkish:
         """
         pub_w = {}
         priv_w = {}
-        for k,v in solve_result.items():
+        for k, v in solve_result.items():
             if k in self.cs.public_vars:
                 pub_w[k] = v
-            
+
             priv_w[k] = v
 
         private_witness = []
@@ -67,8 +69,8 @@ class Plonkish:
         pi_index = 0
         for i in range(0, len(self.witness_map), 3):
             k1 = self.witness_map[i]
-            k2 = self.witness_map[i+1]
-            k3 = self.witness_map[i+2]
+            k2 = self.witness_map[i + 1]
+            k3 = self.witness_map[i + 2]
 
             private_witness += [priv_w[k1]] if k1 else [0]
             private_witness += [priv_w[k2]] if k2 else [0]
@@ -86,28 +88,28 @@ class Plonkish:
         """
         Check constraint satisfiability with the given `witness`
         """
-        a,b,c = private_witness[::3], private_witness[1::3], private_witness[2::3]
+        a, b, c = private_witness[::3], private_witness[1::3], private_witness[2::3]
 
         # gate constraints
         for i in range(self.unpadded_length):
             pi = public_witness.get(i, None) or 0
             g = (
-                self.qL[i] * a[i] +
-                self.qR[i] * b[i] +
-                self.qM[i] * (a[i] * b[i]) +
-                self.qO[i] * c[i] +
-                (self.qC[i] + pi)
+                self.qL[i] * a[i]
+                + self.qR[i] * b[i]
+                + self.qM[i] * (a[i] * b[i])
+                + self.qO[i] * c[i]
+                + (self.qC[i] + pi)
             )
 
             if g % self.p != 0:
                 return False
 
         # copy constraints
-        a += [0]*(self.length - len(a))
-        b += [0]*(self.length - len(b))
-        c += [0]*(self.length - len(c))
-        flatten_witness = a+b+c
-        for src,dst in enumerate(self.permutation):
+        a += [0] * (self.length - len(a))
+        b += [0] * (self.length - len(b))
+        c += [0] * (self.length - len(c))
+        flatten_witness = a + b + c
+        for src, dst in enumerate(self.permutation):
             if flatten_witness[src] != flatten_witness[dst]:
                 return False
 

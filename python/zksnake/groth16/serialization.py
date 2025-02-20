@@ -1,6 +1,7 @@
 from ..ecc import EllipticCurve, CurvePointSize
 from ..utils import split_list
 
+
 class Proof:
 
     def __init__(self, A, B, C):
@@ -156,6 +157,7 @@ class ProvingKey:
             s += k.to_bytes()
 
         return bytes(s)
+
 
 class VerifyingKey:
     def __init__(

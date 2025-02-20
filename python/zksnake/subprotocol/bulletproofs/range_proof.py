@@ -4,9 +4,21 @@ from ...ecc import CurvePointSize, EllipticCurve
 from ...transcript import FiatShamirTranscript, hash_to_curve
 from . import ipa
 
+
 class RangeProofObject:
 
-    def __init__(self, V, A, S, T1, T2, t, t_blinding, e_blinding, ipa_proof: ipa.InnerProductProof):
+    def __init__(
+        self,
+        V,
+        A,
+        S,
+        T1,
+        T2,
+        t,
+        t_blinding,
+        e_blinding,
+        ipa_proof: ipa.InnerProductProof,
+    ):
         self.V = V
         self.A = A
         self.S = S
@@ -24,24 +36,24 @@ class RangeProofObject:
         s += bytes(self.S.to_bytes())
         s += bytes(self.T1.to_bytes())
         s += bytes(self.T2.to_bytes())
-        s += bytes(self.t.to_bytes(32, 'little'))
-        s += bytes(self.t_blinding.to_bytes(32, 'little'))
-        s += bytes(self.e_blinding.to_bytes(32, 'little'))
+        s += bytes(self.t.to_bytes(32, "little"))
+        s += bytes(self.t_blinding.to_bytes(32, "little"))
+        s += bytes(self.e_blinding.to_bytes(32, "little"))
         s += self.ipa_proof.to_bytes()
 
         return s
 
     @classmethod
     def from_bytes(cls, s: bytes, crv="BN254"):
-        
+
         E = EllipticCurve(crv)
         n = CurvePointSize[crv].value
 
-        assert (len(s)-160) % n == 0, "Invalid proof length"
+        assert (len(s) - 160) % n == 0, "Invalid proof length"
 
-        point_s = split_list(s[:5*n], n)
-        field_s = split_list(s[5*n:5*n+32*3], 32)
-        ipa_s = s[5*n+32*3:]
+        point_s = split_list(s[: 5 * n], n)
+        field_s = split_list(s[5 * n : 5 * n + 32 * 3], 32)
+        ipa_s = s[5 * n + 32 * 3 :]
 
         assert len(point_s) == 5 and len(field_s) == 3, "Malformed proof structure"
 
@@ -50,27 +62,33 @@ class RangeProofObject:
         S = E.from_hex(point_s[2].hex())
         T1 = E.from_hex(point_s[3].hex())
         T2 = E.from_hex(point_s[4].hex())
-        t = int.from_bytes(field_s[0], 'little')
-        t_blinding = int.from_bytes(field_s[1], 'little')
-        e_blinding = int.from_bytes(field_s[2], 'little')
+        t = int.from_bytes(field_s[0], "little")
+        t_blinding = int.from_bytes(field_s[1], "little")
+        e_blinding = int.from_bytes(field_s[2], "little")
         ipa_proof = ipa.InnerProductProof.from_bytes(ipa_s, crv)
 
         return RangeProofObject(V, A, S, T1, T2, t, t_blinding, e_blinding, ipa_proof)
 
+
 class RangeProof:
 
-    def __init__(self, bitsize: int, curve, transcript: FiatShamirTranscript = None, seed=b'RangeProof'):
+    def __init__(
+        self,
+        bitsize: int,
+        curve,
+        transcript: FiatShamirTranscript = None,
+        seed=b"RangeProof",
+    ):
         assert bitsize < 2**32
         self.n = bitsize
         self.E = EllipticCurve(curve)
-        self.G = hash_to_curve(seed, b'G', curve, self.n)
-        self.H = hash_to_curve(seed, b'H', curve, self.n)
-        self.B = hash_to_curve(seed, b'B', curve, 1)
-        self.B_blinding = hash_to_curve(seed, b'Blinding', curve, 1)
+        self.G = hash_to_curve(seed, b"G", curve, self.n)
+        self.H = hash_to_curve(seed, b"H", curve, self.n)
+        self.B = hash_to_curve(seed, b"B", curve, 1)
+        self.B_blinding = hash_to_curve(seed, b"Blinding", curve, 1)
 
-        self.transcript = transcript or FiatShamirTranscript(
-            self.n.to_bytes(32, 'big'))
-        
+        self.transcript = transcript or FiatShamirTranscript(self.n.to_bytes(32, "big"))
+
     def __inner_product(self, a, b):
         return sum(a * b for a, b in zip(a, b)) % self.E.order
 
@@ -82,12 +100,16 @@ class RangeProof:
             r += [(v - 1) % self.E.order]
 
         return l, r
-    
+
     def __delta(self, y, z):
-        sum_pow_2_y = sum([pow(y, i, self.E.order) for i in range(self.n)]) % self.E.order
+        sum_pow_2_y = (
+            sum([pow(y, i, self.E.order) for i in range(self.n)]) % self.E.order
+        )
         z_pow_3 = pow(z, 3, self.E.order)
         sum_2 = sum([pow(2, i, self.E.order) for i in range(self.n)]) % self.E.order
-        return (((z - pow(z, 2, self.E.order)) * sum_pow_2_y) - (z_pow_3 * sum_2)) % self.E.order
+        return (
+            ((z - pow(z, 2, self.E.order)) * sum_pow_2_y) - (z_pow_3 * sum_2)
+        ) % self.E.order
 
     def prove(self, v: int):
 
@@ -103,11 +125,19 @@ class RangeProof:
         a_blinding = get_random_int(self.E.order)
         v_blinding = get_random_int(self.E.order)
         s_blinding = get_random_int(self.E.order)
-        
+
         V = v * self.B + v_blinding * self.B_blinding
-        A = self.E.multiexp(self.G, a_L) + self.E.multiexp(self.H, a_R) + a_blinding * self.B_blinding
-        S = self.E.multiexp(self.G, s_L) + self.E.multiexp(self.H, s_R) + s_blinding * self.B_blinding
-        
+        A = (
+            self.E.multiexp(self.G, a_L)
+            + self.E.multiexp(self.H, a_R)
+            + a_blinding * self.B_blinding
+        )
+        S = (
+            self.E.multiexp(self.G, s_L)
+            + self.E.multiexp(self.H, s_R)
+            + s_blinding * self.B_blinding
+        )
+
         self.transcript.append(V)
         self.transcript.append(A)
         self.transcript.append(S)
@@ -126,7 +156,7 @@ class RangeProof:
             l_0.append((a_L[i] - z) % self.E.order)
             l_1.append(s_L[i])
 
-            r_0.append((exp_y * (a_R[i] + z) + z*z * exp_2) % self.E.order)
+            r_0.append((exp_y * (a_R[i] + z) + z * z * exp_2) % self.E.order)
             r_1.append(exp_y * s_R[i] % self.E.order)
 
             exp_y *= y
@@ -134,7 +164,7 @@ class RangeProof:
 
         l_vecpoly = []
         r_vecpoly = []
-        
+
         p = self.E.order
         for i in range(self.n):
             l_vecpoly += [PolynomialRing([l_0[i], l_1[i]], p)]
@@ -143,8 +173,8 @@ class RangeProof:
         t0 = self.__inner_product(l_0, r_0)
         t2 = self.__inner_product(l_1, r_1)
 
-        l0_plus_l1 = [(a + b) % p for a,b in zip(l_0, l_1)]
-        r0_plus_r1 = [(a + b) % p for a,b in zip(r_0, r_1)]
+        l0_plus_l1 = [(a + b) % p for a, b in zip(l_0, l_1)]
+        r0_plus_r1 = [(a + b) % p for a, b in zip(r_0, r_1)]
 
         t1 = (self.__inner_product(l0_plus_l1, r0_plus_r1) - t0 - t2) % p
 
@@ -164,7 +194,9 @@ class RangeProof:
         r_list = [poly(x) for poly in r_vecpoly]
         t = t_poly(x)
 
-        t_blinding_poly = PolynomialRing([z*z * v_blinding, t1_blinding, t2_blinding], p)
+        t_blinding_poly = PolynomialRing(
+            [z * z * v_blinding, t1_blinding, t2_blinding], p
+        )
         t_blinding = t_blinding_poly(x)
         e_blinding = (a_blinding + x * s_blinding) % p
 
@@ -185,7 +217,7 @@ class RangeProof:
         ipa_proof, _ = ipa_prover.prove(l_list, r_list)
 
         return RangeProofObject(V, A, S, T1, T2, t, t_blinding, e_blinding, ipa_proof)
-        
+
     def verify(self, proof: RangeProofObject):
 
         self.transcript.reset()
@@ -235,7 +267,7 @@ class RangeProof:
 
         s = [all_inv]
         for i in range(1, self.n):
-            lg_i = (32 - 1 - (32 - i.bit_length()))
+            lg_i = 32 - 1 - (32 - i.bit_length())
             l = 1 << lg_i
 
             u_lg_i_sq = challenges[(k - 1) - lg_i]
@@ -244,34 +276,47 @@ class RangeProof:
         a = proof.ipa_proof.a
         b = proof.ipa_proof.b
 
-        scalar_mul_g = [(-z - a*s[i]) % self.E.order for i in range(self.n)]
+        scalar_mul_g = [(-z - a * s[i]) % self.E.order for i in range(self.n)]
         scalar_mul_h = []
 
         for i in range(self.n):
             s_inv = pow(s[i], -1, self.E.order)
-            rhs = z*z * pow(2, i, self.E.order) - b * s_inv
+            rhs = z * z * pow(2, i, self.E.order) - b * s_inv
 
             scalar_mul_h += [(z + pow(y, -i, self.E.order) * rhs) % self.E.order]
 
-        points = [
-            proof.A,
-            proof.S,
-            proof.V,
-            proof.T1,
-            proof.T2,
-            self.B,
-            self.B_blinding,
-        ] + self.G + self.H + proof.ipa_proof.L + proof.ipa_proof.R
+        points = (
+            [
+                proof.A,
+                proof.S,
+                proof.V,
+                proof.T1,
+                proof.T2,
+                self.B,
+                self.B_blinding,
+            ]
+            + self.G
+            + self.H
+            + proof.ipa_proof.L
+            + proof.ipa_proof.R
+        )
 
-        scalars = [
-            1,
-            x,
-            c * z*z % self.E.order,
-            c * x % self.E.order,
-            c * x*x % self.E.order,
-            (w*(proof.t - a*b) + c*(self.__delta(y, z) - proof.t)) % self.E.order,
-            (-proof.e_blinding - c*proof.t_blinding) % self.E.order,
-        ] + scalar_mul_g + scalar_mul_h + challenges + challenges_inv
+        scalars = (
+            [
+                1,
+                x,
+                c * z * z % self.E.order,
+                c * x % self.E.order,
+                c * x * x % self.E.order,
+                (w * (proof.t - a * b) + c * (self.__delta(y, z) - proof.t))
+                % self.E.order,
+                (-proof.e_blinding - c * proof.t_blinding) % self.E.order,
+            ]
+            + scalar_mul_g
+            + scalar_mul_h
+            + challenges
+            + challenges_inv
+        )
 
         final_check = self.E.multiexp(points, scalars)
 

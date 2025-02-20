@@ -4,6 +4,7 @@ from zksnake.arithmetization.plonkish import Plonkish
 from zksnake.constant import BN254_SCALAR_FIELD
 from zksnake.plonk import Plonk
 
+
 def run(n_power, crv):
 
     time_results = []
@@ -14,7 +15,7 @@ def run(n_power, crv):
     for i in range(n_power - 1):
         v.append(Var(f"v{i}"))
 
-    cs = ConstraintSystem(['inp'], ["out"], BN254_SCALAR_FIELD)
+    cs = ConstraintSystem(["inp"], ["out"], BN254_SCALAR_FIELD)
 
     cs.add_constraint(v[0] == inp * inp)
     for i in range(1, n_power - 1):

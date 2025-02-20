@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 # pylint: disable=no-name-in-module
 from zksnake._algebra import circuit
 
@@ -6,9 +7,10 @@ from ..parser import R1CSReader
 from ..array import SparseArray
 from ..ecc import EllipticCurve
 
+
 class R1CS:
 
-    def __init__(self, cs: circuit.ConstraintSystem, curve: str="BN254"):
+    def __init__(self, cs: circuit.ConstraintSystem, curve: str = "BN254"):
         self.A = None
         self.B = None
         self.C = None
@@ -45,14 +47,14 @@ class R1CS:
         w = []
 
         for v in self.constraint_system.get_witness_vector():
-            if v == '0':
+            if v == "0":
                 w.append(1)
             elif isinstance(v, str):
                 w.append(solve_result[v] % self.p)
             else:
                 w.append(v % self.p)
 
-        return w[:self.n_public], w[self.n_public:]
+        return w[: self.n_public], w[self.n_public :]
 
     def is_sat(self, public_witness: list, private_witness: list):
         """
@@ -65,7 +67,7 @@ class R1CS:
         Bz = self.B.dot(w)
         Cz = self.C.dot(w)
 
-        AzBz = [x * y % self.p for x,y in zip(Az, Bz)]
+        AzBz = [x * y % self.p for x, y in zip(Az, Bz)]
 
         return AzBz == Cz
 
@@ -83,7 +85,7 @@ class R1CS:
         raise NotImplementedError
 
     @classmethod
-    def from_file(cls, r1csfile: str, symfile: str = None, curve: str="BN254"):
+    def from_file(cls, r1csfile: str, symfile: str = None, curve: str = "BN254"):
 
         p = EllipticCurve(curve).order
 

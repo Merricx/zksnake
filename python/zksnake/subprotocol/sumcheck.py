@@ -4,6 +4,7 @@ from typing import List
 from ..transcript import FiatShamirTranscript
 from ..polynomial import MultilinearPolynomial, PolynomialRing
 
+
 class SumcheckPolynomial:
     def __init__(self, n, p):
         self.n = n
@@ -26,7 +27,7 @@ class SumcheckPolynomial:
     def round_function(self, r):
         """
         Function executed at each sumcheck round (except first round)
-        with given challenge `r` by fixing one variable, 
+        with given challenge `r` by fixing one variable,
         returning univariate polynomial
         """
         raise NotImplementedError
@@ -41,11 +42,14 @@ class Sumcheck:
     def __init__(self, n, order, transcript=None):
         self.n = n
         self.order = order
-        self.transcript = transcript or FiatShamirTranscript(b'sumcheck')
+        self.transcript = transcript or FiatShamirTranscript(b"sumcheck")
 
-    def prove(self, mlpoly):
+    def prove(self, mlpoly, transcript=None):
         """
-        Prove sumcheck protocol from given simple multilinear polynomial `mlpoly.
+        Prove sumcheck protocol from given simple multilinear polynomial `mlpoly`.
+
+        If used as subprotocol, `transcript` must be supplied to ensure that the challenges are
+        generated using previous protocol components.
         """
 
         assert mlpoly.num_vars == self.n
@@ -55,11 +59,13 @@ class Sumcheck:
         r_evals = []
 
         self.transcript.reset()
+        if transcript:
+            self.transcript = transcript
         self.transcript.append(sum_claim)
 
-        for n_round in range(1, self.n+1):
+        for n_round in range(1, self.n + 1):
 
-            poly = MultilinearPolynomial(0,None,self.order)
+            poly = MultilinearPolynomial(0, None, self.order)
             for b in list(product([0, 1], repeat=self.n - n_round)):
                 poly += mlpoly.partial_evaluate(b)
 
@@ -81,9 +87,12 @@ class Sumcheck:
 
         return sum_claim, proof, r_evals[::-1]
 
-    def prove_arbitrary(self, poly: SumcheckPolynomial):
+    def prove_arbitrary(self, poly: SumcheckPolynomial, transcript=None):
         """
         Prove sumcheck protocol from given complex `poly` instantiated by `SumcheckPolynomial`.
+
+        If used as subprotocol, `transcript` must be supplied to ensure that the challenges are
+        generated using previous protocol components.
         """
         assert poly.n == self.n
 
@@ -92,9 +101,11 @@ class Sumcheck:
         r_evals = []
 
         self.transcript.reset()
+        if transcript:
+            self.transcript = transcript
         self.transcript.append(sum_claim)
 
-        for n_round in range(1, self.n+1):
+        for n_round in range(1, self.n + 1):
             if n_round == 1:
                 uni_poly = poly.first_round()
             else:
@@ -112,13 +123,16 @@ class Sumcheck:
 
         return sum_claim, proof, r_evals[::-1]
 
-    def verify(self, sum_claim, proof, degree_bound, mlpoly=None):
+    def verify(self, sum_claim, proof, degree_bound, transcript=None, mlpoly=None):
         """
         Verify sumcheck protocol from given sum `sum_claim`, maximum `degree_bound`, and `proof`.
         Return list of challenge `r` if proof is valid, return `False` otherwise.
-        
+
+        If used as subprotocol, `transcript` must be supplied to ensure that the challenges are
+        generated using previous protocol components.
+
         Optionally, if `mlpoly` is supplied, the verifier will evaluate final check
-        by themselves. Otherwise, the verifier needs to perform last check manually 
+        by themselves. Otherwise, the verifier needs to perform last check manually
         outside this function.
         """
 
@@ -128,25 +142,24 @@ class Sumcheck:
         prev_eval = sum_claim
 
         self.transcript.reset()
+        if transcript:
+            self.transcript = transcript
         self.transcript.append(sum_claim)
 
-        for n_round in range(1, self.n+1):
+        for n_round in range(1, self.n + 1):
 
-            poly_round = proof[n_round-1]
+            poly_round = proof[n_round - 1]
 
             if poly_round.degree() > degree_bound:
                 return False
 
-            round_eval = (
-                poly_round(0) +
-                poly_round(1)
-            ) % self.order
+            round_eval = (poly_round(0) + poly_round(1)) % self.order
 
             if n_round > 1:
                 r = self.transcript.get_challenge_scalar() % self.order
                 r_evals.insert(0, r)
 
-                prev_eval = proof[n_round-2](r)
+                prev_eval = proof[n_round - 2](r)
 
             # proof[i].evaluate(r) == proof[i+1].evaluate(0) + proof[i+1].evaluate(1)
             if prev_eval != round_eval:

@@ -125,10 +125,9 @@ def test_unused_public_input():
     cs = ConstraintSystem(["x", "unused"], ["y"], BN254_SCALAR_FIELD)
     cs.add_constraint(v1 == x * x)
     cs.add_constraint(y - 5 - x == v1 * x)
-    cs.add_constraint(unused*0 == 0)
+    cs.add_constraint(unused * 0 == 0)
     cs.set_public(unused)
     cs.set_public(y)
-
 
     r1cs = R1CS(cs)
     r1cs.compile()

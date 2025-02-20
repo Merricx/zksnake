@@ -60,10 +60,10 @@ def test_constraint_structure():
     v4 = Var("v4")
 
     cs = ConstraintSystem(["x"], ["y"], BN254_SCALAR_FIELD)
-    cs.add_constraint(v1 == x*x)
+    cs.add_constraint(v1 == x * x)
     cs.add_constraint(v2 == v1 + x)
     cs.add_constraint(v1 + v2 == v3)
-    cs.add_constraint(v4 == (v1 + v2) / (168696*v3 + 1))
+    cs.add_constraint(v4 == (v1 + v2) / (168696 * v3 + 1))
     cs.add_constraint(v1 + v2 + v3 + v4 == y)
 
     cs.set_public(y)

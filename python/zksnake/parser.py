@@ -1,6 +1,7 @@
 import csv
 from io import BytesIO
 from pathlib import Path
+
 # pylint: disable=no-name-in-module
 from ._algebra import circuit
 
@@ -98,8 +99,7 @@ class R1CSReader:
             n_a = int.from_bytes(content.read(4), "little")
             for _ in range(n_a):
                 wire_id = int.from_bytes(content.read(4), "little")
-                factor = int.from_bytes(
-                    content.read(self.header["fs"]), "little")
+                factor = int.from_bytes(content.read(self.header["fs"]), "little")
 
                 sym = self.wires[wire_id]
                 if a:
@@ -110,8 +110,7 @@ class R1CSReader:
             n_b = int.from_bytes(content.read(4), "little")
             for _ in range(n_b):
                 wire_id = int.from_bytes(content.read(4), "little")
-                factor = int.from_bytes(
-                    content.read(self.header["fs"]), "little")
+                factor = int.from_bytes(content.read(self.header["fs"]), "little")
 
                 sym = self.wires[wire_id]
                 if b:
@@ -122,8 +121,7 @@ class R1CSReader:
             n_c = int.from_bytes(content.read(4), "little")
             for _ in range(n_c):
                 wire_id = int.from_bytes(content.read(4), "little")
-                factor = int.from_bytes(
-                    content.read(self.header["fs"]), "little")
+                factor = int.from_bytes(content.read(self.header["fs"]), "little")
 
                 sym = self.wires[wire_id]
                 if rhs_c:
@@ -184,8 +182,9 @@ class R1CSReader:
             private_inputs = [
                 circuit.Field(f"priv{i+1}") for i in range(self.header["n_priv_in"])
             ]
-            outputs = [circuit.Field(f"out{i+1}")
-                       for i in range(self.header["n_pub_out"])]
+            outputs = [
+                circuit.Field(f"out{i+1}") for i in range(self.header["n_pub_out"])
+            ]
 
             n_intermediate = self.header["n_wires"] - (
                 self.header["n_pub_in"]
@@ -193,12 +192,12 @@ class R1CSReader:
                 + self.header["n_pub_out"]
                 + 1
             )
-            intermediate_vars = [circuit.Field(f"v{i+1}")
-                                 for i in range(n_intermediate)]
+            intermediate_vars = [
+                circuit.Field(f"v{i+1}") for i in range(n_intermediate)
+            ]
 
             self.wires = (
-                [1] + outputs + public_inputs +
-                private_inputs + intermediate_vars
+                [1] + outputs + public_inputs + private_inputs + intermediate_vars
             )
 
         for constraint in self.raw_constraints:

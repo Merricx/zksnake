@@ -1,8 +1,12 @@
 from enum import Enum
 
-from zksnake._algebra import ec_bn254, ec_bls12_381 # pylint: disable=no-name-in-module
-from .constant import BLS12_381_MODULUS, BLS12_381_SCALAR_FIELD, BN254_MODULUS, BN254_SCALAR_FIELD
-
+from zksnake._algebra import ec_bn254, ec_bls12_381  # pylint: disable=no-name-in-module
+from .constant import (
+    BLS12_381_MODULUS,
+    BLS12_381_SCALAR_FIELD,
+    BN254_MODULUS,
+    BN254_SCALAR_FIELD,
+)
 
 
 class CurveType(Enum):
@@ -11,11 +15,13 @@ class CurveType(Enum):
     ALT_BN128 = ec_bn254
     BLS12_381 = ec_bls12_381
 
+
 class CurveField(Enum):
     BN128 = BN254_MODULUS
     BN254 = BN254_MODULUS
     ALT_BN128 = BN254_MODULUS
     BLS12_381 = BLS12_381_MODULUS
+
 
 class CurveOrder(Enum):
     BN128 = BN254_SCALAR_FIELD
@@ -23,11 +29,13 @@ class CurveOrder(Enum):
     ALT_BN128 = BN254_SCALAR_FIELD
     BLS12_381 = BLS12_381_SCALAR_FIELD
 
+
 class CurveScalarSize(Enum):
     BN128 = 32
     BN254 = 32
     ALT_BN128 = 32
     BLS12_381 = 32
+
 
 class CurvePointSize(Enum):
     BN128 = 32
@@ -35,11 +43,14 @@ class CurvePointSize(Enum):
     ALT_BN128 = 32
     BLS12_381 = 48
 
+
 def ispointG1(x):
     return isinstance(x, (ec_bn254.PointG1, ec_bls12_381.PointG1))
 
+
 def ispointG2(x):
     return isinstance(x, (ec_bn254.PointG2, ec_bls12_381.PointG2))
+
 
 class EllipticCurve:
     def __init__(self, curve: str):

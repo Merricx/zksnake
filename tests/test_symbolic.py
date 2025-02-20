@@ -36,12 +36,13 @@ def test_complex_equation(x, y, z):
     assert str(expr1) == "((x * 2 + y * 3) + -(z))"
     assert str(expr2) == "(x * 8 * (z + 4) * y / z - 12)"
 
+
 def test_equation(x, y, z):
 
     p = 71
     eq1 = 7 == (1 * x) + (2 * y) + (4 * z)
     eq2 = z == 1337
-    eq3 = x*y/z == y*x/z
+    eq3 = x * y / z == y * x / z
 
     result1 = eq1.evaluate({"x": 1, "y": 1, "z": 1}, p)
     result2 = eq2.evaluate({"z": 1337}, p)
