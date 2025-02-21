@@ -87,7 +87,9 @@ class RangeProof:
         self.B = hash_to_curve(seed, b"B", curve, 1)
         self.B_blinding = hash_to_curve(seed, b"Blinding", curve, 1)
 
-        self.transcript = transcript or FiatShamirTranscript(self.n.to_bytes(32, "big"))
+        self.transcript = transcript or FiatShamirTranscript(
+            self.n.to_bytes(32, "big"), field=self.E.order
+        )
 
     def __inner_product(self, a, b):
         return sum(a * b for a, b in zip(a, b)) % self.E.order

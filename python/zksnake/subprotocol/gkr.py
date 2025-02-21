@@ -113,7 +113,7 @@ class GKR:
         self.order = field
         self.depth = len(circuit.layers)
         self.wire_labels = self.circuit.get_wire_label()[::-1]
-        self.transcript = transcript or FiatShamirTranscript(b"GKR")
+        self.transcript = transcript or FiatShamirTranscript(b"GKR", field=field)
 
     def _add_i(self, i):
         target_layer = self.circuit.layers[::-1][i]
@@ -204,7 +204,7 @@ class GKR:
     def _get_transcript_challenge(self, length):
         challenges = []
         for _ in range(length):
-            r = self.transcript.get_challenge_scalar() % self.order
+            r = self.transcript.get_challenge_scalar()
             self.transcript.append(r)
             challenges.append(r)
 

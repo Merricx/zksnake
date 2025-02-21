@@ -42,7 +42,7 @@ class Sumcheck:
     def __init__(self, n, order, transcript=None):
         self.n = n
         self.order = order
-        self.transcript = transcript or FiatShamirTranscript(b"sumcheck")
+        self.transcript = transcript or FiatShamirTranscript(b"sumcheck", field=order)
 
     def prove(self, mlpoly, transcript=None):
         """
@@ -70,7 +70,7 @@ class Sumcheck:
                 poly += mlpoly.partial_evaluate(b)
 
             if n_round > 1:
-                r = self.transcript.get_challenge_scalar() % self.order
+                r = self.transcript.get_challenge_scalar()
                 r_evals.insert(0, r)
 
                 # swap most left variable to the most right position
@@ -82,7 +82,7 @@ class Sumcheck:
             self.transcript.append(coeffs)
             proof.append(uni_poly)
 
-        r = self.transcript.get_challenge_scalar() % self.order
+        r = self.transcript.get_challenge_scalar()
         r_evals.insert(0, r)
 
         return sum_claim, proof, r_evals[::-1]
@@ -109,7 +109,7 @@ class Sumcheck:
             if n_round == 1:
                 uni_poly = poly.first_round()
             else:
-                r = self.transcript.get_challenge_scalar() % self.order
+                r = self.transcript.get_challenge_scalar()
                 r_evals.insert(0, r)
                 uni_poly = poly.round_function(r_evals)
 
@@ -118,7 +118,7 @@ class Sumcheck:
             self.transcript.append(uni_poly.coeffs())
             proof.append(uni_poly)
 
-        r = self.transcript.get_challenge_scalar() % self.order
+        r = self.transcript.get_challenge_scalar()
         r_evals.insert(0, r)
 
         return sum_claim, proof, r_evals[::-1]
@@ -156,7 +156,7 @@ class Sumcheck:
             round_eval = (poly_round(0) + poly_round(1)) % self.order
 
             if n_round > 1:
-                r = self.transcript.get_challenge_scalar() % self.order
+                r = self.transcript.get_challenge_scalar()
                 r_evals.insert(0, r)
 
                 prev_eval = proof[n_round - 2](r)
@@ -167,7 +167,7 @@ class Sumcheck:
 
             self.transcript.append(poly_round.coeffs())
 
-        r = self.transcript.get_challenge_scalar() % self.order
+        r = self.transcript.get_challenge_scalar()
         r_evals.insert(0, r)
 
         # if mlpoly is given, verifier evaluate `r_evals` by themselves

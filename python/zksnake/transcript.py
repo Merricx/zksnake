@@ -1,4 +1,5 @@
 import hashlib
+from .constant import BN254_SCALAR_FIELD
 from .ecc import EllipticCurve, ispointG1, ispointG2
 
 
@@ -26,11 +27,12 @@ def hash_to_curve(
 
 class FiatShamirTranscript:
 
-    def __init__(self, label: bytes = b"", alg="blake2b"):
+    def __init__(self, label: bytes = b"", field=BN254_SCALAR_FIELD, alg="blake2b"):
         self.alg = alg
         self.label = label
         self.hasher = hashlib.new(alg, label)
         self.state = []
+        self.field = field
 
     def reset(self):
         self.hasher = hashlib.new(self.alg, self.label)
@@ -65,4 +67,4 @@ class FiatShamirTranscript:
         return digest
 
     def get_challenge_scalar(self) -> int:
-        return int.from_bytes(self.get_challenge(), "big")
+        return int.from_bytes(self.get_challenge(), "big") % self.field

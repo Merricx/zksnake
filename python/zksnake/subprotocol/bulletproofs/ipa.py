@@ -62,7 +62,9 @@ class InnerProductArgument:
         self.H = hash_to_curve(seed, b"H", curve, self.n)
         self.Q = Q or hash_to_curve(seed, b"Q", curve, 1)
 
-        self.transcript = transcript or FiatShamirTranscript(self.n.to_bytes(32, "big"))
+        self.transcript = transcript or FiatShamirTranscript(
+            self.n.to_bytes(32, "big"), field=self.E.order
+        )
 
     def __inner_product(self, a, b):
         return sum(a * b for a, b in zip(a, b)) % self.E.order

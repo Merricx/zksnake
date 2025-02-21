@@ -1,7 +1,7 @@
-use ark_ff::{ One, Zero };
+use super::symbolic::{ConstraintSystem, Equation, Node};
+use ark_ff::{One, Zero};
 use num_bigint::BigUint;
 use rayon::prelude::*;
-use super::symbolic::{ ConstraintSystem, Equation, Node };
 
 fn transform(
     eq: &Node,
@@ -9,7 +9,7 @@ fn transform(
     q_constant: &mut BigUint,
     var_mul: &mut usize,
     touched_var: &mut Vec<String>,
-    modulus: &BigUint
+    modulus: &BigUint,
 ) {
     match &eq.gate {
         super::symbolic::Gate::Input(name) => {
@@ -24,22 +24,20 @@ fn transform(
             transform(left, q_var, q_constant, var_mul, touched_var, modulus);
             transform(right, q_var, q_constant, var_mul, touched_var, modulus);
         }
-        super::symbolic::Gate::Mul(left, right) => {
-            match (&left.gate, &right.gate) {
-                (_, super::symbolic::Gate::Const(value)) => {
-                    transform(left, q_var, q_constant, var_mul, touched_var, modulus);
-                    *q_var *= value;
-                }
-                (super::symbolic::Gate::Const(value), _) => {
-                    *q_var *= value;
-                    transform(right, q_var, q_constant, var_mul, touched_var, modulus);
-                }
-                _ => {
-                    transform(left, q_var, q_constant, var_mul, touched_var, modulus);
-                    transform(right, q_var, q_constant, var_mul, touched_var, modulus);
-                }
+        super::symbolic::Gate::Mul(left, right) => match (&left.gate, &right.gate) {
+            (_, super::symbolic::Gate::Const(value)) => {
+                transform(left, q_var, q_constant, var_mul, touched_var, modulus);
+                *q_var *= value;
             }
-        }
+            (super::symbolic::Gate::Const(value), _) => {
+                *q_var *= value;
+                transform(right, q_var, q_constant, var_mul, touched_var, modulus);
+            }
+            _ => {
+                transform(left, q_var, q_constant, var_mul, touched_var, modulus);
+                transform(right, q_var, q_constant, var_mul, touched_var, modulus);
+            }
+        },
         super::symbolic::Gate::Neg(left) => {
             transform(left, q_var, q_constant, var_mul, touched_var, modulus);
             *q_var = modulus - q_var.clone();
@@ -53,41 +51,10 @@ fn transform(
     }
 }
 
-fn copy_constraint(num_constraint: usize, witness: Vec<&String>) -> Vec<usize> {
-    let size = witness.len();
-    let padded_size = num_constraint.next_power_of_two() * 3;
-    let mut padded_witness: Vec<String> = witness
-        .iter()
-        .map(|s| s.to_string())
-        .collect();
-    padded_witness.extend(vec![Default::default(); padded_size - size].iter().cloned());
-
-    let mut w: Vec<&String> = Vec::new();
-    for i in 0..3 {
-        w.extend(padded_witness.iter().skip(i).step_by(3));
-    }
-
-    let mut permutation: Vec<usize> = (0..padded_size).collect();
-
-    for i in 0..size {
-        if w[i].is_empty() {
-            continue;
-        }
-        for j in i + 1..size {
-            if w[i] == w[j] {
-                permutation.swap(i, j);
-                break;
-            }
-        }
-    }
-
-    permutation
-}
-
 fn consume_constraint(
     constraint: &Equation,
     public_input: &Vec<String>,
-    modulus: &BigUint
+    modulus: &BigUint,
 ) -> (BigUint, BigUint, BigUint, BigUint, BigUint, [String; 3]) {
     let mut ql = BigUint::zero();
     let mut qr = BigUint::zero();
@@ -107,7 +74,10 @@ fn consume_constraint(
         }
         w[2] = var.to_string();
     } else {
-        panic!("Constraint {} not in the form of C=A*B", constraint.__repr__().unwrap());
+        panic!(
+            "Constraint {} not in the form of C=A*B",
+            constraint.__repr__().unwrap()
+        );
     }
 
     match &rhs.gate {
@@ -126,8 +96,22 @@ fn consume_constraint(
 
             let mut var_mul: usize = 0;
             let mut touched_var = vec![];
-            transform(left, &mut ql, &mut qc, &mut var_mul, &mut touched_var, modulus);
-            transform(right, &mut qr, &mut qc, &mut var_mul, &mut touched_var, modulus);
+            transform(
+                left,
+                &mut ql,
+                &mut qc,
+                &mut var_mul,
+                &mut touched_var,
+                modulus,
+            );
+            transform(
+                right,
+                &mut qr,
+                &mut qc,
+                &mut var_mul,
+                &mut touched_var,
+                modulus,
+            );
 
             if var_mul == 0 {
                 ql = BigUint::zero();
@@ -156,8 +140,22 @@ fn consume_constraint(
 
             let mut var_mul: usize = 0;
             let mut touched_var = vec![];
-            transform(left, &mut ql, &mut qc, &mut var_mul, &mut touched_var, modulus);
-            transform(right, &mut qr, &mut qc, &mut var_mul, &mut touched_var, modulus);
+            transform(
+                left,
+                &mut ql,
+                &mut qc,
+                &mut var_mul,
+                &mut touched_var,
+                modulus,
+            );
+            transform(
+                right,
+                &mut qr,
+                &mut qc,
+                &mut var_mul,
+                &mut touched_var,
+                modulus,
+            );
 
             if var_mul == 0 {
                 ql = BigUint::zero();
@@ -190,7 +188,14 @@ fn consume_constraint(
 
             let mut var_mul: usize = 0;
             let mut touched_var = vec![];
-            transform(&rhs, &mut q_var, &mut q_const, &mut var_mul, &mut touched_var, modulus);
+            transform(
+                &rhs,
+                &mut q_var,
+                &mut q_const,
+                &mut var_mul,
+                &mut touched_var,
+                modulus,
+            );
 
             if var_mul == 0 {
                 qc = q_const;
@@ -218,7 +223,14 @@ fn consume_constraint(
 
             let mut var_mul: usize = 0;
             let mut touched_var = vec![];
-            transform(left, &mut ql, &mut qc, &mut var_mul, &mut touched_var, modulus);
+            transform(
+                left,
+                &mut ql,
+                &mut qc,
+                &mut var_mul,
+                &mut touched_var,
+                modulus,
+            );
             if var_mul == 0 {
                 ql = BigUint::zero();
             } else {
@@ -240,18 +252,53 @@ fn consume_constraint(
     (ql, qr, qo, qm, qc, w)
 }
 
+fn copy_constraint(num_constraint: usize, witness: Vec<&String>) -> Vec<usize> {
+    let size = witness.len();
+    let padded_size = num_constraint.next_power_of_two() * 3;
+
+    let mut padded_witness: Vec<String> = witness.into_iter().map(|s| s.to_string()).collect();
+    padded_witness.resize_with(padded_size, Default::default);
+
+    let w: Vec<&String> = (0..3)
+        .flat_map(|i| padded_witness.iter().skip(i).step_by(3))
+        .collect();
+
+    let mut permutation: Vec<usize> = (0..padded_size).collect();
+
+    let swaps: Vec<(usize, usize)> = (0..size)
+        .into_par_iter()
+        .filter_map(|i| {
+            if w[i].is_empty() {
+                return None;
+            }
+            (i + 1..size).find(|&j| w[i] == w[j]).map(|j| (i, j))
+        })
+        .collect();
+
+    for (i, j) in swaps {
+        permutation.swap(i, j);
+    }
+
+    permutation
+}
+
 pub fn compile(
-    cs: &ConstraintSystem
-) -> (Vec<(BigUint, BigUint, BigUint, BigUint, BigUint, [String; 3])>, Vec<usize>) {
+    cs: &ConstraintSystem,
+) -> (
+    Vec<(BigUint, BigUint, BigUint, BigUint, BigUint, [String; 3])>,
+    Vec<usize>,
+) {
     let mut witness = vec![];
-    let result: Vec<_> = cs.constraints
+    let result: Vec<_> = cs
+        .constraints
         .clone()
         .into_par_iter()
         .enumerate()
-        .map(|(_, constraint)| { consume_constraint(&constraint, &cs.public_vars, &cs.modulus) })
+        .map(|(_, constraint)| consume_constraint(&constraint, &cs.public_vars, &cs.modulus))
         .collect();
-
-    result.iter().for_each(|(_, _, _, _, _, w)| witness.extend(w));
+    result
+        .iter()
+        .for_each(|(_, _, _, _, _, w)| witness.extend(w));
 
     let permutation = copy_constraint(cs.num_constraints(), witness);
 

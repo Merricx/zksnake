@@ -173,7 +173,7 @@ class Plonk:
         for k, v in public_witness.items():
             full_public_witness[k] = v
 
-        transcript = FiatShamirTranscript()
+        transcript = FiatShamirTranscript(field=self.order)
 
         # vanishing polynomial X^n - 1
         Zh = PolynomialRing([-1 % self.order] + [0] * (n - 1) + [1], self.order)
@@ -272,10 +272,10 @@ class Plonk:
         # Compute permutation polynomial z(X) with randomness (b7, b8, b9) and challenge (beta, gamma)
         #########################################################################################
 
-        beta = transcript.get_challenge_scalar() % self.order
+        beta = transcript.get_challenge_scalar()
         transcript.reset()
         transcript.append(beta)
-        gamma = transcript.get_challenge_scalar() % self.order
+        gamma = transcript.get_challenge_scalar()
 
         zero_pad = [0] * (n - 3)
         blinding_permutation = PolynomialRing(
@@ -330,7 +330,7 @@ class Plonk:
         # Compute quotient polynomial T(X) with randomness (b10, b11) and challenge alpha
         #########################################################################################
 
-        alpha = transcript.get_challenge_scalar() % self.order
+        alpha = transcript.get_challenge_scalar()
 
         Z_omega = PolynomialRing(
             [
@@ -387,7 +387,7 @@ class Plonk:
         # and linearization polynomial R(x) at zeta
         #########################################################################################
 
-        zeta = transcript.get_challenge_scalar() % self.order
+        zeta = transcript.get_challenge_scalar()
 
         zeta_A = A(zeta)
         zeta_B = B(zeta)
@@ -446,7 +446,7 @@ class Plonk:
         # Compute opening proof polynomial W(x) with challenge v
         #########################################################################################
 
-        v = transcript.get_challenge_scalar() % self.order
+        v = transcript.get_challenge_scalar()
 
         W_zeta = (
             R
@@ -494,7 +494,7 @@ class Plonk:
 
     def __recompute_challenges(self, proof: Proof, public_input: dict):
 
-        transcript = FiatShamirTranscript()
+        transcript = FiatShamirTranscript(field=self.order)
 
         tau_QL = self.verifying_key.tau_selector_poly["L"]
         tau_QR = self.verifying_key.tau_selector_poly["R"]
@@ -520,23 +520,23 @@ class Plonk:
         transcript.append(proof.tau_a)
         transcript.append(proof.tau_b)
         transcript.append(proof.tau_c)
-        beta = transcript.get_challenge_scalar() % self.order
+        beta = transcript.get_challenge_scalar()
         transcript.reset()
         transcript.append(beta)
-        gamma = transcript.get_challenge_scalar() % self.order
+        gamma = transcript.get_challenge_scalar()
 
         transcript.reset()
         transcript.append(beta)
         transcript.append(gamma)
         transcript.append(proof.tau_z)
-        alpha = transcript.get_challenge_scalar() % self.order
+        alpha = transcript.get_challenge_scalar()
 
         transcript.reset()
         transcript.append(alpha)
         transcript.append(proof.tau_t_lo)
         transcript.append(proof.tau_t_mid)
         transcript.append(proof.tau_t_hi)
-        zeta = transcript.get_challenge_scalar() % self.order
+        zeta = transcript.get_challenge_scalar()
 
         transcript.reset()
         transcript.append(zeta)
@@ -546,12 +546,12 @@ class Plonk:
         transcript.append(proof.zeta_sigma1)
         transcript.append(proof.zeta_sigma2)
         transcript.append(proof.zeta_omega)
-        v = transcript.get_challenge_scalar() % self.order
+        v = transcript.get_challenge_scalar()
 
         transcript.reset()
         transcript.append(proof.tau_W_zeta)
         transcript.append(proof.tau_W_zeta_omega)
-        u = transcript.get_challenge_scalar() % self.order
+        u = transcript.get_challenge_scalar()
 
         return beta, gamma, alpha, zeta, v, u
 
