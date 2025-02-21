@@ -273,8 +273,6 @@ class Plonk:
         #########################################################################################
 
         beta = transcript.get_challenge_scalar()
-        transcript.reset()
-        transcript.append(beta)
         gamma = transcript.get_challenge_scalar()
 
         zero_pad = [0] * (n - 3)
@@ -319,9 +317,6 @@ class Plonk:
         Z = blinding_permutation.multiply_by_vanishing_poly() + acc_poly
         tau_z = self.E.multiexp(self.proving_key.tau_g1, Z.coeffs())
 
-        transcript.reset()
-        transcript.append(beta)
-        transcript.append(gamma)
         transcript.append(tau_z)
 
         #########################################################################################
@@ -374,8 +369,6 @@ class Plonk:
         tau_T_mid = self.E.multiexp(self.proving_key.tau_g1, T_mid.coeffs())
         tau_T_hi = self.E.multiexp(self.proving_key.tau_g1, T_hi.coeffs())
 
-        transcript.reset()
-        transcript.append(alpha)
         transcript.append(tau_T_lo)
         transcript.append(tau_T_mid)
         transcript.append(tau_T_hi)
@@ -431,8 +424,6 @@ class Plonk:
             )
         )
 
-        transcript.reset()
-        transcript.append(zeta)
         transcript.append(zeta_A)
         transcript.append(zeta_B)
         transcript.append(zeta_C)
@@ -521,25 +512,16 @@ class Plonk:
         transcript.append(proof.tau_b)
         transcript.append(proof.tau_c)
         beta = transcript.get_challenge_scalar()
-        transcript.reset()
-        transcript.append(beta)
         gamma = transcript.get_challenge_scalar()
 
-        transcript.reset()
-        transcript.append(beta)
-        transcript.append(gamma)
         transcript.append(proof.tau_z)
         alpha = transcript.get_challenge_scalar()
 
-        transcript.reset()
-        transcript.append(alpha)
         transcript.append(proof.tau_t_lo)
         transcript.append(proof.tau_t_mid)
         transcript.append(proof.tau_t_hi)
         zeta = transcript.get_challenge_scalar()
 
-        transcript.reset()
-        transcript.append(zeta)
         transcript.append(proof.zeta_a)
         transcript.append(proof.zeta_b)
         transcript.append(proof.zeta_c)
@@ -548,7 +530,6 @@ class Plonk:
         transcript.append(proof.zeta_omega)
         v = transcript.get_challenge_scalar()
 
-        transcript.reset()
         transcript.append(proof.tau_W_zeta)
         transcript.append(proof.tau_W_zeta_omega)
         u = transcript.get_challenge_scalar()

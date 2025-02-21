@@ -35,7 +35,6 @@ def plonkish_data_bn254():
 
     plonkish = Plonkish(cs)
     plonkish.compile()
-    print(plonkish.qL)
     pub, priv = plonkish.generate_witness(cs.solve({"x": 3}))
 
     assert plonkish.is_sat(pub, priv)
