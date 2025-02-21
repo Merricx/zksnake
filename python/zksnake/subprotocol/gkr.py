@@ -106,14 +106,11 @@ class GKR:
     "Proofs, Arguments, and Zero-Knowledge", section 4.6.
     """
 
-    def __init__(
-        self, circuit: LayeredCircuit, field=BN254_SCALAR_FIELD, transcript=None
-    ):
+    def __init__(self, circuit: LayeredCircuit, field=BN254_SCALAR_FIELD):
         self.circuit = circuit
         self.order = field
         self.depth = len(circuit.layers)
         self.wire_labels = self.circuit.get_wire_label()[::-1]
-        self.transcript = transcript or FiatShamirTranscript(b"GKR", field=field)
 
     def _add_i(self, i):
         target_layer = self.circuit.layers[::-1][i]
@@ -191,24 +188,13 @@ class GKR:
         )
 
     def _init_transcript(self, input_map, outputs, transcript=None):
-        if transcript:
-            self.transcript = transcript
-        else:
-            self.transcript.reset()
-
+        transcript = transcript or FiatShamirTranscript(b"gkr", field=self.order)
         for _, v in input_map.items():
-            self.transcript.append(v)
+            transcript.append(v)
         for _, output in outputs:
-            self.transcript.append(output)
+            transcript.append(output)
 
-    def _get_transcript_challenge(self, length):
-        challenges = []
-        for _ in range(length):
-            r = self.transcript.get_challenge_scalar()
-            self.transcript.append(r)
-            challenges.append(r)
-
-        return challenges
+        return transcript
 
     def _restrict_to_line(self, w, b, c):
         n = w.num_vars
@@ -250,8 +236,8 @@ class GKR:
         w_0 = MultilinearPolynomial(max(1, n), outputs, self.order)
 
         # V sends random r0 and computes m0 = w(r0)
-        self._init_transcript(input_map, outputs, transcript)
-        r = self._get_transcript_challenge(n)
+        transcript = self._init_transcript(input_map, outputs, transcript)
+        r = [transcript.get_challenge_scalar() for _ in range(n)]
         m = w_0.evaluate(r)
 
         for i in range(self.depth):
@@ -260,7 +246,7 @@ class GKR:
 
             # P and V apply sumcheck on the relation between W_0 and W_1
             sumcheck = Sumcheck(f.n, self.order)
-            sum_claim, proof, challenges = sumcheck.prove_arbitrary(f, self.transcript)
+            sum_claim, proof, challenges = sumcheck.prove_arbitrary(f, transcript)
             assert sum_claim == m, "Wiring pattern of the circuit might be incorrect"
 
             b = challenges[:n_next]
@@ -281,14 +267,14 @@ class GKR:
 
             assert w_eval == proof[-1](challenges[-1])
 
-            _ = [self.transcript.append(p.coeffs()) for p in proof]
-            self.transcript.append(q.coeffs())
-            self.transcript.append([z1, z2])
+            _ = [transcript.append(p.coeffs()) for p in proof]
+            transcript.append(q.coeffs())
+            transcript.append([z1, z2])
 
             proof.append((q, z1, z2))
             sumcheck_proofs.append(proof)
 
-            r = self._get_transcript_challenge(1)[0]
+            r = transcript.get_challenge_scalar()
             l_r = [p(r) for p in l]
             assert f.w_b.evaluate(l_r) == q(r)
 
@@ -314,8 +300,8 @@ class GKR:
         w = MultilinearPolynomial(max(1, n), outputs, self.order)
 
         # V sends random r0 and computes m0 = w(r0)
-        self._init_transcript(input_map, outputs, transcript)
-        r = self._get_transcript_challenge(n)
+        transcript = self._init_transcript(input_map, outputs, transcript)
+        r = [transcript.get_challenge_scalar() for _ in range(n)]
         m = w.evaluate(r)
 
         for i in range(self.depth):
@@ -325,7 +311,7 @@ class GKR:
             sumcheck = Sumcheck(add_ext_i.num_vars, self.order)
 
             round_proof = proofs[i]
-            challenges = sumcheck.verify(m, round_proof[:-1], 2, self.transcript)
+            challenges = sumcheck.verify(m, round_proof[:-1], 2, transcript)
 
             if not challenges:
                 return False
@@ -350,11 +336,11 @@ class GKR:
             if w_eval != last_proof(challenges[-1]):
                 return False
 
-            _ = [self.transcript.append(p.coeffs()) for p in round_proof[:-1]]
-            self.transcript.append(q.coeffs())
-            self.transcript.append([z1, z2])
+            _ = [transcript.append(p.coeffs()) for p in round_proof[:-1]]
+            transcript.append(q.coeffs())
+            transcript.append([z1, z2])
 
-            r = self._get_transcript_challenge(1)[0]
+            r = transcript.get_challenge_scalar()
             l_r = [p(r) for p in l]
 
             m = q(r)

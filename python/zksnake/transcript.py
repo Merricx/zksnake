@@ -64,6 +64,7 @@ class FiatShamirTranscript:
 
     def get_challenge(self) -> bytes:
         digest = self.hasher.digest()
+        self.hasher = hashlib.new(self.alg, digest)
         return digest
 
     def get_challenge_scalar(self) -> int:

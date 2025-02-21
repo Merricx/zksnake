@@ -39,10 +39,9 @@ class Sumcheck:
     over boolean hypercube is computed correctly
     """
 
-    def __init__(self, n, order, transcript=None):
+    def __init__(self, n, order):
         self.n = n
         self.order = order
-        self.transcript = transcript or FiatShamirTranscript(b"sumcheck", field=order)
 
     def prove(self, mlpoly, transcript=None):
         """
@@ -58,10 +57,8 @@ class Sumcheck:
         proof = []
         r_evals = []
 
-        self.transcript.reset()
-        if transcript:
-            self.transcript = transcript
-        self.transcript.append(sum_claim)
+        transcript = transcript or FiatShamirTranscript(b"sumcheck", field=self.order)
+        transcript.append(sum_claim)
 
         for n_round in range(1, self.n + 1):
 
@@ -70,7 +67,7 @@ class Sumcheck:
                 poly += mlpoly.partial_evaluate(b)
 
             if n_round > 1:
-                r = self.transcript.get_challenge_scalar()
+                r = transcript.get_challenge_scalar()
                 r_evals.insert(0, r)
 
                 # swap most left variable to the most right position
@@ -79,10 +76,10 @@ class Sumcheck:
 
             coeffs = poly.to_coefficients()
             uni_poly = PolynomialRing(coeffs, self.order)
-            self.transcript.append(coeffs)
+            transcript.append(coeffs)
             proof.append(uni_poly)
 
-        r = self.transcript.get_challenge_scalar()
+        r = transcript.get_challenge_scalar()
         r_evals.insert(0, r)
 
         return sum_claim, proof, r_evals[::-1]
@@ -100,25 +97,23 @@ class Sumcheck:
         proof = []
         r_evals = []
 
-        self.transcript.reset()
-        if transcript:
-            self.transcript = transcript
-        self.transcript.append(sum_claim)
+        transcript = transcript or FiatShamirTranscript(b"sumcheck", field=self.order)
+        transcript.append(sum_claim)
 
         for n_round in range(1, self.n + 1):
             if n_round == 1:
                 uni_poly = poly.first_round()
             else:
-                r = self.transcript.get_challenge_scalar()
+                r = transcript.get_challenge_scalar()
                 r_evals.insert(0, r)
                 uni_poly = poly.round_function(r_evals)
 
                 assert proof[-1](r) == (uni_poly(0) + uni_poly(1)) % self.order
 
-            self.transcript.append(uni_poly.coeffs())
+            transcript.append(uni_poly.coeffs())
             proof.append(uni_poly)
 
-        r = self.transcript.get_challenge_scalar()
+        r = transcript.get_challenge_scalar()
         r_evals.insert(0, r)
 
         return sum_claim, proof, r_evals[::-1]
@@ -141,10 +136,8 @@ class Sumcheck:
         r_evals = []
         prev_eval = sum_claim
 
-        self.transcript.reset()
-        if transcript:
-            self.transcript = transcript
-        self.transcript.append(sum_claim)
+        transcript = transcript or FiatShamirTranscript(b"sumcheck", field=self.order)
+        transcript.append(sum_claim)
 
         for n_round in range(1, self.n + 1):
 
@@ -156,7 +149,7 @@ class Sumcheck:
             round_eval = (poly_round(0) + poly_round(1)) % self.order
 
             if n_round > 1:
-                r = self.transcript.get_challenge_scalar()
+                r = transcript.get_challenge_scalar()
                 r_evals.insert(0, r)
 
                 prev_eval = proof[n_round - 2](r)
@@ -165,9 +158,9 @@ class Sumcheck:
             if prev_eval != round_eval:
                 return False
 
-            self.transcript.append(poly_round.coeffs())
+            transcript.append(poly_round.coeffs())
 
-        r = self.transcript.get_challenge_scalar()
+        r = transcript.get_challenge_scalar()
         r_evals.insert(0, r)
 
         # if mlpoly is given, verifier evaluate `r_evals` by themselves

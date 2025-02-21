@@ -76,7 +76,6 @@ class RangeProof:
         self,
         bitsize: int,
         curve,
-        transcript: FiatShamirTranscript = None,
         seed=b"RangeProof",
     ):
         assert bitsize < 2**32
@@ -86,10 +85,6 @@ class RangeProof:
         self.H = hash_to_curve(seed, b"H", curve, self.n)
         self.B = hash_to_curve(seed, b"B", curve, 1)
         self.B_blinding = hash_to_curve(seed, b"Blinding", curve, 1)
-
-        self.transcript = transcript or FiatShamirTranscript(
-            self.n.to_bytes(32, "big"), field=self.E.order
-        )
 
     def __inner_product(self, a, b):
         return sum(a * b for a, b in zip(a, b)) % self.E.order
@@ -113,9 +108,11 @@ class RangeProof:
             ((z - pow(z, 2, self.E.order)) * sum_pow_2_y) - (z_pow_3 * sum_2)
         ) % self.E.order
 
-    def prove(self, v: int):
+    def prove(self, v: int, transcript=None):
 
-        self.transcript.reset()
+        transcript = transcript or FiatShamirTranscript(
+            self.n.to_bytes(32, "big"), field=self.E.order
+        )
 
         # bit vectors of v
         a = [(v >> i) & 1 for i in range(self.n)]
@@ -140,13 +137,12 @@ class RangeProof:
             + s_blinding * self.B_blinding
         )
 
-        self.transcript.append(V)
-        self.transcript.append(A)
-        self.transcript.append(S)
+        transcript.append(V)
+        transcript.append(A)
+        transcript.append(S)
 
-        y = self.transcript.get_challenge_scalar() % self.E.order
-        self.transcript.append(y)
-        z = self.transcript.get_challenge_scalar() % self.E.order
+        y = transcript.get_challenge_scalar()
+        z = transcript.get_challenge_scalar()
 
         l_0 = []
         l_1 = []
@@ -187,10 +183,10 @@ class RangeProof:
         T1 = t1 * self.B + t1_blinding * self.B_blinding
         T2 = t2 * self.B + t2_blinding * self.B_blinding
 
-        self.transcript.append(T1)
-        self.transcript.append(T2)
+        transcript.append(T1)
+        transcript.append(T2)
 
-        x = self.transcript.get_challenge_scalar() % self.E.order
+        x = transcript.get_challenge_scalar()
 
         l_list = [poly(x) for poly in l_vecpoly]
         r_list = [poly(x) for poly in r_vecpoly]
@@ -202,53 +198,54 @@ class RangeProof:
         t_blinding = t_blinding_poly(x)
         e_blinding = (a_blinding + x * s_blinding) % p
 
-        self.transcript.append(t)
-        self.transcript.append(t_blinding)
-        self.transcript.append(e_blinding)
+        transcript.append(t)
+        transcript.append(t_blinding)
+        transcript.append(e_blinding)
 
-        w = self.transcript.get_challenge_scalar() % self.E.order
+        w = transcript.get_challenge_scalar()
 
         Q = w * self.B
 
-        ipa_prover = ipa.InnerProductArgument(self.n, self.E.name, self.transcript)
+        ipa_prover = ipa.InnerProductArgument(self.n, self.E.name)
 
         ipa_prover.G = self.G
         ipa_prover.H = [pow(y, -i, p) * self.H[i] for i in range(self.n)]
         ipa_prover.Q = Q
 
-        ipa_proof, _ = ipa_prover.prove(l_list, r_list)
+        ipa_proof, _ = ipa_prover.prove(l_list, r_list, transcript)
 
         return RangeProofObject(V, A, S, T1, T2, t, t_blinding, e_blinding, ipa_proof)
 
-    def verify(self, proof: RangeProofObject):
+    def verify(self, proof: RangeProofObject, transcript=None):
 
-        self.transcript.reset()
-        self.transcript.append(proof.V)
-        self.transcript.append(proof.A)
-        self.transcript.append(proof.S)
+        transcript = transcript or FiatShamirTranscript(
+            self.n.to_bytes(32, "big"), field=self.E.order
+        )
 
-        y = self.transcript.get_challenge_scalar() % self.E.order
-        self.transcript.append(y)
-        z = self.transcript.get_challenge_scalar() % self.E.order
+        transcript.reset()
+        transcript.append(proof.V)
+        transcript.append(proof.A)
+        transcript.append(proof.S)
 
-        self.transcript.append(proof.T1)
-        self.transcript.append(proof.T2)
+        y = transcript.get_challenge_scalar()
+        z = transcript.get_challenge_scalar()
 
-        x = self.transcript.get_challenge_scalar() % self.E.order
+        transcript.append(proof.T1)
+        transcript.append(proof.T2)
 
-        self.transcript.append(proof.t)
-        self.transcript.append(proof.t_blinding)
-        self.transcript.append(proof.e_blinding)
+        x = transcript.get_challenge_scalar()
 
-        w = self.transcript.get_challenge_scalar() % self.E.order
+        transcript.append(proof.t)
+        transcript.append(proof.t_blinding)
+        transcript.append(proof.e_blinding)
 
-        self.transcript.reset()
+        w = transcript.get_challenge_scalar()
 
         for g in self.G:
-            self.transcript.append(g)
+            transcript.append(g)
         for i, h in enumerate(self.H):
             hprime = pow(y, -i, self.E.order) * h
-            self.transcript.append(hprime)
+            transcript.append(hprime)
 
         c = get_random_int(self.E.order)
 
@@ -258,10 +255,10 @@ class RangeProof:
 
         all_inv = 1
         for i in range(k):
-            self.transcript.append(proof.ipa_proof.L[i])
-            self.transcript.append(proof.ipa_proof.R[i])
+            transcript.append(proof.ipa_proof.L[i])
+            transcript.append(proof.ipa_proof.R[i])
 
-            u = self.transcript.get_challenge_scalar() % self.E.order
+            u = transcript.get_challenge_scalar()
 
             challenges.append(pow(u, 2, self.E.order))
             challenges_inv.append(pow(u, -2, self.E.order))

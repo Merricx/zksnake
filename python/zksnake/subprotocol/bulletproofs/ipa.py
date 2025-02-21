@@ -52,7 +52,6 @@ class InnerProductArgument:
         self,
         size,
         curve,
-        transcript: FiatShamirTranscript = None,
         seed=b"InnerProductProof",
         Q=None,
     ):
@@ -61,10 +60,6 @@ class InnerProductArgument:
         self.G = hash_to_curve(seed, b"G", curve, self.n)
         self.H = hash_to_curve(seed, b"H", curve, self.n)
         self.Q = Q or hash_to_curve(seed, b"Q", curve, 1)
-
-        self.transcript = transcript or FiatShamirTranscript(
-            self.n.to_bytes(32, "big"), field=self.E.order
-        )
 
     def __inner_product(self, a, b):
         return sum(a * b for a, b in zip(a, b)) % self.E.order
@@ -78,18 +73,20 @@ class InnerProductArgument:
         else:
             return [data[0]], []
 
-    def prove(self, a: list, b: list):
+    def prove(self, a: list, b: list, transcript=None):
 
-        self.transcript.reset()
+        transcript = transcript or FiatShamirTranscript(
+            self.n.to_bytes(32, "big"), field=self.E.order
+        )
 
         # pad a and b to the size
         a = a + [0 for _ in range(self.n - len(a))]
         b = b + [0 for _ in range(self.n - len(b))]
 
         for g in self.G:
-            self.transcript.append(g)
+            transcript.append(g)
         for h in self.H:
-            self.transcript.append(h)
+            transcript.append(h)
 
         ab = self.__inner_product(a, b)
 
@@ -126,10 +123,10 @@ class InnerProductArgument:
             L_list.append(L)
             R_list.append(R)
 
-            self.transcript.append(L)
-            self.transcript.append(R)
+            transcript.append(L)
+            transcript.append(R)
 
-            u = self.transcript.get_challenge_scalar() % self.E.order
+            u = transcript.get_challenge_scalar()
             u_inv = pow(u, -1, self.E.order)
             u_list.append(u)
 
@@ -151,15 +148,18 @@ class InnerProductArgument:
 
         return InnerProductProof(a, b, L_list, R_list), Cp
 
-    def verify(self, proof: InnerProductProof, commitment):
+    def verify(self, proof: InnerProductProof, commitment, transcript=None):
 
-        self.transcript.reset()
         assert len(proof.L) < 32, "Argument size is too big"
 
+        transcript = transcript or FiatShamirTranscript(
+            self.n.to_bytes(32, "big"), field=self.E.order
+        )
+
         for g in self.G:
-            self.transcript.append(g)
+            transcript.append(g)
         for h in self.H:
-            self.transcript.append(h)
+            transcript.append(h)
 
         k = len(proof.L)
         challenges = []
@@ -167,10 +167,10 @@ class InnerProductArgument:
 
         all_inv = 1
         for i in range(k):
-            self.transcript.append(proof.L[i])
-            self.transcript.append(proof.R[i])
+            transcript.append(proof.L[i])
+            transcript.append(proof.R[i])
 
-            u = self.transcript.get_challenge_scalar() % self.E.order
+            u = transcript.get_challenge_scalar()
 
             challenges.append(pow(u, 2, self.E.order))
             challenges_inv.append(pow(u, -2, self.E.order))
