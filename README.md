@@ -1,97 +1,69 @@
 # zksnake
 
-Python implementation of zk-SNARKs (Zero Knowledge Succint Non-interactive ARgument of Knowledge) using simple Symbolic expression.
+Python implementation of zk-SNARKs (Zero Knowledge Succint Non-interactive ARgument of Knowledge) using simple symbolic expression.
 
 <!-- prettier-ignore-start -->
 > [!WARNING] 
-**This library is intended to be used as proof of concept, prototyping, and educational purpose only. It is still in active development and not fully tested!**
+**This library is intended to be used as proof of concept, prototyping, and educational purpose only. It is still unstable and not fully tested!**
 <!-- prettier-ignore-end -->
 
 ## Proving schemes and curves
 
-zksnake currently only support **Groth16** proving scheme with `BN254` and `BLS12-381` as supported curves. More proving schemes will be implemented in the future (hopefully).
+zksnake currently only supports [**Groth16**](https://eprint.iacr.org/2016/260.pdf) and [**PlonK**](https://eprint.iacr.org/2019/953.pdf) (original version) along with `BN254` and `BLS12-381` as supported curves. More proving schemes will be implemented in the future (hopefully).
 
 ## Usage
 
 ### Build constraints
 
 ```python
-from zksnake.symbolic import Symbol
-from zksnake.r1cs import ConstraintSystem
+from zksnake.arithmetization import Var, ConstraintSystem, R1CS
+from zksnake.constant import BN254_SCALAR_FIELD
 
-x = Symbol('x')
-y = Symbol('y')
-v1 = Symbol('v1')
+x = Var('x')
+y = Var('y')
+v1 = Var('v1')
 
 # prove the solution of y == x**3 + x + 5
-# where x as input and y as output
-cs = ConstraintSystem(['x'], ['y'])
-cs.add_constraint(v1 == x*x)
-cs.add_constraint(y - 5 - x == v1*x)
+# with x as input and y as output
+cs = ConstraintSystem(['x'], ['y'], BN254_SCALAR_FIELD)
+cs.add_constraint(v1 == x * x)
+cs.add_constraint(y - 5 - x == v1 * x)
 cs.set_public(y)
 
-r1cs = cs.compile()
+r1cs = R1CS(cs)
+r1cs.compile()
 ```
 
 Alternatively, you can import the constraints from [Circom](https://github.com/iden3/circom):
 
 ```python
-from zksnake.r1cs import ConstraintSystem
+from zksnake.arithmetization import R1CS
 
-cs = ConstraintSystem.from_file("circuit.r1cs", "circuit.sym")
-r1cs = cs.compile()
+r1cs = R1CS.from_file("circuit.r1cs", "circuit.sym")
+r1cs.compile()
 ```
 
 Note that some constraints that are complex or expensive (require off-circuit computation) cannot be imported directly and require you to add "hint" function to pre-define the variable value (see [Example](./examples/example_bitify_circom.py)).
 
-### Trusted setup phase
-
-```python
-from zksnake.groth16 import Setup
-
-# one time setup
-setup = Setup(r1cs)
-prover_key, verifier_key = setup.generate()
-```
-
 ### Prove and verify proof
 
 ```python
-from zksnake.groth16 import Prover, Verifier
+from zksnake.groth16 import Groth16
+
+# trusted setup
+proof_system = Groth16(r1cs)
+proof_system.setup()
 
 # solve the constraint system
-public_witness, private_witness = cs.solve({'x': 3}, {'y': 35})
+solution = r1cs.solve({'x': 3})
+public_witness, private_witness = r1cs.generate_witness(solution)
 
 # proving
-prover = Prover(r1cs, prover_key)
-proof = prover.prove(public_witness, private_witness)
+proof = proof_system.prove(public_witness, private_witness)
 
 # verification
-verifier = Verifier(verifier_key)
-assert verifier.verify(proof, public_witness)
+assert proof_system.verify(proof, public_witness)
 ```
-
-## Performance
-
-It is difficult to achieve high performance due to the nature of Python and there are still many unoptimized code (ie. using naive implementation) in the current implementation.
-
-Nevertheless, this library tries its best to achieve high performance as possible by utilizing Rust bindings via [pyo3](https://github.com/PyO3/pyo3) as a backend for all primitives computation based from [arkworks-rs/algebra](https://github.com/arkworks-rs/algebra) libraries.
-
-Note that running zksnake via pypy is slightly slower than Cpython.
-
-### Benchmark
-
-The benchmark was done in Macbook M1 Pro (8 cores).
-
-| Constraints | Compile | Setup   | Prove   | Verify  |
-| ----------- | ------- | ------- | ------- | ------- |
-| 1024        | 0.0154s | 0.7227s | 0.1201s | 0.0022s |
-| 2048        | 0.0414s | 0.3480s | 0.2009s | 0.0019s |
-| 4096        | 0.1341s | 0.5656s | 0.3827s | 0.0030s |
-| 8192        | 0.5653s | 1.1019s | 0.7292s | 0.0019s |
-| 16384       | 0.9669s | 2.5485s | 1.3710s | 0.0020s |
-| 32768       | 2.8420s | 4.9742s | 2.6942s | 0.0020s |
-| 65536       | 9.9637s | 8.8074s | 4.8914s | 0.0021s |
 
 ## Development
 

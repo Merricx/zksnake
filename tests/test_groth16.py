@@ -21,7 +21,7 @@ def r1cs_data_bn254():
     r1cs = R1CS(cs)
     r1cs.compile()
 
-    pub, priv = r1cs.generate_witness(cs.solve({"x": 3}))
+    pub, priv = r1cs.generate_witness(r1cs.solve({"x": 3}))
 
     return r1cs, (pub, priv)
 
@@ -40,7 +40,7 @@ def r1cs_data_bls12_381():
     r1cs = R1CS(cs, "BLS12_381")
     r1cs.compile()
 
-    pub, priv = r1cs.generate_witness(cs.solve({"x": 3}))
+    pub, priv = r1cs.generate_witness(r1cs.solve({"x": 3}))
 
     return r1cs, (pub, priv)
 
@@ -95,7 +95,7 @@ def test_groth16_from_circom():
         "./tests/stub/test_poseidon.r1cs", "./tests/stub/test_poseidon.sym"
     )
 
-    solved = r1cs.constraint_system.solve(
+    solved = r1cs.solve(
         {
             "main.a": 1,
             "main.b": 2,
@@ -131,7 +131,7 @@ def test_unused_public_input():
 
     r1cs = R1CS(cs)
     r1cs.compile()
-    pub, priv = r1cs.generate_witness(cs.solve({"x": 3, "unused": 1337}))
+    pub, priv = r1cs.generate_witness(r1cs.solve({"x": 3, "unused": 1337}))
 
     groth16 = Groth16(r1cs)
     groth16.setup()

@@ -11,7 +11,7 @@ class Plonkish:
 
     def __init__(self, cs: circuit.ConstraintSystem, curve: str = "BN254"):
         size = cs.num_constraints()
-        self.cs = cs
+        self.constraint_system = cs
         self.unpadded_length = size
         self.length = next_power_of_two(size)
         self.qL = None
@@ -27,7 +27,7 @@ class Plonkish:
         """
         Compile Constraint System into Plonk Polynomials (coefficient form)
         """
-        compiled = self.cs.compile_to_plonkish()
+        compiled = self.constraint_system.compile_to_plonkish()
 
         qL = []
         qR = []
@@ -52,6 +52,13 @@ class Plonkish:
 
         self.permutation = compiled[1]
 
+    def solve(self, inputs: dict) -> dict:
+        """
+        Solve the constraint system with given inputs,
+        return the solution dict
+        """
+        return self.constraint_system.solve(inputs)
+
     def generate_witness(self, solve_result: dict):
         """
         Generate Plonk full witness from solved Constraint System
@@ -59,7 +66,7 @@ class Plonkish:
         pub_w = {}
         priv_w = {}
         for k, v in solve_result.items():
-            if k in self.cs.public_vars:
+            if k in self.constraint_system.public_vars:
                 pub_w[k] = v
 
             priv_w[k] = v

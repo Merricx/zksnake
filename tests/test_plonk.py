@@ -35,7 +35,7 @@ def plonkish_data_bn254():
 
     plonkish = Plonkish(cs)
     plonkish.compile()
-    pub, priv = plonkish.generate_witness(cs.solve({"x": 3}))
+    pub, priv = plonkish.generate_witness(plonkish.solve({"x": 3}))
 
     assert plonkish.is_sat(pub, priv)
 
@@ -72,7 +72,7 @@ def plonkish_data_bls12_381():
     plonkish = Plonkish(cs, "BLS12_381")
     plonkish.compile()
 
-    pub, priv = plonkish.generate_witness(cs.solve({"x": 1337}))
+    pub, priv = plonkish.generate_witness(plonkish.solve({"x": 1337}))
     assert plonkish.is_sat(pub, priv)
 
     return plonkish, (pub, priv)

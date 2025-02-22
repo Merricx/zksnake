@@ -40,6 +40,13 @@ class R1CS:
         self.B = B
         self.C = C
 
+    def solve(self, inputs: dict) -> dict:
+        """
+        Solve the constraint system with given inputs,
+        return the solution dict
+        """
+        return self.constraint_system.solve(inputs)
+
     def generate_witness(self, solve_result: dict):
         """
         Generate R1CS full witness from solved Constraint System
