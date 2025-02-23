@@ -2,7 +2,12 @@ from itertools import product
 from typing import List
 
 from ..transcript import FiatShamirTranscript
-from ..polynomial import MultilinearPolynomial, PolynomialRing
+from ..polynomial import (
+    MultilinearPolynomial,
+    PolynomialRing,
+    get_all_root_of_unity,
+    ifft,
+)
 
 
 class SumcheckPolynomial:
@@ -43,6 +48,17 @@ class Sumcheck:
         self.n = n
         self.order = order
 
+    def _to_univariate(self, mlpoly):
+        evals = []
+        roots = get_all_root_of_unity(3, self.order)
+        for i in roots:
+            s = sum(mlpoly.partial_evaluate([i]).to_evaluations()) % self.order
+            evals.append(s)
+
+        coeffs = ifft(evals, self.order)
+
+        return PolynomialRing(coeffs, self.order)
+
     def prove(self, mlpoly, transcript=None):
         """
         Prove sumcheck protocol from given simple multilinear polynomial `mlpoly`.
@@ -62,27 +78,25 @@ class Sumcheck:
 
         for n_round in range(1, self.n + 1):
 
-            poly = MultilinearPolynomial(0, None, self.order)
-            for b in list(product([0, 1], repeat=self.n - n_round)):
-                poly += mlpoly.partial_evaluate(b)
-
-            if n_round > 1:
+            if n_round == 1:
+                uni_poly = self._to_univariate(mlpoly)
+            else:
                 r = transcript.get_challenge_scalar()
-                r_evals.insert(0, r)
+                r_evals += [r]
 
-                # swap most left variable to the most right position
-                poly = poly.permute_evaluations(list(range(1, poly.num_vars)) + [0])
-                poly = poly.partial_evaluate(r_evals)
+                poly = mlpoly.partial_evaluate(r_evals)
+                uni_poly = self._to_univariate(poly)
 
-            coeffs = poly.to_coefficients()
-            uni_poly = PolynomialRing(coeffs, self.order)
+                assert proof[-1](r) == (uni_poly(0) + uni_poly(1)) % self.order
+
+            coeffs = uni_poly.coeffs()
             transcript.append(coeffs)
             proof.append(uni_poly)
 
         r = transcript.get_challenge_scalar()
-        r_evals.insert(0, r)
+        r_evals += [r]
 
-        return sum_claim, proof, r_evals[::-1]
+        return sum_claim, proof, r_evals
 
     def prove_arbitrary(self, poly: SumcheckPolynomial, transcript=None):
         """
@@ -105,7 +119,7 @@ class Sumcheck:
                 uni_poly = poly.first_round()
             else:
                 r = transcript.get_challenge_scalar()
-                r_evals.insert(0, r)
+                r_evals += [r]
                 uni_poly = poly.round_function(r_evals)
 
                 assert proof[-1](r) == (uni_poly(0) + uni_poly(1)) % self.order
@@ -114,9 +128,9 @@ class Sumcheck:
             proof.append(uni_poly)
 
         r = transcript.get_challenge_scalar()
-        r_evals.insert(0, r)
+        r_evals += [r]
 
-        return sum_claim, proof, r_evals[::-1]
+        return sum_claim, proof, r_evals
 
     def verify(self, sum_claim, proof, degree_bound, transcript=None, mlpoly=None):
         """
@@ -150,18 +164,18 @@ class Sumcheck:
 
             if n_round > 1:
                 r = transcript.get_challenge_scalar()
-                r_evals.insert(0, r)
+                r_evals += [r]
 
                 prev_eval = proof[n_round - 2](r)
 
-            # proof[i].evaluate(r) == proof[i+1].evaluate(0) + proof[i+1].evaluate(1)
+            # proof[i](r) == proof[i+1](0) + proof[i+1](1)
             if prev_eval != round_eval:
                 return False
 
             transcript.append(poly_round.coeffs())
 
         r = transcript.get_challenge_scalar()
-        r_evals.insert(0, r)
+        r_evals += [r]
 
         # if mlpoly is given, verifier evaluate `r_evals` by themselves
         # otherwise, verifier can query the evaluation via other way
@@ -170,4 +184,4 @@ class Sumcheck:
             if mlpoly.evaluate(r_evals) != proof[-1](r):
                 return False
 
-        return r_evals[::-1]
+        return r_evals

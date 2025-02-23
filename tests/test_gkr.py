@@ -75,7 +75,6 @@ def test_e2e_gkr_bls12_381(circuit_data):
 
 def test_sumcheck():
 
-    random.seed("sumcheck")
     g = MultilinearPolynomial(4, [(5, 1), (6, 1), (7, 1)], BN254_SCALAR_FIELD)
 
     sumcheck = Sumcheck(g.num_vars, BN254_SCALAR_FIELD)

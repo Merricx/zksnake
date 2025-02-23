@@ -88,7 +88,7 @@ class GkrPolynomial(SumcheckPolynomial):
         return g1
 
     def round_function(self, r):
-        fixed = self.partial_evaluate(r[::-1])
+        fixed = self.partial_evaluate(r)
         uni_poly = fixed.to_univariate()
 
         return uni_poly
