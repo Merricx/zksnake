@@ -3,7 +3,6 @@ from typing import List
 
 from ..transcript import FiatShamirTranscript
 from ..polynomial import (
-    MultilinearPolynomial,
     PolynomialRing,
     get_all_root_of_unity,
     ifft,
@@ -40,8 +39,8 @@ class SumcheckPolynomial:
 
 class Sumcheck:
     """
-    Sumcheck protocol to prove sum of a multilinear Polynomial
-    over boolean hypercube is computed correctly
+    Sumcheck protocol to prove that sum of a multilinear Polynomial
+    evaluation over boolean hypercube is computed correctly
     """
 
     def __init__(self, n, order):
