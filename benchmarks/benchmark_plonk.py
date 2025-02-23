@@ -1,8 +1,9 @@
 import time
 from zksnake.arithmetization import Var, ConstraintSystem
-from zksnake.arithmetization.r1cs import R1CS
+from zksnake.arithmetization.plonkish import Plonkish
 from zksnake.constant import BN254_SCALAR_FIELD
-from zksnake.groth16 import Groth16
+from zksnake.plonk import Plonk
+
 
 def run(n_power, crv):
 
@@ -14,7 +15,7 @@ def run(n_power, crv):
     for i in range(n_power - 1):
         v.append(Var(f"v{i}"))
 
-    cs = ConstraintSystem(['inp'], ["out"], BN254_SCALAR_FIELD)
+    cs = ConstraintSystem(["inp"], ["out"], BN254_SCALAR_FIELD)
 
     cs.add_constraint(v[0] == inp * inp)
     for i in range(1, n_power - 1):
@@ -24,29 +25,29 @@ def run(n_power, crv):
     cs.set_public(out)
 
     start = time.time()
-    r1cs = R1CS(cs, crv)
-    r1cs.compile()
+    plonkish = Plonkish(cs, crv)
+    plonkish.compile()
     end = time.time() - start
     time_results.append(end)
 
     start = time.time()
-    pub, priv = r1cs.generate_witness(cs.solve({"inp": 2, "out": 2**n_power}))
+    pub, priv = plonkish.generate_witness(cs.solve({"inp": 2, "out": 2**n_power}))
     end = time.time() - start
     time_results.append(end)
 
     start = time.time()
-    groth16 = Groth16(r1cs, crv)
-    groth16.setup()
+    plonk = Plonk(plonkish, curve=crv)
+    plonk.setup()
     end = time.time() - start
     time_results.append(end)
 
     start = time.time()
-    proof = groth16.prove(pub, priv)
+    proof = plonk.prove(pub, priv)
     end = time.time() - start
     time_results.append(end)
 
     start = time.time()
-    assert groth16.verify(proof, pub)
+    assert plonk.verify(proof, pub)
     end = time.time() - start
     time_results.append(end)
 

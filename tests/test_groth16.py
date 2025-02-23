@@ -1,157 +1,147 @@
 import pytest
 
+from zksnake.constant import BLS12_381_SCALAR_FIELD, BN254_SCALAR_FIELD
 from zksnake.ecc import EllipticCurve
-from zksnake.symbolic import Symbol
-from zksnake.r1cs import ConstraintSystem
-from zksnake.groth16 import Prover, Proof, ProvingKey, Setup, Verifier, VerifyingKey
+from zksnake.arithmetization import Var, ConstraintSystem, R1CS
+from zksnake.groth16 import Groth16, Proof, ProvingKey, VerifyingKey
 
 
 @pytest.fixture
-def qap_data_bn254():
+def r1cs_data_bn254():
 
-    x = Symbol("x")
-    y = Symbol("y")
-    v1 = Symbol("v1")
+    x = Var("x")
+    y = Var("y")
+    v1 = Var("v1")
 
-    cs = ConstraintSystem(["x"], ["y"])
+    cs = ConstraintSystem(["x"], ["y"], BN254_SCALAR_FIELD)
     cs.add_constraint(v1 == x * x)
     cs.add_constraint(y - 5 - x == v1 * x)
     cs.set_public(y)
 
-    pub, priv = cs.solve({"x": 3}, {"y": 35})
+    r1cs = R1CS(cs)
+    r1cs.compile()
 
-    qap = cs.compile()
+    pub, priv = r1cs.generate_witness(r1cs.solve({"x": 3}))
 
-    return qap, (pub, priv)
+    return r1cs, (pub, priv)
 
 
 @pytest.fixture
-def qap_data_bls12_381():
-    x = Symbol("x")
-    y = Symbol("y")
-    v1 = Symbol("v1")
+def r1cs_data_bls12_381():
+    x = Var("x")
+    y = Var("y")
+    v1 = Var("v1")
 
-    cs = ConstraintSystem(["x"], ["y"], "BLS12_381")
+    cs = ConstraintSystem(["x"], ["y"], BLS12_381_SCALAR_FIELD)
     cs.add_constraint(v1 == x * x)
     cs.add_constraint(y - 5 - x == v1 * x)
     cs.set_public(y)
 
-    pub, priv = cs.solve({"x": 3}, {"y": 35})
+    r1cs = R1CS(cs, "BLS12_381")
+    r1cs.compile()
 
-    qap = cs.compile()
+    pub, priv = r1cs.generate_witness(r1cs.solve({"x": 3}))
 
-    return qap, (pub, priv)
-
-
-@pytest.fixture
-def trusted_setup_bn254(qap_data_bn254):
-    qap, _ = qap_data_bn254
-
-    setup = Setup(qap)
-    pk, vk = setup.generate()
-
-    return pk, vk
+    return r1cs, (pub, priv)
 
 
 @pytest.fixture
-def trusted_setup_bls12_381(qap_data_bls12_381):
-    qap, _ = qap_data_bls12_381
+def trusted_setup_bn254(r1cs_data_bn254):
+    r1cs, _ = r1cs_data_bn254
 
-    setup = Setup(qap, "BLS12_381")
-    pk, vk = setup.generate()
+    groth16 = Groth16(r1cs)
+    groth16.setup()
 
-    return pk, vk
+    return groth16
 
 
-def test_groth16_bn254(qap_data_bn254):
+@pytest.fixture
+def trusted_setup_bls12_381(r1cs_data_bls12_381):
+    r1cs, _ = r1cs_data_bls12_381
 
-    qap, witness = qap_data_bn254
+    groth16 = Groth16(r1cs, "BLS12_381")
+    groth16.setup()
+
+    return groth16
+
+
+def test_groth16_bn254(r1cs_data_bn254):
+
+    r1cs, witness = r1cs_data_bn254
     pub, priv = witness
 
-    setup = Setup(qap)
-    pk, vk = setup.generate()
+    groth16 = Groth16(r1cs)
+    groth16.setup()
 
-    prover = Prover(qap, pk)
-    proof = prover.prove(pub, priv)
-
-    verifier = Verifier(vk)
-    assert verifier.verify(proof, pub)
+    proof = groth16.prove(pub, priv)
+    assert groth16.verify(proof, pub)
 
 
-def test_groth16_bls12_381(qap_data_bls12_381):
+def test_groth16_bls12_381(r1cs_data_bls12_381):
 
-    qap, witness = qap_data_bls12_381
+    r1cs, witness = r1cs_data_bls12_381
     pub, priv = witness
 
-    setup = Setup(qap, "BLS12_381")
-    pk, vk = setup.generate()
+    groth16 = Groth16(r1cs, "BLS12_381")
+    groth16.setup()
 
-    prover = Prover(qap, pk, "BLS12_381")
-    proof = prover.prove(pub, priv)
-
-    verifier = Verifier(vk, "BLS12_381")
-    assert verifier.verify(proof, pub)
+    proof = groth16.prove(pub, priv)
+    assert groth16.verify(proof, pub)
 
 
 def test_groth16_from_circom():
 
-    cs = ConstraintSystem.from_file(
+    r1cs = R1CS.from_file(
         "./tests/stub/test_poseidon.r1cs", "./tests/stub/test_poseidon.sym"
     )
 
-    pub, priv = cs.solve(
+    solved = r1cs.solve(
         {
             "main.a": 1,
             "main.b": 2,
             "main.c": 3,
         },
-        {
-            "main.h": 6542985608222806190361240322586112750744169038454362455181422643027100751666
-        },
     )
 
-    qap = cs.compile()
+    r1cs.compile()
 
-    setup = Setup(qap)
+    pub, priv = r1cs.generate_witness(solved)
 
-    pkey, vkey = setup.generate()
+    groth16 = Groth16(r1cs)
+    groth16.setup()
 
-    prover = Prover(qap, pkey)
-    verifier = Verifier(vkey)
+    proof = groth16.prove(pub, priv)
 
-    proof = prover.prove(pub, priv)
-
-    assert verifier.verify(proof, pub)
+    assert groth16.verify(proof, pub)
 
 
 def test_unused_public_input():
 
-    x = Symbol("x")
-    y = Symbol("y")
-    v1 = Symbol("v1")
-    unused = Symbol("unused")
+    x = Var("x")
+    y = Var("y")
+    v1 = Var("v1")
+    unused = Var("unused")
 
-    cs = ConstraintSystem(["x", "unused"], ["y"])
+    cs = ConstraintSystem(["x", "unused"], ["y"], BN254_SCALAR_FIELD)
     cs.add_constraint(v1 == x * x)
     cs.add_constraint(y - 5 - x == v1 * x)
+    cs.add_constraint(unused * 0 == 0)
     cs.set_public(unused)
     cs.set_public(y)
 
-    pub, priv = cs.solve({"x": 3, "unused": 1337}, {"y": 35})
+    r1cs = R1CS(cs)
+    r1cs.compile()
+    pub, priv = r1cs.generate_witness(r1cs.solve({"x": 3, "unused": 1337}))
 
-    qap = cs.compile()
+    groth16 = Groth16(r1cs)
+    groth16.setup()
 
-    setup = Setup(qap)
-    pkey, vkey = setup.generate()
-
-    prover = Prover(qap, pkey)
-    verifier = Verifier(vkey)
-
-    proof = prover.prove(pub, priv)
+    proof = groth16.prove(pub, priv)
 
     # try to forge public witness with same proof
+    assert groth16.verify(proof, pub)
     pub[2] = 1330000000
-    assert verifier.verify(proof, pub) is False
+    assert groth16.verify(proof, pub) is False
 
 
 def test_proof_serialization_bn254():
@@ -166,9 +156,9 @@ def test_proof_serialization_bn254():
 
     proof1 = Proof(A, B, C)
 
-    hex_proof = proof1.to_hex()
+    hex_proof = proof1.to_bytes()
 
-    proof2 = Proof.from_hex(hex_proof)
+    proof2 = Proof.from_bytes(hex_proof)
 
     assert str(proof1) == str(proof2)
 
@@ -185,32 +175,34 @@ def test_proof_serialization_bls12_381():
 
     proof1 = Proof(A, B, C)
 
-    hex_proof = proof1.to_hex()
+    hex_proof = proof1.to_bytes()
 
-    proof2 = Proof.from_hex(hex_proof, "BLS12_381")
+    proof2 = Proof.from_bytes(hex_proof, "BLS12_381")
 
     assert str(proof1) == str(proof2)
 
 
 def test_key_serialization_bn254(trusted_setup_bn254):
-    pk, vk = trusted_setup_bn254
+    pk = trusted_setup_bn254.proving_key
+    vk = trusted_setup_bn254.verifying_key
 
     pk_bytes = pk.to_bytes()
     pk2 = ProvingKey.from_bytes(pk_bytes, crv="BN254")
     assert pk_bytes == pk2.to_bytes()
 
-    vk_hex = vk.to_hex()
-    vk2 = VerifyingKey.from_hex(vk_hex, crv="BN254")
-    assert vk_hex == vk2.to_hex()
+    vk_bytes = vk.to_bytes()
+    vk2 = VerifyingKey.from_bytes(vk_bytes, crv="BN254")
+    assert vk_bytes == vk2.to_bytes()
 
 
 def test_key_serialization_bls12_381(trusted_setup_bls12_381):
-    pk, vk = trusted_setup_bls12_381
+    pk = trusted_setup_bls12_381.proving_key
+    vk = trusted_setup_bls12_381.verifying_key
 
     pk_bytes = pk.to_bytes()
     pk2 = ProvingKey.from_bytes(pk_bytes, crv="BLS12_381")
     assert pk_bytes == pk2.to_bytes()
 
-    vk_hex = vk.to_hex()
-    vk2 = VerifyingKey.from_hex(vk_hex, crv="BLS12_381")
-    assert vk_hex == vk2.to_hex()
+    vk_bytes = vk.to_bytes()
+    vk2 = VerifyingKey.from_bytes(vk_bytes, crv="BLS12_381")
+    assert vk_bytes == vk2.to_bytes()

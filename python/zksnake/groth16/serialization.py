@@ -1,13 +1,10 @@
-"""Proving module of Groth16 protocol"""
-
 from ..ecc import EllipticCurve, CurvePointSize
-from ..qap import QAP
-from ..utils import get_random_int, split_list
+from ..utils import split_list
 
 
 class Proof:
 
-    def __init__(self, A=None, B=None, C=None):
+    def __init__(self, A, B, C):
         self.A = A
         self.B = B
         self.C = C
@@ -19,8 +16,8 @@ class Proof:
         return self.__str__()
 
     @classmethod
-    def from_hex(cls, s: str, crv="BN254"):
-        """Parse Proof from hexstring"""
+    def from_bytes(cls, s: bytes, crv="BN254"):
+        """Parse Proof from serialized bytes"""
 
         E = EllipticCurve(crv)
 
@@ -28,21 +25,21 @@ class Proof:
         total_points = n * 4
         assert (
             len(s) == total_points
-        ), f"Length of the Proof must equal {total_points} hex bytes"
+        ), f"Length of the Proof must equal {total_points} bytes"
 
         ax = s[:n]
         bx = s[n : n * 3]
         cx = s[n * 3 :]
 
-        A = E.from_hex(ax)
-        B = E.from_hex(bx)
-        C = E.from_hex(cx)
+        A = E.from_hex(ax.hex())
+        B = E.from_hex(bx.hex())
+        C = E.from_hex(cx.hex())
 
         return Proof(A, B, C)
 
-    def to_hex(self) -> str:
-        """Return hex representation of the Proof"""
-        return self.A.to_hex() + self.B.to_hex() + self.C.to_hex()
+    def to_bytes(self) -> bytes:
+        """Return bytes representation of the Proof"""
+        return bytes(self.A.to_bytes() + self.B.to_bytes() + self.C.to_bytes())
 
 
 class ProvingKey:
@@ -73,7 +70,7 @@ class ProvingKey:
         """Construct ProvingKey from bytes"""
         E = EllipticCurve(crv)
 
-        n = CurvePointSize[crv].value // 2
+        n = CurvePointSize[crv].value
 
         fixed_blocks = s[: n * 7]
         dynamic_blocks = s[n * 7 :]
@@ -162,70 +159,62 @@ class ProvingKey:
         return bytes(s)
 
 
-class Prover:
-    """
-    Prover object
+class VerifyingKey:
+    def __init__(
+        self,
+        alpha_G1,  # vk_alpha_1
+        beta_G2,  # vk_beta_2
+        gamma_G2,  # vk_gamma_2
+        delta_G2,  # vk_delta_2
+        IC,  # ic
+    ):
+        self.alpha_1 = alpha_G1
+        self.beta_2 = beta_G2
+        self.gamma_2 = gamma_G2
+        self.delta_2 = delta_G2
+        self.ic = IC
 
-    Args:
-        qap: QAP to be proved from
-        key: `ProvingKey` from trusted setup
-        curve: `BN254` or `BLS12_381`
-    """
+    @classmethod
+    def from_bytes(cls, s: bytes, crv="BN254"):
+        """Construct VerifyingKey from bytes"""
+        E = EllipticCurve(crv)
 
-    def __init__(self, qap: QAP, key: ProvingKey, curve: str = "BN254"):
+        n = CurvePointSize[crv].value
 
-        self.qap = qap
-        self.key = key
-        self.E = EllipticCurve(curve)
-        self.order = self.E.order
+        assert len(s) >= n * 7, "Invalid verifying key length"
 
-        if key.delta_1.is_zero() or key.delta_2.is_zero():
-            raise ValueError("Key delta_1 or delta_2 is zero element!")
+        fixed_blocks = split_list(s[: n * 7], n)
+        dynamic_blocks = s[n * 7 :]
 
-    def prove(self, public_witness: list, private_witness: list) -> Proof:
-        """
-        Prove statement from QAP by providing public and private witness
-        """
-        assert len(self.key.kdelta_1) == len(
-            private_witness
-        ), "Length of kdelta_1 and private_witness must be equal"
+        alpha_x = fixed_blocks[0]
+        beta_x = fixed_blocks[1] + fixed_blocks[2]
+        gamma_x = fixed_blocks[3] + fixed_blocks[4]
+        delta_x = fixed_blocks[5] + fixed_blocks[6]
 
-        r = get_random_int(self.order - 1)
-        s = get_random_int(self.order - 1)
+        ic = []
+        dynamic_blocks = dynamic_blocks[8:]  # skip length header
+        dynamic_blocks = split_list(dynamic_blocks, n)
+        for block in dynamic_blocks:
+            ic.append(E.from_hex(block.hex()))
 
-        try:
-            U, V, _, H = self.qap.evaluate_witness(public_witness + private_witness)
-        except ValueError as exc:
-            raise ValueError("Failed to evaluate with the given witness") from exc
+        alpha_1 = E.from_hex(alpha_x.hex())
+        beta_2 = E.from_hex(beta_x.hex())
+        gamma_2 = E.from_hex(gamma_x.hex())
+        delta_2 = E.from_hex(delta_x.hex())
 
-        A = (
-            self.E.multiexp(self.key.tau_1, U.coeffs())
-            + self.key.alpha_1
-            + (self.key.delta_1 * r)
-        )
-        B1 = (
-            self.E.multiexp(self.key.tau_1, V.coeffs())
-            + self.key.beta_1
-            + (self.key.delta_1 * s)
-        )
-        B2 = (
-            self.E.multiexp(self.key.tau_2, V.coeffs())
-            + self.key.beta_2
-            + (self.key.delta_2 * s)
-        )
-        HZ = self.E.multiexp(self.key.target_1, H.coeffs())
+        return VerifyingKey(alpha_1, beta_2, gamma_2, delta_2, ic)
 
-        if len(private_witness) > 0:
-            sum_delta_witness = self.E.multiexp(self.key.kdelta_1, private_witness)
-        else:  # all inputs are public
-            sum_delta_witness = self.E.G1() * 0
-
-        C = (
-            HZ
-            + sum_delta_witness
-            + (A * s)
-            + (B1 * r)
-            + (-self.key.delta_1 * (r * s % self.order))
+    def to_bytes(self) -> bytes:
+        """Return bytes representation of the VerifyingKey"""
+        s = bytes(
+            self.alpha_1.to_bytes()
+            + self.beta_2.to_bytes()
+            + self.gamma_2.to_bytes()
+            + self.delta_2.to_bytes()
         )
 
-        return Proof(A, B2, C)
+        s += int.to_bytes(len(self.ic), 8, "little")
+        for ic in self.ic:
+            s += bytes(ic.to_bytes())
+
+        return s

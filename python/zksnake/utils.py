@@ -23,6 +23,38 @@ def split_list(data, n):
     return [data[i : i + n] for i in range(0, len(data), n)]
 
 
+def next_power_of_two(n: int):
+    """Get next 2^x number from n"""
+    return 1 << (n - 1).bit_length()
+
+
+def is_power_of_two(n):
+    return (n & (n - 1)) == 0
+
+
+def batch_modinv(a: list, m: int):
+    """
+    Compute modular inverse of `a[i]` over modulus `m` in batch
+    """
+    n = len(a)
+    prefix_products = [1] * n
+
+    for i in range(1, n):
+        prefix_products[i] = (prefix_products[i - 1] * a[i - 1]) % m
+
+    total_product = (prefix_products[-1] * a[-1]) % m
+
+    total_inverse = pow(total_product, -1, m)
+
+    inverses = [0] * n
+    suffix_inverse = total_inverse
+    for i in range(n - 1, -1, -1):
+        inverses[i] = (suffix_inverse * prefix_products[i]) % m
+        suffix_inverse = (suffix_inverse * a[i]) % m
+
+    return inverses
+
+
 class Timer:
     def __init__(self, name):
         self.start_time = 0

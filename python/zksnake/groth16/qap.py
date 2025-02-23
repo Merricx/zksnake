@@ -1,37 +1,39 @@
-from .array import SparseArray
-from .polynomial import (
+from ..utils import next_power_of_two
+from ..constant import BN254_SCALAR_FIELD
+from ..arithmetization.r1cs import R1CS
+from ..polynomial import (
     PolynomialRing,
     ifft,
-    fft,
-    mul_over_evaluation_domain,
+    mul_over_fft,
 )
 
 
 class QAP:
 
-    def __init__(self, p):
+    def __init__(self, p=None):
         self.a = []
         self.b = []
         self.c = []
         self.n_public = 0
 
-        self.p = p
+        self.p = p or BN254_SCALAR_FIELD
 
-    def from_r1cs(self, A: SparseArray, B: SparseArray, C: SparseArray, n_public: int):
+    def from_r1cs(self, r1cs: R1CS):
         """
         Parse QAP from R1CS matrices
 
         Args:
-            A, B, C: matrix A,B,C from R1CS
-            n_public: number of public variables in R1CS
+            r1cs: R1CS object
         """
-        self.n_public = n_public
+        assert r1cs.A is not None, "R1CS is not compiled"
 
-        next_power_2 = 1 << (A.n_row - 1).bit_length()
+        self.n_public = r1cs.n_public
 
-        self.a = A
-        self.b = B
-        self.c = C
+        next_power_2 = next_power_of_two(r1cs.A.n_row)
+
+        self.a = r1cs.A
+        self.b = r1cs.B
+        self.c = r1cs.C
 
         self.a.n_row = next_power_2
         self.b.n_row = next_power_2
@@ -52,19 +54,16 @@ class QAP:
         b = self.b.dot(witness)
         c = self.c.dot(witness)
 
+        # polynomial interpolation via IFFT
         u = PolynomialRing(ifft(a, self.p), self.p)
         v = PolynomialRing(ifft(b, self.p), self.p)
         w = PolynomialRing(ifft(c, self.p), self.p)
 
-        u_over_fft = fft(u.coeffs() + [0] * len(u.coeffs()), self.p)
-        v_over_fft = fft(v.coeffs() + [0] * len(u.coeffs()), self.p)
-
         # UV = IFFT( FFT(U) * FFT(V) )
-        uv = mul_over_evaluation_domain(u_over_fft, v_over_fft, self.p)
-        uv = PolynomialRing(ifft(uv, self.p), self.p)
+        uv = mul_over_fft(self.a.n_row, u, v, self.p)
 
         # H = (U * V - W) / Z
-        # subtraction swap is needed to keep the domain of the polynomial intact
+        # subtraction swap is needed to keep the evaluation domain of the polynomial intact
         hz = -(w - uv)
         h, remainder = hz.divide_by_vanishing_poly()
         if not remainder.is_zero():

@@ -1,13 +1,18 @@
-use ark_bn254::{Bn254, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
+use ark_bn254::{Bn254, Fq, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
 use ark_ec::{
     pairing::{Pairing, PairingOutput},
     AffineRepr, CurveGroup, Group, VariableBaseMSM,
 };
-use ark_ff::{QuadExtField, Zero};
+use ark_ff::{
+    field_hashers::{DefaultFieldHasher, HashToField},
+    QuadExtField, Zero,
+};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
+use bn254_hash2curve::hash2g1::HashToG1;
 use num_bigint::BigUint;
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyType};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use sha2::Sha256;
 
 #[pyclass]
 #[derive(Clone, Debug, PartialEq, CanonicalSerialize, CanonicalDeserialize)]
@@ -119,7 +124,7 @@ impl PointG1 {
     }
 
     #[classmethod]
-    pub fn from_bytes(_cls: &PyType, hex: Vec<u8>) -> PyResult<Self> {
+    pub fn from_bytes<'py>(_cls: &Bound<'py, PyType>, hex: Vec<u8>) -> PyResult<Self> {
         match G1Affine::deserialize_compressed(&*hex) {
             Err(e) => Err(PyValueError::new_err(format!(
                 "Cannot deserialize point: {}",
@@ -129,6 +134,46 @@ impl PointG1 {
                 point: point.into(),
             }),
         }
+    }
+
+    #[classmethod]
+    pub fn hash_to_field<'py>(_cls: &Bound<'py, PyType>, dst: Vec<u8>, data: Vec<u8>) -> BigUint {
+        let hasher = <DefaultFieldHasher<Sha256> as HashToField<Fq>>::new(&dst);
+        let x: Vec<Fq> = hasher.hash_to_field(&data, 1);
+        x[0].into()
+    }
+
+    #[classmethod]
+    pub fn hash_to_curve<'py>(
+        _cls: &Bound<'py, PyType>,
+        dst: Vec<u8>,
+        data: Vec<u8>,
+    ) -> PyResult<Self> {
+        let point = HashToG1(&data, &dst);
+
+        Ok(PointG1 {
+            point: point.into(),
+        })
+    }
+
+    #[classmethod]
+    pub fn from_x<'py>(_cls: &Bound<'py, PyType>, x: BigUint) -> PyResult<Self> {
+        match G1Affine::get_point_from_x_unchecked(x.into(), true) {
+            Some(e) => {
+                if e.is_on_curve() && e.is_in_correct_subgroup_assuming_on_curve() {
+                    return Ok(PointG1 { point: e.into() });
+                }
+                Err(PyValueError::new_err(format!("Point is not on curve")))
+            }
+            None => Err(PyValueError::new_err(format!("Cannot found point"))),
+        }
+    }
+
+    #[classmethod]
+    pub fn identity<'py>(_cls: &Bound<'py, PyType>) -> PyResult<Self> {
+        Ok(PointG1 {
+            point: G1Affine::identity().into(),
+        })
     }
 }
 
@@ -251,7 +296,7 @@ impl PointG2 {
     }
 
     #[classmethod]
-    pub fn from_bytes(_cls: &PyType, hex: Vec<u8>) -> PyResult<Self> {
+    pub fn from_bytes<'py>(_cls: &Bound<'py, PyType>, hex: Vec<u8>) -> PyResult<Self> {
         match G2Affine::deserialize_compressed(&*hex) {
             Err(e) => Err(PyValueError::new_err(format!(
                 "Cannot deserialize point: {}",
@@ -298,7 +343,7 @@ pub fn batch_multi_scalar_g2(
 pub fn multiscalar_mul_g1(points: Vec<PointG1>, scalars: Vec<BigUint>) -> PyResult<PointG1> {
     let mut fr_scalars: Vec<Fr> = vec![];
     for scalar in scalars {
-        fr_scalars.push(Fr::from(scalar))
+        fr_scalars.push(Fr::from(scalar));
     }
     let mut affine_points: Vec<G1Affine> = vec![];
     for point in points {
@@ -317,7 +362,7 @@ pub fn multiscalar_mul_g1(points: Vec<PointG1>, scalars: Vec<BigUint>) -> PyResu
 pub fn multiscalar_mul_g2(points: Vec<PointG2>, scalars: Vec<BigUint>) -> PyResult<PointG2> {
     let mut fr_scalars: Vec<Fr> = vec![];
     for scalar in scalars {
-        fr_scalars.push(Fr::from(scalar))
+        fr_scalars.push(Fr::from(scalar));
     }
     let mut affine_points: Vec<G2Affine> = vec![];
     for point in points {
@@ -367,10 +412,10 @@ pub fn multi_pairing(a: Vec<PointG1>, b: Vec<PointG2>) -> PyResult<PointG12> {
     let mut point1: Vec<G1Projective> = vec![];
     let mut point2: Vec<G2Projective> = vec![];
     for p in a {
-        point1.push(p.point)
+        point1.push(p.point);
     }
     for p in b {
-        point2.push(p.point)
+        point2.push(p.point);
     }
     Ok(PointG12 {
         point: Bn254::multi_pairing(point1, point2),

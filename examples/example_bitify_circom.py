@@ -1,36 +1,36 @@
 import os
-from zksnake.symbolic import Symbol
-from zksnake.r1cs import ConstraintSystem
-from zksnake.groth16 import Setup, Prover, Verifier
+from zksnake.arithmetization import Var
+from zksnake.arithmetization.r1cs import R1CS
+from zksnake.groth16 import Groth16
 
 folder = os.path.dirname(__file__)
-cs = ConstraintSystem.from_file(
+r1cs = R1CS.from_file(
     folder + "/circom/num2bits.r1cs", folder + "/circom/num2bits.sym"
 )
 
+def hint(i):
+    return lambda **k: (k["main.in"] >> i) & 1
+
 for i in range(256):
-    cs.add_hint(
-        lambda x, n: (x >> n) & 1, f"main.out[{i}]", args=(Symbol("main.in"), i)
+    r1cs.constraint_system.unsafe_assign(
+        Var(f"main.out[{i}]"), hint(i), ("main.in", )
     )
 
-pub, priv = cs.solve(
+solution = r1cs.constraint_system.solve(
     {
         "main.in": 0xDEADF00D,
     }
 )
 
-qap = cs.compile()
+r1cs.compile()
 
+pub, priv = r1cs.generate_witness(solution)
 
-setup = Setup(qap)
+groth16 = Groth16(r1cs)
+groth16.setup()
 
-pkey, vkey = setup.generate()
+proof = groth16.prove(pub, priv)
+print("Proof:", proof.to_bytes().hex())
 
-prover = Prover(qap, pkey)
-verifier = Verifier(vkey)
-
-proof = prover.prove(pub, priv)
-
-print("Proof:", proof.to_hex())
-
-assert verifier.verify(proof, pub)
+assert groth16.verify(proof, pub)
+print("Proof is valid!")

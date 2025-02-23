@@ -1,6 +1,6 @@
 """
-Groth16 proof system
+PlonK proof system
 """
 
-from .protocol import Groth16
+from .protocol import Plonk
 from .serialization import Proof, ProvingKey, VerifyingKey
