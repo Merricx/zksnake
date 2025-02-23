@@ -1,4 +1,3 @@
-from itertools import product
 from typing import List
 
 from ..transcript import FiatShamirTranscript

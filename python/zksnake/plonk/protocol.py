@@ -1,7 +1,7 @@
 from ..arithmetization.plonkish import Plonkish
 from ..ecc import EllipticCurve
 from ..transcript import FiatShamirTranscript
-from ..utils import Timer, batch_modinv, get_random_int
+from ..utils import batch_modinv, get_random_int
 from ..polynomial import (
     PolynomialRing,
     add_over_evaluation_domain,

@@ -1,5 +1,3 @@
-from typing import List, Sequence
-
 from .sumcheck import Sumcheck, SumcheckPolynomial
 from ..arithmetization import LayeredCircuit
 from ..constant import BN254_SCALAR_FIELD
