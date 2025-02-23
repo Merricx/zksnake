@@ -1,9 +1,18 @@
 use ark_ff::Zero;
 use num_bigint::BigUint;
-use pyo3::{ prelude::*, types::{ PyDict, PyInt } };
-use std::{ collections::{ HashMap, HashSet, VecDeque }, error::Error };
+use pyo3::{
+    prelude::*,
+    types::{PyDict, PyInt},
+};
+use std::{
+    collections::{HashMap, HashSet, VecDeque},
+    error::Error,
+};
 
-use super::{ plonkish, r1cs::{ compile, get_witness_vector } };
+use super::{
+    plonkish,
+    r1cs::{compile, get_witness_vector},
+};
 
 #[derive(Debug)]
 pub enum Gate {
@@ -45,28 +54,31 @@ impl Node {
     }
 
     pub fn empty() -> Self {
-        Node { gate: Gate::Const(BigUint::zero()), value: None }
+        Node {
+            gate: Gate::Const(BigUint::zero()),
+            value: None,
+        }
     }
 
     pub fn evaluate(
         &mut self,
         inputs: &HashMap<String, BigUint>,
-        modulus: &BigUint
+        modulus: &BigUint,
     ) -> Result<BigUint, Box<dyn Error>> {
         if let Some(val) = self.value.clone() {
             return Ok(val);
         }
 
         let result = match &mut self.gate {
-            Gate::Input(name) =>
-                match inputs.get(name) {
-                    Some(v) => v.clone(),
-                    None => {
-                        return Err("Missing one or more variable on evaluation".into());
-                    }
+            Gate::Input(name) => match inputs.get(name) {
+                Some(v) => v.clone(),
+                None => {
+                    return Err("Missing one or more variable on evaluation".into());
                 }
-            Gate::Add(left, right) =>
-                (left.evaluate(inputs, modulus)? + right.evaluate(inputs, modulus)?) % modulus,
+            },
+            Gate::Add(left, right) => {
+                (left.evaluate(inputs, modulus)? + right.evaluate(inputs, modulus)?) % modulus
+            }
             Gate::Sub(left, right) => {
                 let l = left.evaluate(inputs, modulus)?;
                 let r = right.evaluate(inputs, modulus)?;
@@ -77,12 +89,13 @@ impl Node {
                 }
             }
 
-            Gate::Mul(left, right) =>
-                (left.evaluate(inputs, modulus)? * right.evaluate(inputs, modulus)?) % modulus,
+            Gate::Mul(left, right) => {
+                (left.evaluate(inputs, modulus)? * right.evaluate(inputs, modulus)?) % modulus
+            }
             Gate::Div(left, right) => {
                 let r = right.evaluate(inputs, modulus)?.modinv(modulus);
                 match r {
-                    Some(v) => { left.evaluate(inputs, modulus)? * v }
+                    Some(v) => left.evaluate(inputs, modulus)? * v,
                     None => {
                         return Err("Modular inverse not found".into());
                     }
@@ -100,14 +113,18 @@ impl Node {
     pub fn to_expression(&self) -> String {
         match &self.gate {
             Gate::Input(name) => name.clone(),
-            Gate::Add(left, right) =>
-                format!("({} + {})", left.to_expression(), right.to_expression()),
-            Gate::Sub(left, right) =>
-                format!("({} - {})", left.to_expression(), right.to_expression()),
-            Gate::Mul(left, right) =>
-                format!("{} * {}", left.to_expression(), right.to_expression()),
-            Gate::Div(left, right) =>
-                format!("{} / {}", left.to_expression(), right.to_expression()),
+            Gate::Add(left, right) => {
+                format!("({} + {})", left.to_expression(), right.to_expression())
+            }
+            Gate::Sub(left, right) => {
+                format!("({} - {})", left.to_expression(), right.to_expression())
+            }
+            Gate::Mul(left, right) => {
+                format!("{} * {}", left.to_expression(), right.to_expression())
+            }
+            Gate::Div(left, right) => {
+                format!("{} / {}", left.to_expression(), right.to_expression())
+            }
             Gate::Neg(left) => format!("-({})", left.to_expression()),
             Gate::Const(val) => val.to_string(),
         }
@@ -155,14 +172,12 @@ impl Node {
                 }
             }
             Gate::Input(name) if name == target => Ok(right.clone()),
-            _ =>
-                Err(
-                    format!(
-                        "Unable to rearrange non-linear equation: {} = {}",
-                        self.to_expression(),
-                        right.to_expression()
-                    ).into()
-                ),
+            _ => Err(format!(
+                "Unable to rearrange non-linear equation: {} = {}",
+                self.to_expression(),
+                right.to_expression()
+            )
+            .into()),
         }
     }
 
@@ -170,7 +185,7 @@ impl Node {
     fn contains_target(&self, target: &str) -> bool {
         match &self.gate {
             Gate::Input(name) => name == target,
-            | Gate::Add(left, right)
+            Gate::Add(left, right)
             | Gate::Sub(left, right)
             | Gate::Mul(left, right)
             | Gate::Div(left, right) => {
@@ -184,7 +199,7 @@ impl Node {
     fn extract_vars(&self, var_result: &mut Vec<String>) {
         match &self.gate {
             Gate::Input(name) => var_result.push(name.to_string()),
-            | Gate::Add(left, right)
+            Gate::Add(left, right)
             | Gate::Sub(left, right)
             | Gate::Mul(left, right)
             | Gate::Div(left, right) => {
@@ -208,13 +223,16 @@ pub struct Equation {
 impl Equation {
     #[new]
     pub fn new(left: PyRef<Field>, right: PyRef<Field>) -> Self {
-        Equation { lhs: left.inner.clone(), rhs: right.inner.clone() }
+        Equation {
+            lhs: left.inner.clone(),
+            rhs: right.inner.clone(),
+        }
     }
 
     pub fn evaluate(
         &mut self,
         inputs: HashMap<String, BigUint>,
-        modulus: BigUint
+        modulus: BigUint,
     ) -> (BigUint, BigUint) {
         let left = self.lhs.evaluate(&inputs, &modulus).unwrap();
         let right = self.rhs.evaluate(&inputs, &modulus).unwrap();
@@ -223,7 +241,11 @@ impl Equation {
     }
 
     pub fn __repr__(&self) -> PyResult<String> {
-        Ok(format!("{} = {}", self.lhs.to_expression(), self.rhs.to_expression()))
+        Ok(format!(
+            "{} = {}",
+            self.lhs.to_expression(),
+            self.rhs.to_expression()
+        ))
     }
 
     pub fn swap(&mut self) {
@@ -249,13 +271,15 @@ impl Field {
         self.inner.evaluate(&inputs, &modulus).unwrap()
     }
 
-    fn __add__(lhs: PyRef<Self>, rhs: &PyAny) -> PyResult<Self> {
+    fn __add__<'py>(lhs: PyRef<'py, Self>, rhs: &Bound<'py, PyAny>) -> PyResult<Self> {
         let rhs_node = if let Ok(rhs_int) = rhs.extract::<BigUint>() {
             Node::new(Gate::Const(rhs_int))
         } else if let Ok(rhs_node) = rhs.extract::<PyRef<Self>>() {
             rhs_node.inner.clone()
         } else {
-            return Err(pyo3::exceptions::PyTypeError::new_err("Unsupported operand type for +"));
+            return Err(pyo3::exceptions::PyTypeError::new_err(
+                "Unsupported operand type for +",
+            ));
         };
 
         Ok(Field {
@@ -263,13 +287,15 @@ impl Field {
         })
     }
 
-    fn __radd__(lhs: PyRef<Self>, rhs: &PyAny) -> PyResult<Self> {
+    fn __radd__<'py>(lhs: PyRef<Self>, rhs: &Bound<'py, PyAny>) -> PyResult<Self> {
         let rhs_node = if let Ok(rhs_int) = rhs.extract::<BigUint>() {
             Node::new(Gate::Const(rhs_int))
         } else if let Ok(rhs_node) = rhs.extract::<PyRef<Self>>() {
             rhs_node.inner.clone()
         } else {
-            return Err(pyo3::exceptions::PyTypeError::new_err("Unsupported operand type for +"));
+            return Err(pyo3::exceptions::PyTypeError::new_err(
+                "Unsupported operand type for +",
+            ));
         };
 
         Ok(Field {
@@ -277,13 +303,15 @@ impl Field {
         })
     }
 
-    fn __sub__(lhs: PyRef<Self>, rhs: &PyAny) -> PyResult<Self> {
+    fn __sub__<'py>(lhs: PyRef<Self>, rhs: &Bound<'py, PyAny>) -> PyResult<Self> {
         let rhs_node = if let Ok(rhs_int) = rhs.extract::<BigUint>() {
             Node::new(Gate::Const(rhs_int))
         } else if let Ok(rhs_node) = rhs.extract::<PyRef<Self>>() {
             rhs_node.inner.clone()
         } else {
-            return Err(pyo3::exceptions::PyTypeError::new_err("Unsupported operand type for -"));
+            return Err(pyo3::exceptions::PyTypeError::new_err(
+                "Unsupported operand type for -",
+            ));
         };
 
         Ok(Field {
@@ -291,13 +319,15 @@ impl Field {
         })
     }
 
-    fn __rsub__(lhs: PyRef<Self>, rhs: &PyAny) -> PyResult<Self> {
+    fn __rsub__<'py>(lhs: PyRef<Self>, rhs: &Bound<'py, PyAny>) -> PyResult<Self> {
         let rhs_node = if let Ok(rhs_int) = rhs.extract::<BigUint>() {
             Node::new(Gate::Const(rhs_int))
         } else if let Ok(rhs_node) = rhs.extract::<PyRef<Self>>() {
             rhs_node.inner.clone()
         } else {
-            return Err(pyo3::exceptions::PyTypeError::new_err("Unsupported operand type for -"));
+            return Err(pyo3::exceptions::PyTypeError::new_err(
+                "Unsupported operand type for -",
+            ));
         };
 
         Ok(Field {
@@ -311,13 +341,15 @@ impl Field {
         })
     }
 
-    fn __mul__(lhs: PyRef<Self>, rhs: &PyAny) -> PyResult<Self> {
+    fn __mul__<'py>(lhs: PyRef<Self>, rhs: &Bound<'py, PyAny>) -> PyResult<Self> {
         let rhs_node = if let Ok(rhs_int) = rhs.extract::<BigUint>() {
             Node::new(Gate::Const(rhs_int))
         } else if let Ok(rhs_node) = rhs.extract::<PyRef<Self>>() {
             rhs_node.inner.clone()
         } else {
-            return Err(pyo3::exceptions::PyTypeError::new_err("Unsupported operand type for *"));
+            return Err(pyo3::exceptions::PyTypeError::new_err(
+                "Unsupported operand type for *",
+            ));
         };
 
         Ok(Field {
@@ -325,13 +357,15 @@ impl Field {
         })
     }
 
-    fn __rmul__(lhs: PyRef<Self>, rhs: &PyAny) -> PyResult<Self> {
+    fn __rmul__<'py>(lhs: PyRef<Self>, rhs: &Bound<'py, PyAny>) -> PyResult<Self> {
         let rhs_node = if let Ok(rhs_int) = rhs.extract::<BigUint>() {
             Node::new(Gate::Const(rhs_int))
         } else if let Ok(rhs_node) = rhs.extract::<PyRef<Self>>() {
             rhs_node.inner.clone()
         } else {
-            return Err(pyo3::exceptions::PyTypeError::new_err("Unsupported operand type for *"));
+            return Err(pyo3::exceptions::PyTypeError::new_err(
+                "Unsupported operand type for *",
+            ));
         };
 
         Ok(Field {
@@ -339,13 +373,15 @@ impl Field {
         })
     }
 
-    fn __floordiv__(lhs: PyRef<Self>, rhs: &PyAny) -> PyResult<Self> {
+    fn __floordiv__<'py>(lhs: PyRef<Self>, rhs: &Bound<'py, PyAny>) -> PyResult<Self> {
         let rhs_node = if let Ok(rhs_int) = rhs.extract::<BigUint>() {
             Node::new(Gate::Const(rhs_int))
         } else if let Ok(rhs_node) = rhs.extract::<PyRef<Self>>() {
             rhs_node.inner.clone()
         } else {
-            return Err(pyo3::exceptions::PyTypeError::new_err("Unsupported operand type for /"));
+            return Err(pyo3::exceptions::PyTypeError::new_err(
+                "Unsupported operand type for /",
+            ));
         };
 
         Ok(Field {
@@ -353,13 +389,15 @@ impl Field {
         })
     }
 
-    fn __truediv__(lhs: PyRef<Self>, rhs: &PyAny) -> PyResult<Self> {
+    fn __truediv__<'py>(lhs: PyRef<Self>, rhs: &Bound<'py, PyAny>) -> PyResult<Self> {
         let rhs_node = if let Ok(rhs_int) = rhs.extract::<BigUint>() {
             Node::new(Gate::Const(rhs_int))
         } else if let Ok(rhs_node) = rhs.extract::<PyRef<Self>>() {
             rhs_node.inner.clone()
         } else {
-            return Err(pyo3::exceptions::PyTypeError::new_err("Unsupported operand type for //"));
+            return Err(pyo3::exceptions::PyTypeError::new_err(
+                "Unsupported operand type for //",
+            ));
         };
 
         Ok(Field {
@@ -375,25 +413,43 @@ impl Field {
         self.__repr__()
     }
 
-    fn __eq__(lhs: PyRef<Self>, rhs: &PyAny) -> PyResult<Equation> {
+    fn __eq__<'py>(lhs: PyRef<Self>, rhs: &Bound<'py, PyAny>) -> PyResult<Equation> {
         let rhs_node = if let Ok(rhs_int) = rhs.extract::<BigUint>() {
             Node::new(Gate::Const(rhs_int))
         } else if let Ok(rhs_node) = rhs.extract::<PyRef<Self>>() {
             rhs_node.inner.clone()
         } else {
-            return Err(pyo3::exceptions::PyTypeError::new_err("Unsupported operand type for =="));
+            return Err(pyo3::exceptions::PyTypeError::new_err(
+                "Unsupported operand type for ==",
+            ));
         };
 
         let left = lhs.inner.clone();
-        Ok(Equation { lhs: left, rhs: rhs_node })
+        Ok(Equation {
+            lhs: left,
+            rhs: rhs_node,
+        })
     }
 }
 
-#[derive(Clone)]
 pub enum SequenceRow {
     Constraint(Equation),
     Assignment(String, Node),
     Hint(String, PyObject, Vec<String>),
+}
+
+impl<'py> Clone for SequenceRow {
+    fn clone(&self) -> Self {
+        match self {
+            SequenceRow::Constraint(eq) => SequenceRow::Constraint(eq.clone()),
+            SequenceRow::Assignment(name, node) => {
+                SequenceRow::Assignment(name.clone(), node.clone())
+            }
+            SequenceRow::Hint(name, func, args) => Python::with_gil(|py| {
+                SequenceRow::Hint(name.clone(), func.clone_ref(py), args.clone())
+            }),
+        }
+    }
 }
 
 #[pyclass]
@@ -427,9 +483,11 @@ impl ConstraintSystem {
     fn add_var(&mut self, node: &Node) {
         match &node.gate {
             Gate::Input(name) => {
-                self.vars.entry(name.to_string()).or_insert(BigUint::default());
+                self.vars
+                    .entry(name.to_string())
+                    .or_insert(BigUint::default());
             }
-            | Gate::Add(left, right)
+            Gate::Add(left, right)
             | Gate::Sub(left, right)
             | Gate::Mul(left, right)
             | Gate::Div(left, right) => {
@@ -446,7 +504,7 @@ impl ConstraintSystem {
             Gate::Input(name) => {
                 return Some(name.to_string());
             }
-            | Gate::Add(left, right)
+            Gate::Add(left, right)
             | Gate::Sub(left, right)
             | Gate::Mul(left, right)
             | Gate::Div(left, right) => {
@@ -456,7 +514,7 @@ impl ConstraintSystem {
                 return result;
             }
             Gate::Neg(node) => self.find_unassigned_var(&node.clone()),
-            Gate::Const(_) => { None }
+            Gate::Const(_) => None,
         }
     }
 }
@@ -501,7 +559,7 @@ impl ConstraintSystem {
         self.add_var(&var.inner);
     }
 
-    pub fn set_public(&mut self, var: &PyAny) -> PyResult<()> {
+    pub fn set_public<'py>(&mut self, var: &Bound<'py, PyAny>) -> PyResult<()> {
         if let Ok(v) = var.extract::<String>() {
             self.public_vars.push(v);
             Ok(())
@@ -511,7 +569,9 @@ impl ConstraintSystem {
                     self.public_vars.push(name.to_string());
                     Ok(())
                 }
-                _ => Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("Invalid expression")),
+                _ => Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                    "Invalid expression",
+                )),
             }
         } else if let Ok(v) = var.extract::<Vec<PyRef<Field>>>() {
             for node in v {
@@ -520,22 +580,23 @@ impl ConstraintSystem {
                         self.public_vars.push(name.to_string());
                     }
                     _ => {
-                        return Err(
-                            PyErr::new::<pyo3::exceptions::PyTypeError, _>("Invalid expression")
-                        );
+                        return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                            "Invalid expression",
+                        ));
                     }
                 }
             }
             Ok(())
         } else {
-            Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>("Invalid expression"))
+            Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                "Invalid expression",
+            ))
         }
     }
 
     pub fn add_constraint(&mut self, mut constraint: Equation) {
-        if
-            matches!(constraint.rhs.gate, Gate::Input(_) | Gate::Const(_)) &&
-            !matches!(constraint.lhs.gate, Gate::Input(_))
+        if matches!(constraint.rhs.gate, Gate::Input(_) | Gate::Const(_))
+            && !matches!(constraint.lhs.gate, Gate::Input(_))
         {
             constraint.swap();
         }
@@ -543,18 +604,21 @@ impl ConstraintSystem {
         match constraint.lhs.gate {
             Gate::Input(ref name) => {
                 if self.assigned.insert(name.to_string()) {
-                    self.sequence.push(
-                        SequenceRow::Assignment(name.to_string(), constraint.rhs.clone())
-                    );
+                    self.sequence.push(SequenceRow::Assignment(
+                        name.to_string(),
+                        constraint.rhs.clone(),
+                    ));
                 }
             }
             _ => {
                 if let Some(unassigned) = self.find_unassigned_var(&constraint.lhs) {
                     if self.assigned.insert(unassigned.clone()) {
-                        let new_eq = constraint.lhs
+                        let new_eq = constraint
+                            .lhs
                             .isolate_term(&unassigned, &constraint.rhs)
                             .unwrap();
-                        self.sequence.push(SequenceRow::Assignment(unassigned, new_eq));
+                        self.sequence
+                            .push(SequenceRow::Assignment(unassigned, new_eq));
                     }
                 }
             }
@@ -571,28 +635,27 @@ impl ConstraintSystem {
         &mut self,
         target: &Field,
         func: PyObject,
-        args: Vec<String>
+        args: Vec<String>,
     ) -> PyResult<()> {
         match &target.inner.gate {
             Gate::Input(name) => {
-                self.sequence.push(SequenceRow::Hint(name.to_string(), func, args));
+                self.sequence
+                    .push(SequenceRow::Hint(name.to_string(), func, args));
                 return Ok(());
             }
-            _ =>
-                Err(
-                    PyErr::new::<pyo3::exceptions::PyTypeError, _>("Invalid assignment expression")
-                ),
+            _ => Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                "Invalid assignment expression",
+            )),
         }
     }
 
     pub fn evaluate(&mut self, py: Python, inputs: HashMap<String, BigUint>) -> PyResult<()> {
         let mut evaluated: HashSet<String> = Default::default();
         for key in self.inputs.iter() {
-            let default = inputs
-                .get(key)
-                .expect(
-                    &format!("All inputs and outputs variable must present: {} is missing", key)
-                );
+            let default = inputs.get(key).expect(&format!(
+                "All inputs and outputs variable must present: {} is missing",
+                key
+            ));
             self.vars.entry(key.to_string()).and_modify(|v| {
                 *v = default.to_owned();
             });
@@ -632,11 +695,13 @@ impl ConstraintSystem {
                         let mut _new_eq = Node::empty();
 
                         if lhs_list_vars.contains(unknown_vars[0]) {
-                            _new_eq = constraint.lhs
+                            _new_eq = constraint
+                                .lhs
                                 .isolate_term(unknown_vars[0], &constraint.rhs)
                                 .unwrap();
                         } else {
-                            _new_eq = constraint.rhs
+                            _new_eq = constraint
+                                .rhs
                                 .isolate_term(unknown_vars[0], &constraint.lhs)
                                 .unwrap();
                         }
@@ -687,33 +752,30 @@ impl ConstraintSystem {
                     let is_subset = args.iter().all(|item| evaluated.contains(item));
 
                     if is_subset {
-                        let scope = PyDict::new(py);
+                        let scope = PyDict::new_bound(py);
 
                         for arg in args {
-                            let value = self.vars
+                            let value = self
+                                .vars
                                 .get(arg)
                                 .expect(&format!("Argument not exist: {}", arg));
                             scope.set_item(arg.to_string(), value)?;
                         }
 
-                        let result = func.call(py, (), Some(scope))?;
+                        let result = func.call_bound(py, (), Some(&scope))?;
 
-                        if let Ok(py_int) = result.downcast::<PyInt>(py) {
-                            let final_int = BigUint::parse_bytes(
-                                py_int.to_string().as_bytes(),
-                                10
-                            ).expect("Non deterministic result must be Integer");
+                        if let Ok(py_int) = result.downcast_bound::<PyInt>(py) {
+                            let final_int = BigUint::parse_bytes(py_int.to_string().as_bytes(), 10)
+                                .expect("Non deterministic result must be Integer");
 
                             self.vars.entry(name.to_string()).and_modify(|v| {
                                 *v = final_int;
                             });
                             evaluated.insert(name.to_string());
                         } else {
-                            return Err(
-                                PyErr::new::<pyo3::exceptions::PyTypeError, _>(
-                                    "Non deterministic result must be Integer"
-                                )
-                            );
+                            return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                                "Non deterministic result must be Integer",
+                            ));
                         }
                     } else {
                         queue.push_back(seq);
@@ -724,7 +786,7 @@ impl ConstraintSystem {
             current_loop += 1;
             if current_loop > max_loop {
                 PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
-                    "Evaluation timeout: unique solution might not exist for the given constraints"
+                    "Evaluation timeout: unique solution might not exist for the given constraints",
                 );
             }
         }
@@ -735,10 +797,10 @@ impl ConstraintSystem {
     pub fn solve(
         &mut self,
         py: Python,
-        inputs: HashMap<String, BigUint>
+        inputs: HashMap<String, BigUint>,
     ) -> PyResult<HashMap<String, BigUint>> {
         match self.evaluate(py, inputs) {
-            Ok(_) => { Ok(self.vars.clone()) }
+            Ok(_) => Ok(self.vars.clone()),
             Err(e) => Err(e),
         }
     }
@@ -748,22 +810,23 @@ impl ConstraintSystem {
     }
 
     pub fn compile_to_r1cs(
-        &mut self
+        &mut self,
     ) -> PyResult<
-        Vec<
-            (
-                Vec<(usize, usize, BigUint)>,
-                Vec<(usize, usize, BigUint)>,
-                Vec<(usize, usize, BigUint)>,
-            )
-        >
+        Vec<(
+            Vec<(usize, usize, BigUint)>,
+            Vec<(usize, usize, BigUint)>,
+            Vec<(usize, usize, BigUint)>,
+        )>,
     > {
         Ok(compile(self))
     }
 
     pub fn compile_to_plonkish(
-        &mut self
-    ) -> PyResult<(Vec<(BigUint, BigUint, BigUint, BigUint, BigUint, [String; 3])>, Vec<usize>)> {
+        &mut self,
+    ) -> PyResult<(
+        Vec<(BigUint, BigUint, BigUint, BigUint, BigUint, [String; 3])>,
+        Vec<usize>,
+    )> {
         Ok(plonkish::compile(self))
     }
 }

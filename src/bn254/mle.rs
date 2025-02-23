@@ -1,9 +1,9 @@
 use ark_bn254::Fr;
 use ark_ff::Zero;
-use ark_poly::{ MultilinearExtension, SparseMultilinearExtension };
+use ark_poly::{MultilinearExtension, SparseMultilinearExtension};
 
 use num_bigint::BigUint;
-use pyo3::{ prelude::*, types::PyType };
+use pyo3::{prelude::*, types::PyType};
 
 // https://crypto.stackexchange.com/questions/84398/multilinear-extension-polynomial-compute-the-coefficients-of-the-expanded-polyn
 fn ext(a: Vec<Fr>) -> Vec<Fr> {
@@ -16,11 +16,7 @@ fn ext(a: Vec<Fr>) -> Vec<Fr> {
     let (l, r) = a.split_at(h);
     let mut l_result = ext(l.to_vec());
     let r_result = ext(r.to_vec());
-    let diff: Vec<Fr> = l_result
-        .iter()
-        .zip(r_result)
-        .map(|(l, r)| r - l)
-        .collect();
+    let diff: Vec<Fr> = l_result.iter().zip(r_result).map(|(l, r)| r - l).collect();
     l_result.extend(diff);
 
     l_result
@@ -53,11 +49,11 @@ impl MultilinearPolynomial {
         let points: Vec<Fr> = points.into_iter().map(Into::into).collect();
         SparseMultilinearExtension::evaluate(&self.mle, &points)
             .map(Into::into)
-            .ok_or_else(||
+            .ok_or_else(|| {
                 PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                    "Evaluation requires points to be in the same size as the number of variables"
+                    "Evaluation requires points to be in the same size as the number of variables",
                 )
-            )
+            })
     }
 
     pub fn permute_evaluations(&self, permutation: Vec<usize>) -> PyResult<Self> {
@@ -105,7 +101,9 @@ impl MultilinearPolynomial {
     }
 
     pub fn swap(&self, a: usize, b: usize, k: usize) -> PyResult<Self> {
-        Ok(MultilinearPolynomial { mle: SparseMultilinearExtension::relabel(&self.mle, a, b, k) })
+        Ok(MultilinearPolynomial {
+            mle: SparseMultilinearExtension::relabel(&self.mle, a, b, k),
+        })
     }
 
     pub fn __str__(&self) -> String {
@@ -121,7 +119,9 @@ impl MultilinearPolynomial {
     }
 
     pub fn __add__(&self, other: Self) -> PyResult<Self> {
-        Ok(MultilinearPolynomial { mle: &self.mle + &other.mle })
+        Ok(MultilinearPolynomial {
+            mle: &self.mle + &other.mle,
+        })
     }
 
     pub fn __radd_(&self, other: Self) -> PyResult<Self> {
@@ -129,11 +129,15 @@ impl MultilinearPolynomial {
     }
 
     pub fn __sub__(&self, other: Self) -> PyResult<Self> {
-        Ok(MultilinearPolynomial { mle: &self.mle - &other.mle })
+        Ok(MultilinearPolynomial {
+            mle: &self.mle - &other.mle,
+        })
     }
 
     #[classmethod]
-    fn zero(_cls: &PyType) -> PyResult<Self> {
-        Ok(MultilinearPolynomial { mle: SparseMultilinearExtension::zero() })
+    fn zero<'py>(_cls: &Bound<'py, PyType>) -> PyResult<Self> {
+        Ok(MultilinearPolynomial {
+            mle: SparseMultilinearExtension::zero(),
+        })
     }
 }
