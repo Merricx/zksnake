@@ -1,4 +1,4 @@
-from zksnake.polynomial import PolynomialRing
+from zksnake.polynomial import Polynomial
 from ..utils import split_list
 from ..ecc import CurvePointSize, EllipticCurve
 
@@ -205,23 +205,23 @@ class ProvingKey:
         domain = len(contents[0])
 
         selector_poly = {
-            "L": PolynomialRing(contents[0], E.order),
-            "R": PolynomialRing(contents[1], E.order),
-            "O": PolynomialRing(contents[2], E.order),
-            "M": PolynomialRing(contents[3], E.order),
-            "C": PolynomialRing(contents[4], E.order),
+            "L": Polynomial(contents[0], E.order),
+            "R": Polynomial(contents[1], E.order),
+            "O": Polynomial(contents[2], E.order),
+            "M": Polynomial(contents[3], E.order),
+            "C": Polynomial(contents[4], E.order),
         }
 
         permutation_poly = [
-            PolynomialRing(contents[5], E.order),
-            PolynomialRing(contents[6], E.order),
-            PolynomialRing(contents[7], E.order),
+            Polynomial(contents[5], E.order),
+            Polynomial(contents[6], E.order),
+            Polynomial(contents[7], E.order),
         ]
 
         identity_poly = [
-            PolynomialRing(contents[8], E.order),
-            PolynomialRing(contents[9], E.order),
-            PolynomialRing(contents[10], E.order),
+            Polynomial(contents[8], E.order),
+            Polynomial(contents[9], E.order),
+            Polynomial(contents[10], E.order),
         ]
 
         selector_evals = {

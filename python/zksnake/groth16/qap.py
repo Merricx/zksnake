@@ -2,7 +2,7 @@ from ..utils import next_power_of_two
 from ..constant import BN254_SCALAR_FIELD
 from ..arithmetization.r1cs import R1CS
 from ..polynomial import (
-    PolynomialRing,
+    Polynomial,
     ifft,
     mul_over_fft,
 )
@@ -55,9 +55,9 @@ class QAP:
         c = self.c.dot(witness)
 
         # polynomial interpolation via IFFT
-        u = PolynomialRing(ifft(a, self.p), self.p)
-        v = PolynomialRing(ifft(b, self.p), self.p)
-        w = PolynomialRing(ifft(c, self.p), self.p)
+        u = Polynomial(ifft(a, self.p), self.p)
+        v = Polynomial(ifft(b, self.p), self.p)
+        w = Polynomial(ifft(c, self.p), self.p)
 
         # UV = IFFT( FFT(U) * FFT(V) )
         uv = mul_over_fft(self.a.n_row, u, v, self.p)

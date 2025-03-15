@@ -1,5 +1,5 @@
 from zksnake.transcript import FiatShamirTranscript
-from ...polynomial import PolynomialRing
+from ...polynomial import Polynomial
 from ...utils import get_random_int
 from ...ecc import EllipticCurve
 from .base import PolynomialCommitmentScheme
@@ -17,7 +17,7 @@ class KZG(PolynomialCommitmentScheme):
     def setup(self):
 
         tau = get_random_int(self.order)
-        power_of_tau = [pow(tau, i, self.order) for i in range(self.degree+1)]
+        power_of_tau = [pow(tau, i, self.order) for i in range(self.degree + 1)]
 
         self.G1_tau = self.E.batch_mul(self.E.G1(), power_of_tau)
         self.G2_tau = self.E.G2() * tau
@@ -27,7 +27,7 @@ class KZG(PolynomialCommitmentScheme):
         Q(X) = (P(X) - P(point)) / (X - point)
         """
 
-        divisor_poly = PolynomialRing([-point % self.order, 1], self.order)
+        divisor_poly = Polynomial([-point % self.order, 1], self.order)
         quotient_poly, remainder = (polynomial - evaluation) / divisor_poly
         if not remainder.is_zero():
             raise ValueError("Given polynomial is not divided to zero")
@@ -64,10 +64,10 @@ class KZG(PolynomialCommitmentScheme):
         """
         Implementation based from SHPLONK (https://eprint.iacr.org/2020/081.pdf, section 4.1)
         """
-        
+
         assert self.G1_tau, "Trusted setup has not been run"
 
-        transcript = transcript or FiatShamirTranscript(b'KZG', self.order)
+        transcript = transcript or FiatShamirTranscript(b"KZG", self.order)
         transcript.append(commitments)
 
         evaluations = []
@@ -83,7 +83,7 @@ class KZG(PolynomialCommitmentScheme):
         # group polynomials according to their evaluation points
         q_polys = []
         for _, polys in points_query.items():
-            q = PolynomialRing([0], self.order)
+            q = Polynomial([0], self.order)
             for i, poly in enumerate(polys):
                 q += pow(x1, i, self.order) * poly
 

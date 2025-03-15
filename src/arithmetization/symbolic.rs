@@ -373,7 +373,7 @@ impl Field {
         })
     }
 
-    fn __floordiv__<'py>(lhs: PyRef<Self>, rhs: &Bound<'py, PyAny>) -> PyResult<Self> {
+    fn __truediv__<'py>(lhs: PyRef<Self>, rhs: &Bound<'py, PyAny>) -> PyResult<Self> {
         let rhs_node = if let Ok(rhs_int) = rhs.extract::<BigUint>() {
             Node::new(Gate::Const(rhs_int))
         } else if let Ok(rhs_node) = rhs.extract::<PyRef<Self>>() {
@@ -389,7 +389,7 @@ impl Field {
         })
     }
 
-    fn __truediv__<'py>(lhs: PyRef<Self>, rhs: &Bound<'py, PyAny>) -> PyResult<Self> {
+    fn __rtruediv__<'py>(lhs: PyRef<Self>, rhs: &Bound<'py, PyAny>) -> PyResult<Self> {
         let rhs_node = if let Ok(rhs_int) = rhs.extract::<BigUint>() {
             Node::new(Gate::Const(rhs_int))
         } else if let Ok(rhs_node) = rhs.extract::<PyRef<Self>>() {

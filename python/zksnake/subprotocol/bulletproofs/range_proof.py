@@ -1,5 +1,5 @@
 from ...utils import get_random_int, split_list
-from ...polynomial import PolynomialRing
+from ...polynomial import Polynomial
 from ...ecc import CurvePointSize, EllipticCurve
 from ...transcript import FiatShamirTranscript, hash_to_curve
 from . import ipa
@@ -165,8 +165,8 @@ class RangeProof:
 
         p = self.E.order
         for i in range(self.n):
-            l_vecpoly += [PolynomialRing([l_0[i], l_1[i]], p)]
-            r_vecpoly += [PolynomialRing([r_0[i], r_1[i]], p)]
+            l_vecpoly += [Polynomial([l_0[i], l_1[i]], p)]
+            r_vecpoly += [Polynomial([r_0[i], r_1[i]], p)]
 
         t0 = self.__inner_product(l_0, r_0)
         t2 = self.__inner_product(l_1, r_1)
@@ -176,7 +176,7 @@ class RangeProof:
 
         t1 = (self.__inner_product(l0_plus_l1, r0_plus_r1) - t0 - t2) % p
 
-        t_poly = PolynomialRing([t0, t1, t2], p)
+        t_poly = Polynomial([t0, t1, t2], p)
 
         t1_blinding = get_random_int(p)
         t2_blinding = get_random_int(p)
@@ -192,9 +192,7 @@ class RangeProof:
         r_list = [poly(x) for poly in r_vecpoly]
         t = t_poly(x)
 
-        t_blinding_poly = PolynomialRing(
-            [z * z * v_blinding, t1_blinding, t2_blinding], p
-        )
+        t_blinding_poly = Polynomial([z * z * v_blinding, t1_blinding, t2_blinding], p)
         t_blinding = t_blinding_poly(x)
         e_blinding = (a_blinding + x * s_blinding) % p
 

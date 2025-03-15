@@ -3,7 +3,7 @@ from ..ecc import EllipticCurve
 from ..transcript import FiatShamirTranscript
 from ..utils import batch_modinv, get_random_int
 from ..polynomial import (
-    PolynomialRing,
+    Polynomial,
     add_over_evaluation_domain,
     barycentric_eval,
     evaluate_vanishing_polynomial,
@@ -74,16 +74,16 @@ class Plonk:
         sigma3 = [ids[permutation[i + 2 * n]] for i in range(n)]
 
         # selector polynomials
-        QL = PolynomialRing(ifft(self.constraints.qL, self.order), self.order)
-        QR = PolynomialRing(ifft(self.constraints.qR, self.order), self.order)
-        QO = PolynomialRing(ifft(self.constraints.qO, self.order), self.order)
-        QM = PolynomialRing(ifft(self.constraints.qM, self.order), self.order)
-        QC = PolynomialRing(ifft(self.constraints.qC, self.order), self.order)
+        QL = Polynomial(ifft(self.constraints.qL, self.order), self.order)
+        QR = Polynomial(ifft(self.constraints.qR, self.order), self.order)
+        QO = Polynomial(ifft(self.constraints.qO, self.order), self.order)
+        QM = Polynomial(ifft(self.constraints.qM, self.order), self.order)
+        QC = Polynomial(ifft(self.constraints.qC, self.order), self.order)
 
         # permutation polynomials
-        S1 = PolynomialRing(ifft(sigma1, self.order), self.order)
-        S2 = PolynomialRing(ifft(sigma2, self.order), self.order)
-        S3 = PolynomialRing(ifft(sigma3, self.order), self.order)
+        S1 = Polynomial(ifft(sigma1, self.order), self.order)
+        S2 = Polynomial(ifft(sigma2, self.order), self.order)
+        S3 = Polynomial(ifft(sigma3, self.order), self.order)
 
         selector_evaluations = {
             "L": fft(QL.coeffs(), self.order, n * 4),
@@ -107,9 +107,9 @@ class Plonk:
             S3,
         ]
 
-        id1_poly = PolynomialRing(ifft(id1, self.order), self.order)
-        id2_poly = PolynomialRing(ifft(id2, self.order), self.order)
-        id3_poly = PolynomialRing(ifft(id3, self.order), self.order)
+        id1_poly = Polynomial(ifft(id1, self.order), self.order)
+        id2_poly = Polynomial(ifft(id2, self.order), self.order)
+        id3_poly = Polynomial(ifft(id3, self.order), self.order)
 
         identity_permutation_poly = [id1_poly, id2_poly, id3_poly]
 
@@ -132,7 +132,7 @@ class Plonk:
 
         tau_permutation = [tau_sigma1, tau_sigma2, tau_sigma3]
 
-        L1 = PolynomialRing(ifft([1] + [0] * (n - 1), self.order), self.order)
+        L1 = Polynomial(ifft([1] + [0] * (n - 1), self.order), self.order)
         lagrange_evals = fft(L1.coeffs(), self.order, n * 4)
 
         pk = ProvingKey(
@@ -176,7 +176,7 @@ class Plonk:
         transcript = FiatShamirTranscript(field=self.order)
 
         # vanishing polynomial X^n - 1
-        Zh = PolynomialRing([-1 % self.order] + [0] * (n - 1) + [1], self.order)
+        Zh = Polynomial([-1 % self.order] + [0] * (n - 1) + [1], self.order)
 
         selector_poly = self.proving_key.selector_poly
         selector_eval = self.proving_key.selector_eval
@@ -214,21 +214,21 @@ class Plonk:
         #########################################################################################
 
         # compute wire polynomials A(x), B(x), C(x), and public input PI(x)
-        A = PolynomialRing(ifft(a, self.order), self.order)
-        B = PolynomialRing(ifft(b, self.order), self.order)
-        C = PolynomialRing(ifft(c, self.order), self.order)
-        PI = PolynomialRing(ifft(full_public_witness, self.order), self.order)
+        A = Polynomial(ifft(a, self.order), self.order)
+        B = Polynomial(ifft(b, self.order), self.order)
+        C = Polynomial(ifft(c, self.order), self.order)
+        PI = Polynomial(ifft(full_public_witness, self.order), self.order)
 
         zero_pad = [0] * (n - 2)
-        blinding_a = PolynomialRing(
+        blinding_a = Polynomial(
             [get_random_int(self.order - 1) for _ in range(2)] + zero_pad,
             self.order,
         )
-        blinding_b = PolynomialRing(
+        blinding_b = Polynomial(
             [get_random_int(self.order - 1) for _ in range(2)] + zero_pad,
             self.order,
         )
-        blinding_c = PolynomialRing(
+        blinding_c = Polynomial(
             [get_random_int(self.order - 1) for _ in range(2)] + zero_pad,
             self.order,
         )
@@ -256,7 +256,7 @@ class Plonk:
             [a_ql, b_qr, c_qo, ab_qm, selector_eval["C"], pi_eval],
             self.order,
         )
-        G = PolynomialRing(ifft(g_eval, self.order), self.order, n)
+        G = Polynomial(ifft(g_eval, self.order), self.order, n)
 
         tau_a = self.E.multiexp(self.proving_key.tau_g1, A.coeffs())
         tau_b = self.E.multiexp(self.proving_key.tau_g1, B.coeffs())
@@ -276,7 +276,7 @@ class Plonk:
         gamma = transcript.get_challenge_scalar()
 
         zero_pad = [0] * (n - 3)
-        blinding_permutation = PolynomialRing(
+        blinding_permutation = Polynomial(
             [get_random_int(self.order - 1) for _ in range(3)] + zero_pad,
             self.order,
         )
@@ -287,7 +287,7 @@ class Plonk:
 
         ab_id = mul_over_evaluation_domain(n * 4, a_id, b_id, self.order)
         eval_nom_poly = mul_over_evaluation_domain(n * 4, ab_id, c_id, self.order)
-        nom_poly = PolynomialRing(ifft(eval_nom_poly, self.order), self.order)
+        nom_poly = Polynomial(ifft(eval_nom_poly, self.order), self.order)
 
         a_sigma = fft((A + sigma1 * beta + gamma).coeffs(), self.order, n * 4)
         b_sigma = fft((B + sigma2 * beta + gamma).coeffs(), self.order, n * 4)
@@ -297,7 +297,7 @@ class Plonk:
         eval_denom_poly = mul_over_evaluation_domain(
             n * 4, ab_sigma, c_sigma, self.order
         )
-        denom_poly = PolynomialRing(ifft(eval_denom_poly, self.order), self.order)
+        denom_poly = Polynomial(ifft(eval_denom_poly, self.order), self.order)
 
         nom_inv_denom = batch_modinv(
             [eval_denom_poly[i] for i in range(0, len(eval_denom_poly), 4)],
@@ -312,7 +312,7 @@ class Plonk:
 
         assert accumulator.pop() == 1, "Copy constraints are not satisfied"
 
-        acc_poly = PolynomialRing(ifft(accumulator, self.order), self.order)
+        acc_poly = Polynomial(ifft(accumulator, self.order), self.order)
 
         Z = blinding_permutation.multiply_by_vanishing_poly() + acc_poly
         tau_z = self.E.multiexp(self.proving_key.tau_g1, Z.coeffs())
@@ -327,7 +327,7 @@ class Plonk:
 
         alpha = transcript.get_challenge_scalar()
 
-        Z_omega = PolynomialRing(
+        Z_omega = Polynomial(
             [
                 coeff * self._roots[i % n] % self.order
                 for i, coeff in enumerate(Z.coeffs())
@@ -342,7 +342,7 @@ class Plonk:
         z_1_l1_eval = mul_over_evaluation_domain(
             n * 4, z_1_eval, self.proving_key.lagrange_evals, self.order
         )
-        Z_1_L1 = PolynomialRing(ifft(z_1_l1_eval, self.order), self.order)
+        Z_1_L1 = Polynomial(ifft(z_1_l1_eval, self.order), self.order)
 
         T, remainder = (
             G
@@ -353,11 +353,11 @@ class Plonk:
         assert remainder.is_zero()
 
         t_coeff = T.coeffs()
-        T_lo = PolynomialRing(t_coeff[:n], self.order)
-        T_mid = PolynomialRing(t_coeff[n : 2 * n], self.order)
-        T_hi = PolynomialRing(t_coeff[2 * n :], self.order)
+        T_lo = Polynomial(t_coeff[:n], self.order)
+        T_mid = Polynomial(t_coeff[n : 2 * n], self.order)
+        T_hi = Polynomial(t_coeff[2 * n :], self.order)
 
-        X_n = PolynomialRing([0] * (n) + [1], self.order)
+        X_n = Polynomial([0] * (n) + [1], self.order)
 
         blindings = [get_random_int(self.order - 1) for _ in range(2)]
 
@@ -447,13 +447,13 @@ class Plonk:
             + (sigma1 - zeta_sigma1) * pow(v, 4, self.order)
             + (sigma2 - zeta_sigma2) * pow(v, 5, self.order)
         )
-        divisor_W_zeta = PolynomialRing([-zeta % self.order, 1], self.order)
+        divisor_W_zeta = Polynomial([-zeta % self.order, 1], self.order)
 
         W_zeta, remainder = W_zeta / divisor_W_zeta
 
         assert remainder.is_zero()
 
-        divisor_W_zeta_omega = PolynomialRing(
+        divisor_W_zeta_omega = Polynomial(
             [-(zeta * self._roots[1]) % self.order, 1], self.order
         )
         W_zeta_omega, remainder = (Z - zeta_Z_omega) / divisor_W_zeta_omega

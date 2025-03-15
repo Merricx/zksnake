@@ -2,7 +2,7 @@ from typing import List
 
 from ..transcript import FiatShamirTranscript
 from ..polynomial import (
-    PolynomialRing,
+    Polynomial,
     get_all_evaluation_points,
     ifft,
 )
@@ -55,7 +55,7 @@ class Sumcheck:
 
         coeffs = ifft(evals, self.order)
 
-        return PolynomialRing(coeffs, self.order)
+        return Polynomial(coeffs, self.order)
 
     def prove(self, mlpoly, transcript=None):
         """
