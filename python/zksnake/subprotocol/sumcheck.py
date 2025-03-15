@@ -3,7 +3,7 @@ from typing import List
 from ..transcript import FiatShamirTranscript
 from ..polynomial import (
     PolynomialRing,
-    get_all_root_of_unity,
+    get_all_evaluation_points,
     ifft,
 )
 
@@ -48,7 +48,7 @@ class Sumcheck:
 
     def _to_univariate(self, mlpoly):
         evals = []
-        roots = get_all_root_of_unity(3, self.order)
+        roots = get_all_evaluation_points(3, self.order)
         for i in roots:
             s = sum(mlpoly.partial_evaluate([i]).to_evaluations()) % self.order
             evals.append(s)

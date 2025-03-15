@@ -69,22 +69,22 @@ def MultilinearPolynomial(num_vars: int, sparse_evaluations: Tuple[int, int], p:
     return poly.MultilinearPolynomial(num_vars, sparse_evaluations)
 
 
-def get_nth_root_of_unity(domain, i, p) -> int:
+def get_evaluation_point(domain, i, p) -> int:
     """
-    get `i`th root of unity over evaluation domain of size `domain`
+    get `i`th element over evaluation domain of size `domain`
     """
     if i == 0:
         return 1
     poly = POLY_OBJECT[p]
-    return poly.get_nth_root_of_unity(domain, i)
+    return poly.get_evaluation_point(domain, i)
 
 
-def get_all_root_of_unity(domain, p) -> list:
+def get_all_evaluation_points(domain, p) -> list:
     """
     get all elements of evaluation domain of size `domain`
     """
     poly = POLY_OBJECT[p]
-    return poly.get_all_root_of_unity(domain)
+    return poly.get_all_evaluation_points(domain)
 
 
 def fft(coeffs, p, size=None):
@@ -205,7 +205,7 @@ def barycentric_eval(domain, sparse_eval: dict, x, p):
     """
     Evaluate a polynomial at a given point x using sparse evaluation form.
     """
-    omega = get_nth_root_of_unity(domain, 1, p)
+    omega = get_evaluation_point(domain, 1, p)
 
     sum_i = 0
     for i in sparse_eval:

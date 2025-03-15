@@ -8,11 +8,11 @@ from ..polynomial import (
     barycentric_eval,
     evaluate_vanishing_polynomial,
     fft,
-    get_nth_root_of_unity,
+    get_evaluation_point,
     ifft,
     mul_over_evaluation_domain,
     mul_over_fft,
-    get_all_root_of_unity,
+    get_all_evaluation_points,
 )
 from .serialization import ProvingKey, VerifyingKey, Proof
 
@@ -57,7 +57,7 @@ class Plonk:
             self.G1_tau = g1_tau
             self.G2_tau = g2_tau
 
-        roots = get_all_root_of_unity(self.constraints.length, self.order)
+        roots = get_all_evaluation_points(self.constraints.length, self.order)
 
         n = self.constraints.length
         k1 = 2
@@ -163,7 +163,7 @@ class Plonk:
         n = self.proving_key.n
 
         if not self._roots:
-            self._roots = get_all_root_of_unity(n, self.order)
+            self._roots = get_all_evaluation_points(n, self.order)
 
         a = private_witness[::3] + [0] * (n - len(private_witness[::3]))
         b = private_witness[1::3] + [0] * (n - len(private_witness[1::3]))
@@ -563,7 +563,7 @@ class Plonk:
         if self._roots:
             omega = self._roots[1]
         else:
-            omega = get_nth_root_of_unity(n, 1, self.order)
+            omega = get_evaluation_point(n, 1, self.order)
 
         Zh_zeta = evaluate_vanishing_polynomial(n, zeta, self.order)
         L1_zeta = barycentric_eval(n, {0: 1}, zeta, self.order)

@@ -15,7 +15,7 @@ def get_n_jobs():
     if check_env:
         return int(check_env)
     else:
-        return -1
+        return 1
 
 
 def split_list(data, n):

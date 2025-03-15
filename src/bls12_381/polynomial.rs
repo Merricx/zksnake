@@ -1,16 +1,20 @@
 use ark_bls12_381::Fr;
 use ark_ff::Zero;
 use ark_poly::{
-    multivariate::{SparsePolynomial, SparseTerm, Term},
+    multivariate::{ SparsePolynomial, SparseTerm, Term },
     polynomial::univariate::DensePolynomial,
-    univariate, DenseMVPolynomial, DenseUVPolynomial, EvaluationDomain, GeneralEvaluationDomain,
+    univariate,
+    DenseMVPolynomial,
+    DenseUVPolynomial,
+    EvaluationDomain,
+    GeneralEvaluationDomain,
     Polynomial,
 };
 use num_bigint::BigUint;
 use pyo3::{
-    exceptions::{PyRuntimeError, PyValueError},
+    exceptions::{ PyRuntimeError, PyValueError },
     prelude::*,
-    types::{PyDict, PyList, PyTuple},
+    types::{ PyDict, PyList, PyTuple },
 };
 use rayon::prelude::*;
 
@@ -33,7 +37,7 @@ impl PolynomialRing {
     pub fn new(
         num_vars: usize,
         coeffs: Vec<(BigUint, Vec<(usize, usize)>)>,
-        size: usize,
+        size: usize
     ) -> PyResult<Self> {
         if num_vars > 1 {
             let mut terms: Vec<(Fr, SparseTerm)> = vec![];
@@ -41,9 +45,9 @@ impl PolynomialRing {
                 let t = SparseTerm::new(term);
                 terms.push((Fr::from(v), t));
             }
-            let poly = PolynomialKind::Multivariate(SparsePolynomial::from_coefficients_vec(
-                num_vars, terms,
-            ));
+            let poly = PolynomialKind::Multivariate(
+                SparsePolynomial::from_coefficients_vec(num_vars, terms)
+            );
 
             let domain = EvaluationDomain::new(size).unwrap();
             Ok(PolynomialRing { poly, domain })
@@ -52,8 +56,9 @@ impl PolynomialRing {
             for (coeff, _) in coeffs.clone() {
                 fp_coeffs.push(Fr::from(coeff));
             }
-            let poly =
-                PolynomialKind::Univariate(DensePolynomial::from_coefficients_vec(fp_coeffs));
+            let poly = PolynomialKind::Univariate(
+                DensePolynomial::from_coefficients_vec(fp_coeffs)
+            );
             let domain = EvaluationDomain::new(size).unwrap();
             Ok(PolynomialRing { poly, domain })
         }
@@ -170,9 +175,9 @@ impl PolynomialRing {
                     coeffs[0] = coeffs[0] + adder;
 
                     Ok(PolynomialRing {
-                        poly: PolynomialKind::Univariate(DensePolynomial::from_coefficients_vec(
-                            coeffs.to_vec(),
-                        )),
+                        poly: PolynomialKind::Univariate(
+                            DensePolynomial::from_coefficients_vec(coeffs.to_vec())
+                        ),
                         domain: self.domain,
                     })
                 }
@@ -195,7 +200,7 @@ impl PolynomialRing {
 
                     Ok(PolynomialRing {
                         poly: PolynomialKind::Multivariate(
-                            SparsePolynomial::from_coefficients_vec(poly.num_vars, terms.to_vec()),
+                            SparsePolynomial::from_coefficients_vec(poly.num_vars, terms.to_vec())
                         ),
                         domain: self.domain,
                     })
@@ -217,16 +222,19 @@ impl PolynomialRing {
                         domain: self.domain,
                     })
                 }
-                _ => Err(pyo3::exceptions::PyTypeError::new_err(format!(
-                    "Unsupported type for addition: {:?}",
-                    other.get_type().name()
-                ))),
+                _ =>
+                    Err(
+                        pyo3::exceptions::PyTypeError::new_err(
+                            format!("Unsupported type for addition: {:?}", other.get_type().name())
+                        )
+                    ),
             }
         } else {
-            Err(pyo3::exceptions::PyTypeError::new_err(format!(
-                "Unsupported type for addition: {:?}",
-                other.get_type().name()
-            )))
+            Err(
+                pyo3::exceptions::PyTypeError::new_err(
+                    format!("Unsupported type for addition: {:?}", other.get_type().name())
+                )
+            )
         }
     }
 
@@ -236,14 +244,16 @@ impl PolynomialRing {
 
     pub fn __neg__(&self) -> PyResult<Self> {
         match &self.poly {
-            PolynomialKind::Univariate(poly) => Ok(PolynomialRing {
-                poly: PolynomialKind::Univariate(-poly.clone()),
-                domain: self.domain,
-            }),
-            PolynomialKind::Multivariate(poly) => Ok(PolynomialRing {
-                poly: PolynomialKind::Multivariate(-poly.clone()),
-                domain: self.domain,
-            }),
+            PolynomialKind::Univariate(poly) =>
+                Ok(PolynomialRing {
+                    poly: PolynomialKind::Univariate(-poly.clone()),
+                    domain: self.domain,
+                }),
+            PolynomialKind::Multivariate(poly) =>
+                Ok(PolynomialRing {
+                    poly: PolynomialKind::Multivariate(-poly.clone()),
+                    domain: self.domain,
+                }),
         }
     }
 
@@ -256,9 +266,9 @@ impl PolynomialRing {
                     coeffs[0] = coeffs[0] - substractor;
 
                     Ok(PolynomialRing {
-                        poly: PolynomialKind::Univariate(DensePolynomial::from_coefficients_vec(
-                            coeffs.to_vec(),
-                        )),
+                        poly: PolynomialKind::Univariate(
+                            DensePolynomial::from_coefficients_vec(coeffs.to_vec())
+                        ),
                         domain: self.domain,
                     })
                 }
@@ -281,7 +291,7 @@ impl PolynomialRing {
 
                     Ok(PolynomialRing {
                         poly: PolynomialKind::Multivariate(
-                            SparsePolynomial::from_coefficients_vec(poly.num_vars, terms.to_vec()),
+                            SparsePolynomial::from_coefficients_vec(poly.num_vars, terms.to_vec())
                         ),
                         domain: self.domain,
                     })
@@ -303,16 +313,19 @@ impl PolynomialRing {
                         domain: self.domain,
                     })
                 }
-                _ => Err(pyo3::exceptions::PyTypeError::new_err(format!(
-                    "Unsupported type for addition: {:?}",
-                    other.get_type().name()
-                ))),
+                _ =>
+                    Err(
+                        pyo3::exceptions::PyTypeError::new_err(
+                            format!("Unsupported type for addition: {:?}", other.get_type().name())
+                        )
+                    ),
             }
         } else {
-            Err(pyo3::exceptions::PyTypeError::new_err(format!(
-                "Unsupported type for addition: {:?}",
-                other.get_type().name()
-            )))
+            Err(
+                pyo3::exceptions::PyTypeError::new_err(
+                    format!("Unsupported type for addition: {:?}", other.get_type().name())
+                )
+            )
         }
     }
 
@@ -323,12 +336,15 @@ impl PolynomialRing {
                     let coeffs = poly.coeffs.clone();
                     let mult: Fr = other_int.into();
 
-                    let new_coeffs: Vec<Fr> = coeffs.par_iter().map(|&e| e * mult).collect();
+                    let new_coeffs: Vec<Fr> = coeffs
+                        .par_iter()
+                        .map(|&e| e * mult)
+                        .collect();
 
                     Ok(PolynomialRing {
-                        poly: PolynomialKind::Univariate(DensePolynomial::from_coefficients_vec(
-                            new_coeffs.to_vec(),
-                        )),
+                        poly: PolynomialKind::Univariate(
+                            DensePolynomial::from_coefficients_vec(new_coeffs.to_vec())
+                        ),
                         domain: self.domain,
                     })
                 }
@@ -343,7 +359,7 @@ impl PolynomialRing {
 
                     Ok(PolynomialRing {
                         poly: PolynomialKind::Multivariate(
-                            SparsePolynomial::from_coefficients_vec(poly.num_vars, new_terms),
+                            SparsePolynomial::from_coefficients_vec(poly.num_vars, new_terms)
                         ),
                         domain: self.domain,
                     })
@@ -369,13 +385,15 @@ impl PolynomialRing {
                             for (other_coeff, other_term) in other.terms.iter() {
                                 let mut term = cur_term.to_vec();
                                 term.extend(other_term.to_vec());
-                                result_terms
-                                    .push((*cur_coeff * *other_coeff, SparseTerm::new(term)));
+                                result_terms.push((
+                                    *cur_coeff * *other_coeff,
+                                    SparseTerm::new(term),
+                                ));
                             }
                         }
                         let result = SparsePolynomial::from_coefficients_slice(
                             poly.num_vars,
-                            result_terms.as_slice(),
+                            result_terms.as_slice()
                         );
 
                         Ok(PolynomialRing {
@@ -384,16 +402,22 @@ impl PolynomialRing {
                         })
                     }
                 }
-                _ => Err(pyo3::exceptions::PyTypeError::new_err(format!(
-                    "Unsupported type for multiplication: {:?}",
-                    other.get_type().name()
-                ))),
+                _ =>
+                    Err(
+                        pyo3::exceptions::PyTypeError::new_err(
+                            format!(
+                                "Unsupported type for multiplication: {:?}",
+                                other.get_type().name()
+                            )
+                        )
+                    ),
             }
         } else {
-            Err(pyo3::exceptions::PyTypeError::new_err(format!(
-                "Unsupported type for multiplication: {:?}",
-                other.get_type().name()
-            )))
+            Err(
+                pyo3::exceptions::PyTypeError::new_err(
+                    format!("Unsupported type for multiplication: {:?}", other.get_type().name())
+                )
+            )
         }
     }
 
@@ -406,34 +430,37 @@ impl PolynomialRing {
             (PolynomialKind::Univariate(poly), PolynomialKind::Univariate(other)) => {
                 let result = univariate::DenseOrSparsePolynomial::divide_with_q_and_r(
                     &poly.clone().into(),
-                    &other.into(),
+                    &other.into()
                 );
 
                 match result {
                     Some((quotient, remainder)) => {
                         let q_coeffs = quotient.coeffs.len();
                         let r_coeffs = remainder.coeffs.len();
-                        Ok((
-                            PolynomialRing {
-                                poly: PolynomialKind::Univariate(quotient),
-                                domain: EvaluationDomain::new(q_coeffs).unwrap(),
-                            },
-                            PolynomialRing {
-                                poly: PolynomialKind::Univariate(remainder),
-                                domain: EvaluationDomain::new(r_coeffs).unwrap(),
-                            },
+                        Ok(
+                            (
+                                PolynomialRing {
+                                    poly: PolynomialKind::Univariate(quotient),
+                                    domain: EvaluationDomain::new(q_coeffs).unwrap(),
+                                },
+                                PolynomialRing {
+                                    poly: PolynomialKind::Univariate(remainder),
+                                    domain: EvaluationDomain::new(r_coeffs).unwrap(),
+                                },
+                            ).into()
                         )
-                            .into())
                     }
                     None => Err(PyRuntimeError::new_err("Polynomial division error")),
                 }
             }
-            (PolynomialKind::Multivariate(_), PolynomialKind::Multivariate(_)) => Err(
-                pyo3::exceptions::PyTypeError::new_err(format!("Not supported")),
-            ),
-            _ => Err(pyo3::exceptions::PyTypeError::new_err(format!(
-                "Can only divide same n-variate polynomial"
-            ))),
+            (PolynomialKind::Multivariate(_), PolynomialKind::Multivariate(_)) =>
+                Err(pyo3::exceptions::PyTypeError::new_err(format!("Not supported"))),
+            _ =>
+                Err(
+                    pyo3::exceptions::PyTypeError::new_err(
+                        format!("Can only divide same n-variate polynomial")
+                    )
+                ),
         }
     }
 
@@ -447,19 +474,21 @@ impl PolynomialRing {
     pub fn multiply_by_vanishing_poly(&self) -> PyResult<PolynomialRing> {
         match &self.poly {
             PolynomialKind::Univariate(poly) => {
-                let result = PolynomialKind::Univariate(DensePolynomial::mul_by_vanishing_poly(
-                    poly,
-                    self.domain,
-                ));
+                let result = PolynomialKind::Univariate(
+                    DensePolynomial::mul_by_vanishing_poly(poly, self.domain)
+                );
 
                 Ok(PolynomialRing {
                     poly: result,
                     domain: self.domain,
                 })
             }
-            PolynomialKind::Multivariate(_) => Err(pyo3::exceptions::PyTypeError::new_err(
-                format!("Can only multiply univariate polynomial"),
-            )),
+            PolynomialKind::Multivariate(_) =>
+                Err(
+                    pyo3::exceptions::PyTypeError::new_err(
+                        format!("Can only multiply univariate polynomial")
+                    )
+                ),
         }
     }
 
@@ -468,23 +497,28 @@ impl PolynomialRing {
             PolynomialKind::Univariate(poly) => {
                 let result = DensePolynomial::divide_by_vanishing_poly(&poly, self.domain);
                 match result {
-                    Some((quotient, remainder)) => Ok((
-                        PolynomialRing {
-                            poly: PolynomialKind::Univariate(quotient),
-                            domain: self.domain,
-                        },
-                        PolynomialRing {
-                            poly: PolynomialKind::Univariate(remainder),
-                            domain: self.domain,
-                        },
-                    )
-                        .into()),
+                    Some((quotient, remainder)) =>
+                        Ok(
+                            (
+                                PolynomialRing {
+                                    poly: PolynomialKind::Univariate(quotient),
+                                    domain: self.domain,
+                                },
+                                PolynomialRing {
+                                    poly: PolynomialKind::Univariate(remainder),
+                                    domain: self.domain,
+                                },
+                            ).into()
+                        ),
                     None => Err(PyRuntimeError::new_err("Cannot divided by vanishing poly")),
                 }
             }
-            PolynomialKind::Multivariate(_) => Err(pyo3::exceptions::PyTypeError::new_err(
-                format!("Can only divide univariate polynomial"),
-            )),
+            PolynomialKind::Multivariate(_) =>
+                Err(
+                    pyo3::exceptions::PyTypeError::new_err(
+                        format!("Can only divide univariate polynomial")
+                    )
+                ),
         }
     }
 
@@ -495,20 +529,27 @@ impl PolynomialRing {
                     let eval = DensePolynomial::evaluate(&poly, &Fr::from(point));
                     Ok(eval.into())
                 } else {
-                    Err(pyo3::exceptions::PyTypeError::new_err(format!(
-                        "Univariate polynomial evaluation only accept int"
-                    )))
+                    Err(
+                        pyo3::exceptions::PyTypeError::new_err(
+                            format!("Univariate polynomial evaluation only accept int")
+                        )
+                    )
                 }
             }
             PolynomialKind::Multivariate(poly) => {
                 if let Ok(point) = point.extract::<Vec<BigUint>>() {
-                    let points: Vec<Fr> = point.iter().map(|x| Fr::from(x.to_owned())).collect();
+                    let points: Vec<Fr> = point
+                        .iter()
+                        .map(|x| Fr::from(x.to_owned()))
+                        .collect();
                     let eval = SparsePolynomial::evaluate(&poly, &points);
                     Ok(eval.into())
                 } else {
-                    Err(pyo3::exceptions::PyTypeError::new_err(format!(
-                        "Multivariate polynomial evaluation only accept list of int"
-                    )))
+                    Err(
+                        pyo3::exceptions::PyTypeError::new_err(
+                            format!("Multivariate polynomial evaluation only accept list of int")
+                        )
+                    )
                 }
             }
         }
@@ -516,20 +557,22 @@ impl PolynomialRing {
 }
 
 #[pyfunction]
-pub fn get_nth_root_of_unity(domain: usize, i: usize) -> PyResult<BigUint> {
+pub fn get_evaluation_point(domain: usize, i: usize) -> PyResult<BigUint> {
     let domain: GeneralEvaluationDomain<Fr> = EvaluationDomain::new(domain).unwrap();
 
     Ok(EvaluationDomain::element(&domain, i).into())
 }
 
 #[pyfunction]
-pub fn get_all_root_of_unity(domain: usize) -> PyResult<Vec<BigUint>> {
+pub fn get_all_evaluation_points(domain: usize) -> PyResult<Vec<BigUint>> {
     let domain: GeneralEvaluationDomain<Fr> = EvaluationDomain::new(domain).unwrap();
 
-    Ok(EvaluationDomain::elements(&domain)
-        .into_iter()
-        .map(|e| e.into())
-        .collect())
+    Ok(
+        EvaluationDomain::elements(&domain)
+            .into_iter()
+            .map(|e| e.into())
+            .collect()
+    )
 }
 
 #[pyfunction]
@@ -541,7 +584,12 @@ pub fn fft(coeffs: Vec<BigUint>, size: usize) -> PyResult<Vec<BigUint>> {
     let domain: GeneralEvaluationDomain<Fr> = EvaluationDomain::new(size).unwrap();
     let evals = EvaluationDomain::fft(&domain, &domain_coeff);
 
-    Ok(evals.par_iter().map(|x| x.to_owned().into()).collect())
+    Ok(
+        evals
+            .par_iter()
+            .map(|x| x.to_owned().into())
+            .collect()
+    )
 }
 
 #[pyfunction]
@@ -555,7 +603,12 @@ pub fn coset_fft(coeffs: Vec<BigUint>, size: usize) -> PyResult<Vec<BigUint>> {
     let coset_domain = EvaluationDomain::get_coset(&domain, generator).unwrap();
     let evals = EvaluationDomain::fft(&coset_domain, &domain_coeff);
 
-    Ok(evals.par_iter().map(|x| x.to_owned().into()).collect())
+    Ok(
+        evals
+            .par_iter()
+            .map(|x| x.to_owned().into())
+            .collect()
+    )
 }
 
 #[pyfunction]
@@ -567,7 +620,12 @@ pub fn ifft(evals: Vec<BigUint>, size: usize) -> PyResult<Vec<BigUint>> {
     let domain: GeneralEvaluationDomain<Fr> = EvaluationDomain::new(size).unwrap();
     let coeffs = EvaluationDomain::ifft(&domain, &domain_evals);
 
-    Ok(coeffs.par_iter().map(|x| x.to_owned().into()).collect())
+    Ok(
+        coeffs
+            .par_iter()
+            .map(|x| x.to_owned().into())
+            .collect()
+    )
 }
 
 #[pyfunction]
@@ -581,14 +639,19 @@ pub fn coset_ifft(evals: Vec<BigUint>, size: usize) -> PyResult<Vec<BigUint>> {
     let coset_domain = EvaluationDomain::get_coset(&domain, generator).unwrap();
     let coeffs = EvaluationDomain::ifft(&coset_domain, &domain_evals);
 
-    Ok(coeffs.par_iter().map(|x| x.to_owned().into()).collect())
+    Ok(
+        coeffs
+            .par_iter()
+            .map(|x| x.to_owned().into())
+            .collect()
+    )
 }
 
 #[pyfunction]
 pub fn add_over_evaluation_domain(
     size: usize,
     a: Vec<BigUint>,
-    b: Vec<BigUint>,
+    b: Vec<BigUint>
 ) -> PyResult<Vec<BigUint>> {
     let mut evals_a = vec![Fr::from(0); size];
     let mut evals_b = vec![Fr::from(0); size];
@@ -610,7 +673,7 @@ pub fn add_over_evaluation_domain(
 pub fn mul_over_evaluation_domain(
     size: usize,
     a: Vec<BigUint>,
-    b: Vec<BigUint>,
+    b: Vec<BigUint>
 ) -> PyResult<Vec<BigUint>> {
     let mut evals_a = vec![Fr::from(0); size];
     let mut evals_b = vec![Fr::from(0); size];
@@ -635,8 +698,9 @@ pub fn mul_over_evaluation_domain(
 
 #[pyfunction]
 pub fn evaluate_vanishing_polynomial(n: usize, tau: BigUint) -> PyResult<BigUint> {
-    let domain: GeneralEvaluationDomain<Fr> = EvaluationDomain::new(n)
-        .ok_or_else(|| PyValueError::new_err("Domain size is too large"))?;
+    let domain: GeneralEvaluationDomain<Fr> = EvaluationDomain::new(n).ok_or_else(||
+        PyValueError::new_err("Domain size is too large")
+    )?;
 
     let result = EvaluationDomain::evaluate_vanishing_polynomial(&domain, Fr::from(tau));
     Ok(result.into())
@@ -644,9 +708,15 @@ pub fn evaluate_vanishing_polynomial(n: usize, tau: BigUint) -> PyResult<BigUint
 
 #[pyfunction]
 pub fn evaluate_lagrange_coefficients(n: usize, tau: BigUint) -> PyResult<Vec<BigUint>> {
-    let domain: GeneralEvaluationDomain<Fr> = EvaluationDomain::new(n)
-        .ok_or_else(|| PyValueError::new_err("Domain size is too large"))?;
+    let domain: GeneralEvaluationDomain<Fr> = EvaluationDomain::new(n).ok_or_else(||
+        PyValueError::new_err("Domain size is too large")
+    )?;
 
     let coeffs = EvaluationDomain::evaluate_all_lagrange_coefficients(&domain, Fr::from(tau));
-    Ok(coeffs.par_iter().map(|x| x.to_owned().into()).collect())
+    Ok(
+        coeffs
+            .par_iter()
+            .map(|x| x.to_owned().into())
+            .collect()
+    )
 }

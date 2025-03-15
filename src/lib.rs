@@ -9,22 +9,10 @@ fn register_bn254_module<'py>(py: Python, parent_module: &Bound<'py, PyModule>) 
     ecc_module.add_class::<bn254::curve::PointG2>()?;
     ecc_module.add_function(wrap_pyfunction!(bn254::curve::g1, &ecc_module)?)?;
     ecc_module.add_function(wrap_pyfunction!(bn254::curve::g2, &ecc_module)?)?;
-    ecc_module.add_function(wrap_pyfunction!(
-        bn254::curve::batch_multi_scalar_g1,
-        &ecc_module
-    )?)?;
-    ecc_module.add_function(wrap_pyfunction!(
-        bn254::curve::batch_multi_scalar_g2,
-        &ecc_module
-    )?)?;
-    ecc_module.add_function(wrap_pyfunction!(
-        bn254::curve::multiscalar_mul_g1,
-        &ecc_module
-    )?)?;
-    ecc_module.add_function(wrap_pyfunction!(
-        bn254::curve::multiscalar_mul_g2,
-        &ecc_module
-    )?)?;
+    ecc_module.add_function(wrap_pyfunction!(bn254::curve::batch_multi_scalar_g1, &ecc_module)?)?;
+    ecc_module.add_function(wrap_pyfunction!(bn254::curve::batch_multi_scalar_g2, &ecc_module)?)?;
+    ecc_module.add_function(wrap_pyfunction!(bn254::curve::multiscalar_mul_g1, &ecc_module)?)?;
+    ecc_module.add_function(wrap_pyfunction!(bn254::curve::multiscalar_mul_g2, &ecc_module)?)?;
     ecc_module.add_function(wrap_pyfunction!(bn254::curve::pairing, &ecc_module)?)?;
     ecc_module.add_function(wrap_pyfunction!(bn254::curve::multi_pairing, &ecc_module)?)?;
     parent_module.add_submodule(&ecc_module)?;
@@ -34,34 +22,23 @@ fn register_bn254_module<'py>(py: Python, parent_module: &Bound<'py, PyModule>) 
 
 fn register_bls12_381_module<'py>(
     py: Python,
-    parent_module: &Bound<'py, PyModule>,
+    parent_module: &Bound<'py, PyModule>
 ) -> PyResult<()> {
     let ecc_module = PyModule::new_bound(py, "ec_bls12_381")?;
     ecc_module.add_class::<bls12_381::curve::PointG1>()?;
     ecc_module.add_class::<bls12_381::curve::PointG2>()?;
     ecc_module.add_function(wrap_pyfunction!(bls12_381::curve::g1, &ecc_module)?)?;
     ecc_module.add_function(wrap_pyfunction!(bls12_381::curve::g2, &ecc_module)?)?;
-    ecc_module.add_function(wrap_pyfunction!(
-        bls12_381::curve::batch_multi_scalar_g1,
-        &ecc_module
-    )?)?;
-    ecc_module.add_function(wrap_pyfunction!(
-        bls12_381::curve::batch_multi_scalar_g2,
-        &ecc_module
-    )?)?;
-    ecc_module.add_function(wrap_pyfunction!(
-        bls12_381::curve::multiscalar_mul_g1,
-        &ecc_module
-    )?)?;
-    ecc_module.add_function(wrap_pyfunction!(
-        bls12_381::curve::multiscalar_mul_g2,
-        &ecc_module
-    )?)?;
+    ecc_module.add_function(
+        wrap_pyfunction!(bls12_381::curve::batch_multi_scalar_g1, &ecc_module)?
+    )?;
+    ecc_module.add_function(
+        wrap_pyfunction!(bls12_381::curve::batch_multi_scalar_g2, &ecc_module)?
+    )?;
+    ecc_module.add_function(wrap_pyfunction!(bls12_381::curve::multiscalar_mul_g1, &ecc_module)?)?;
+    ecc_module.add_function(wrap_pyfunction!(bls12_381::curve::multiscalar_mul_g2, &ecc_module)?)?;
     ecc_module.add_function(wrap_pyfunction!(bls12_381::curve::pairing, &ecc_module)?)?;
-    ecc_module.add_function(wrap_pyfunction!(
-        bls12_381::curve::multi_pairing,
-        &ecc_module
-    )?)?;
+    ecc_module.add_function(wrap_pyfunction!(bls12_381::curve::multi_pairing, &ecc_module)?)?;
     parent_module.add_submodule(&ecc_module)?;
 
     Ok(())
@@ -69,95 +46,77 @@ fn register_bls12_381_module<'py>(
 
 fn register_polynomial_module<'py>(
     py: Python,
-    parent_module: &Bound<'py, PyModule>,
+    parent_module: &Bound<'py, PyModule>
 ) -> PyResult<()> {
     let poly_bn254_module = PyModule::new_bound(py, "polynomial_bn254")?;
     poly_bn254_module.add_class::<bn254::polynomial::PolynomialRing>()?;
     poly_bn254_module.add_class::<bn254::mle::MultilinearPolynomial>()?;
-    poly_bn254_module.add_function(wrap_pyfunction!(
-        bn254::polynomial::get_nth_root_of_unity,
-        &poly_bn254_module
-    )?)?;
-    poly_bn254_module.add_function(wrap_pyfunction!(
-        bn254::polynomial::get_all_root_of_unity,
-        &poly_bn254_module
-    )?)?;
-    poly_bn254_module.add_function(wrap_pyfunction!(
-        bn254::polynomial::fft,
-        &poly_bn254_module
-    )?)?;
-    poly_bn254_module.add_function(wrap_pyfunction!(
-        bn254::polynomial::ifft,
-        &poly_bn254_module
-    )?)?;
-    poly_bn254_module.add_function(wrap_pyfunction!(
-        bn254::polynomial::coset_fft,
-        &poly_bn254_module
-    )?)?;
-    poly_bn254_module.add_function(wrap_pyfunction!(
-        bn254::polynomial::coset_ifft,
-        &poly_bn254_module
-    )?)?;
-    poly_bn254_module.add_function(wrap_pyfunction!(
-        bn254::polynomial::evaluate_vanishing_polynomial,
-        &poly_bn254_module
-    )?)?;
-    poly_bn254_module.add_function(wrap_pyfunction!(
-        bn254::polynomial::evaluate_lagrange_coefficients,
-        &poly_bn254_module
-    )?)?;
-    poly_bn254_module.add_function(wrap_pyfunction!(
-        bn254::polynomial::add_over_evaluation_domain,
-        &poly_bn254_module
-    )?)?;
-    poly_bn254_module.add_function(wrap_pyfunction!(
-        bn254::polynomial::mul_over_evaluation_domain,
-        &poly_bn254_module
-    )?)?;
+    poly_bn254_module.add_function(
+        wrap_pyfunction!(bn254::polynomial::get_evaluation_point, &poly_bn254_module)?
+    )?;
+    poly_bn254_module.add_function(
+        wrap_pyfunction!(bn254::polynomial::get_all_evaluation_points, &poly_bn254_module)?
+    )?;
+    poly_bn254_module.add_function(wrap_pyfunction!(bn254::polynomial::fft, &poly_bn254_module)?)?;
+    poly_bn254_module.add_function(wrap_pyfunction!(bn254::polynomial::ifft, &poly_bn254_module)?)?;
+    poly_bn254_module.add_function(
+        wrap_pyfunction!(bn254::polynomial::coset_fft, &poly_bn254_module)?
+    )?;
+    poly_bn254_module.add_function(
+        wrap_pyfunction!(bn254::polynomial::coset_ifft, &poly_bn254_module)?
+    )?;
+    poly_bn254_module.add_function(
+        wrap_pyfunction!(bn254::polynomial::evaluate_vanishing_polynomial, &poly_bn254_module)?
+    )?;
+    poly_bn254_module.add_function(
+        wrap_pyfunction!(bn254::polynomial::evaluate_lagrange_coefficients, &poly_bn254_module)?
+    )?;
+    poly_bn254_module.add_function(
+        wrap_pyfunction!(bn254::polynomial::add_over_evaluation_domain, &poly_bn254_module)?
+    )?;
+    poly_bn254_module.add_function(
+        wrap_pyfunction!(bn254::polynomial::mul_over_evaluation_domain, &poly_bn254_module)?
+    )?;
 
     let poly_bls12_381_module = PyModule::new_bound(py, "polynomial_bls12_381")?;
     poly_bls12_381_module.add_class::<bls12_381::polynomial::PolynomialRing>()?;
     poly_bls12_381_module.add_class::<bls12_381::mle::MultilinearPolynomial>()?;
-    poly_bls12_381_module.add_function(wrap_pyfunction!(
-        bls12_381::polynomial::get_nth_root_of_unity,
-        &poly_bls12_381_module
-    )?)?;
-    poly_bls12_381_module.add_function(wrap_pyfunction!(
-        bls12_381::polynomial::get_all_root_of_unity,
-        &poly_bls12_381_module
-    )?)?;
-    poly_bls12_381_module.add_function(wrap_pyfunction!(
-        bls12_381::polynomial::fft,
-        &poly_bls12_381_module
-    )?)?;
-    poly_bls12_381_module.add_function(wrap_pyfunction!(
-        bls12_381::polynomial::ifft,
-        &poly_bls12_381_module
-    )?)?;
-    poly_bls12_381_module.add_function(wrap_pyfunction!(
-        bls12_381::polynomial::coset_fft,
-        &poly_bls12_381_module
-    )?)?;
-    poly_bls12_381_module.add_function(wrap_pyfunction!(
-        bls12_381::polynomial::coset_ifft,
-        &poly_bls12_381_module
-    )?)?;
-    poly_bls12_381_module.add_function(wrap_pyfunction!(
-        bls12_381::polynomial::add_over_evaluation_domain,
-        &poly_bls12_381_module
-    )?)?;
-    poly_bls12_381_module.add_function(wrap_pyfunction!(
-        bls12_381::polynomial::mul_over_evaluation_domain,
-        &poly_bls12_381_module
-    )?)?;
-    poly_bls12_381_module.add_function(wrap_pyfunction!(
-        bls12_381::polynomial::evaluate_vanishing_polynomial,
-        &poly_bls12_381_module
-    )?)?;
-    poly_bls12_381_module.add_function(wrap_pyfunction!(
-        bls12_381::polynomial::evaluate_lagrange_coefficients,
-        &poly_bls12_381_module
-    )?)?;
+    poly_bls12_381_module.add_function(
+        wrap_pyfunction!(bls12_381::polynomial::get_evaluation_point, &poly_bls12_381_module)?
+    )?;
+    poly_bls12_381_module.add_function(
+        wrap_pyfunction!(bls12_381::polynomial::get_all_evaluation_points, &poly_bls12_381_module)?
+    )?;
+    poly_bls12_381_module.add_function(
+        wrap_pyfunction!(bls12_381::polynomial::fft, &poly_bls12_381_module)?
+    )?;
+    poly_bls12_381_module.add_function(
+        wrap_pyfunction!(bls12_381::polynomial::ifft, &poly_bls12_381_module)?
+    )?;
+    poly_bls12_381_module.add_function(
+        wrap_pyfunction!(bls12_381::polynomial::coset_fft, &poly_bls12_381_module)?
+    )?;
+    poly_bls12_381_module.add_function(
+        wrap_pyfunction!(bls12_381::polynomial::coset_ifft, &poly_bls12_381_module)?
+    )?;
+    poly_bls12_381_module.add_function(
+        wrap_pyfunction!(bls12_381::polynomial::add_over_evaluation_domain, &poly_bls12_381_module)?
+    )?;
+    poly_bls12_381_module.add_function(
+        wrap_pyfunction!(bls12_381::polynomial::mul_over_evaluation_domain, &poly_bls12_381_module)?
+    )?;
+    poly_bls12_381_module.add_function(
+        wrap_pyfunction!(
+            bls12_381::polynomial::evaluate_vanishing_polynomial,
+            &poly_bls12_381_module
+        )?
+    )?;
+    poly_bls12_381_module.add_function(
+        wrap_pyfunction!(
+            bls12_381::polynomial::evaluate_lagrange_coefficients,
+            &poly_bls12_381_module
+        )?
+    )?;
 
     parent_module.add_submodule(&poly_bn254_module)?;
     parent_module.add_submodule(&poly_bls12_381_module)?;

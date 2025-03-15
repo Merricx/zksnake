@@ -4,7 +4,7 @@ from ..constant import BN254_SCALAR_FIELD
 from ..polynomial import (
     MultilinearPolynomial,
     PolynomialRing,
-    get_all_root_of_unity,
+    get_all_evaluation_points,
     ifft,
 )
 from ..transcript import FiatShamirTranscript
@@ -72,7 +72,7 @@ class GkrPolynomial(SumcheckPolynomial):
     def to_univariate(self):
 
         evals = []
-        roots = get_all_root_of_unity(3, self.p)
+        roots = get_all_evaluation_points(3, self.p)
         for i in roots:
             s = sum(self.partial_evaluate([i]).to_evaluations()) % self.p
             evals.append(s)
