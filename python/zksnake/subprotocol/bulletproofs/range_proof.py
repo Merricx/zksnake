@@ -1,4 +1,4 @@
-from ...utils import get_random_int, split_list
+from ...utils import get_random_int, inner_product, split_list
 from ...polynomial import Polynomial
 from ...ecc import CurvePointSize, EllipticCurve
 from ...transcript import FiatShamirTranscript, hash_to_curve
@@ -86,9 +86,6 @@ class RangeProof:
         self.B = hash_to_curve(seed, b"B", curve, 1)
         self.B_blinding = hash_to_curve(seed, b"Blinding", curve, 1)
 
-    def __inner_product(self, a, b):
-        return sum(a * b for a, b in zip(a, b)) % self.E.order
-
     def __split_lr(self, data: list):
         l = []
         r = []
@@ -168,13 +165,13 @@ class RangeProof:
             l_vecpoly += [Polynomial([l_0[i], l_1[i]], p)]
             r_vecpoly += [Polynomial([r_0[i], r_1[i]], p)]
 
-        t0 = self.__inner_product(l_0, r_0)
-        t2 = self.__inner_product(l_1, r_1)
+        t0 = inner_product(l_0, r_0, self.E.order)
+        t2 = inner_product(l_1, r_1, self.E.order)
 
         l0_plus_l1 = [(a + b) % p for a, b in zip(l_0, l_1)]
         r0_plus_r1 = [(a + b) % p for a, b in zip(r_0, r_1)]
 
-        t1 = (self.__inner_product(l0_plus_l1, r0_plus_r1) - t0 - t2) % p
+        t1 = (inner_product(l0_plus_l1, r0_plus_r1, self.E.order) - t0 - t2) % p
 
         t_poly = Polynomial([t0, t1, t2], p)
 
@@ -210,7 +207,7 @@ class RangeProof:
         ipa_prover.H = [pow(y, -i, p) * self.H[i] for i in range(self.n)]
         ipa_prover.Q = Q
 
-        ipa_proof, _ = ipa_prover.prove(l_list, r_list, transcript)
+        ipa_proof, _, _ = ipa_prover.prove(l_list, r_list, transcript)
 
         return RangeProofObject(V, A, S, T1, T2, t, t_blinding, e_blinding, ipa_proof)
 

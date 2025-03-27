@@ -63,8 +63,7 @@ class QAP:
         uv = mul_over_fft(self.a.n_row, u, v, self.p)
 
         # H = (U * V - W) / Z
-        # subtraction swap is needed to keep the evaluation domain of the polynomial intact
-        hz = -(w - uv)
+        hz = uv - w
         h, remainder = hz.divide_by_vanishing_poly()
         if not remainder.is_zero():
             raise ValueError("(U * V - W) did not divided by Z to zero")

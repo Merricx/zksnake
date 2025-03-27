@@ -73,11 +73,11 @@ class KZG(PolynomialCommitmentScheme):
         for value, keys in group_map.items():
             result_map[frozenset(keys)].add(value)
 
-        if not is_verifier:
-            q_polys = []
-            r_polys = []
-            points_list = []
-            for points, commitments in result_map.items():
+        q_polys = []
+        r_polys = []
+        points_list = []
+        for points, commitments in result_map.items():
+            if not is_verifier:
                 polys = [
                     points_query.to_polynomial(self.E.from_hex(commitment))
                     for commitment in commitments
@@ -85,49 +85,41 @@ class KZG(PolynomialCommitmentScheme):
                 q = Polynomial([0], self.order)
                 for i, poly in enumerate(polys):
                     q += pow(x, i, self.order) * poly
-
-                xs = []
-                ys = []
-                for i, point in enumerate(points):
-                    xs.append(point)
-                    ys.append(q(point))
-
-                r = lagrange_interpolation(xs, ys, self.order)
-
-                q_polys.append(q)
-                r_polys.append(r)
-                points_list.append(list(points))
-
-            return q_polys, r_polys, points_list
-        else:
-            q_commitments = []
-            r_polys = []
-            points_list = []
-            for points, commitments in result_map.items():
+            else:
                 q = self.E.curve.PointG1.identity()
                 for i, comm in enumerate(commitments):
                     q += pow(x, i, self.order) * self.E.from_hex(comm)
 
-                xs = []
-                ys = []
-
-                for i, point in enumerate(points):
-                    evaluations = [
-                        pow(x, j, self.order)
-                        * points_query.get_evaluation(self.E.from_hex(comm), point)
+            xs = []
+            ys = []
+            for i, point in enumerate(points):
+                if not is_verifier:
+                    evaluation = q(point)
+                else:
+                    evaluation = (
+                        sum(
+                            [
+                                pow(x, j, self.order)
+                                * points_query.get_evaluation(
+                                    self.E.from_hex(comm), point
+                                )
+                                % self.order
+                                for j, comm in enumerate(commitments)
+                            ]
+                        )
                         % self.order
-                        for j, comm in enumerate(commitments)
-                    ]
-                    xs.append(point)
-                    ys.append(sum(evaluations) % self.order)
+                    )
 
-                r = lagrange_interpolation(xs, ys, self.order)
+                xs.append(point)
+                ys.append(evaluation)
 
-                q_commitments.append(q)
-                r_polys.append(r)
-                points_list.append(list(points))
+            r = lagrange_interpolation(xs, ys, self.order)
 
-            return q_commitments, r_polys, points_list
+            q_polys.append(q)
+            r_polys.append(r)
+            points_list.append(list(points))
+
+        return q_polys, r_polys, points_list
 
     def multi_open(self, points_query, transcript=None):
         """

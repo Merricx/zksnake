@@ -32,6 +32,13 @@ def is_power_of_two(n):
     return (n & (n - 1)) == 0
 
 
+def inner_product(a, b, p):
+    """
+    Compute inner product `<a, b>` over modulus `p`
+    """
+    return sum(a * b for a, b in zip(a, b)) % p
+
+
 def batch_modinv(a: list, m: int):
     """
     Compute modular inverse of `a[i]` over modulus `m` in batch
