@@ -10,6 +10,7 @@ class KZG(PolynomialCommitmentScheme):
 
     def __init__(self, max_degree, group):
         super().__init__(max_degree, group)
+        self.name = "KZG"
         self.E = EllipticCurve(self.group)
         self.order = self.E.order
         self.G1_tau = None
@@ -23,16 +24,21 @@ class KZG(PolynomialCommitmentScheme):
         self.G1_tau = self.E.batch_mul(self.E.G1(), power_of_tau)
         self.G2_tau = self.E.G2() * tau
 
+        self.is_setup = True
+
+    def zero_commitment(self):
+        return self.E.curve.PointG1.identity()
+
     def commit(self, polynomial):
 
-        assert self.G1_tau, "Trusted setup has not been run"
+        assert self.is_setup, "Trusted setup has not been run"
 
         commitment = self.E.multiexp(self.G1_tau, polynomial.coeffs())
         return commitment
 
-    def open(self, polynomial, point, transcript=None):
+    def open(self, polynomial, point):
 
-        assert self.G1_tau, "Trusted setup has not been run"
+        assert self.is_setup, "Trusted setup has not been run"
 
         evaluation = polynomial(point)
         divisor_poly = Polynomial([-point % self.order, 1], self.order)
@@ -44,92 +50,15 @@ class KZG(PolynomialCommitmentScheme):
 
         return proof, evaluation
 
-    def verify(self, commitment, proof, opening, point, transcript=None):
-
-        assert self.G1_tau, "Trusted setup has not been run"
-
-        lhs = self.E.pairing(proof, self.G2_tau - self.E.G2() * point)
-        rhs = self.E.pairing(commitment - self.E.G1() * opening, self.E.G2())
-
-        return lhs == rhs
-
-    def _group_evaluation(
-        self, points_query: MultiOpeningQuery, x: int, is_verifier=False
-    ):
-        """
-        Group polynomial (indexed by its commitment) into their evaluation points.
-
-        Example:
-        a(x), b(x), c(y), d(y) => {a, b} {c, d}
-        a(x), b(x), c(x), c(y) => {a, b} {c}
-        """
-
-        group_map = defaultdict(set)
-        for point, commitments in points_query.get_commitments():
-            for commitment in commitments:
-                group_map[commitment.to_hex()].add(point)
-
-        result_map = defaultdict(set)
-        for value, keys in group_map.items():
-            result_map[frozenset(keys)].add(value)
-
-        q_polys = []
-        r_polys = []
-        points_list = []
-        for points, commitments in result_map.items():
-            if not is_verifier:
-                polys = [
-                    points_query.to_polynomial(self.E.from_hex(commitment))
-                    for commitment in commitments
-                ]
-                q = Polynomial([0], self.order)
-                for i, poly in enumerate(polys):
-                    q += pow(x, i, self.order) * poly
-            else:
-                q = self.E.curve.PointG1.identity()
-                for i, comm in enumerate(commitments):
-                    q += pow(x, i, self.order) * self.E.from_hex(comm)
-
-            xs = []
-            ys = []
-            for i, point in enumerate(points):
-                if not is_verifier:
-                    evaluation = q(point)
-                else:
-                    evaluation = (
-                        sum(
-                            [
-                                pow(x, j, self.order)
-                                * points_query.get_evaluation(
-                                    self.E.from_hex(comm), point
-                                )
-                                % self.order
-                                for j, comm in enumerate(commitments)
-                            ]
-                        )
-                        % self.order
-                    )
-
-                xs.append(point)
-                ys.append(evaluation)
-
-            r = lagrange_interpolation(xs, ys, self.order)
-
-            q_polys.append(q)
-            r_polys.append(r)
-            points_list.append(list(points))
-
-        return q_polys, r_polys, points_list
-
     def multi_open(self, points_query, transcript=None):
         """
         Implementation based on Multipoint opening argument
         (https://zcash.github.io/halo2/design/proving-system/multipoint-opening.html)
         """
 
-        assert self.G1_tau, "Trusted setup has not been run"
+        assert self.is_setup, "Trusted setup has not been run"
 
-        transcript = transcript or FiatShamirTranscript(b"KZG", self.order)
+        transcript = transcript or FiatShamirTranscript(self.name.encode(), self.order)
         transcript.append(points_query.commitments)
 
         proof = []
@@ -179,19 +108,99 @@ class KZG(PolynomialCommitmentScheme):
         for i, poly in enumerate(q_polys):
             final_poly += pow(x4, i + 1, self.order) * poly
 
-        opening_proof, _ = self.open(final_poly, x3, transcript)
+        opening_proof, _ = self.open(final_poly, x3)
         proof.append(opening_proof)
 
         return proof, verifier_query
 
+    def verify(self, commitment, proof, point, evaluation):
+
+        assert self.is_setup, "Trusted setup has not been run"
+
+        lhs = self.E.pairing(proof, self.G2_tau - self.E.G2() * point)
+        rhs = self.E.pairing(commitment - self.E.G1() * evaluation, self.E.G2())
+
+        return lhs == rhs
+
+    def _group_evaluation(
+        self,
+        points_query: MultiOpeningQuery,
+        x: int,
+        is_verifier=False,
+    ):
+        """
+        Group polynomial (indexed by its commitment) into their evaluation points.
+
+        Example:
+        a(x), b(x), c(y), d(y) => {a, b} {c, d}
+        a(x), b(x), c(x), c(y) => {a, b} {c}
+        """
+
+        group_map = defaultdict(set)
+        for point, commitments in points_query.get_commitments():
+            for commitment in commitments:
+                group_map[commitment].add(point)
+
+        result_map = defaultdict(set)
+        for value, keys in group_map.items():
+            result_map[frozenset(keys)].add(value)
+
+        q_polys = []
+        r_polys = []
+        points_list = []
+        for points, commitments in result_map.items():
+            if not is_verifier:
+                polys = [
+                    points_query.to_polynomial(commitment) for commitment in commitments
+                ]
+                q = Polynomial([0], self.order)
+                for i, poly in enumerate(polys):
+                    q += pow(x, i, self.order) * poly
+            else:
+                q = self.zero_commitment()
+                for i, comm in enumerate(commitments):
+                    q += pow(x, i, self.order) * comm
+
+            xs = []
+            ys = []
+            for i, point in enumerate(points):
+                if not is_verifier:
+                    evaluation = q(point)
+                else:
+                    evaluation = (
+                        sum(
+                            [
+                                pow(x, j, self.order)
+                                * points_query.get_evaluation(comm, point)
+                                % self.order
+                                for j, comm in enumerate(commitments)
+                            ]
+                        )
+                        % self.order
+                    )
+
+                xs.append(point)
+                ys.append(evaluation)
+
+            r = lagrange_interpolation(xs, ys, self.order)
+
+            q_polys.append(q)
+            r_polys.append(r)
+            points_list.append(list(points))
+
+        return q_polys, r_polys, points_list
+
     def multi_verify(
-        self, points_query: MultiOpeningQuery, proof: list, transcript=None
+        self,
+        points_query: MultiOpeningQuery,
+        proof: list,
+        transcript: FiatShamirTranscript = None,
     ):
 
-        assert self.G1_tau, "Trusted setup has not been run"
+        assert self.is_setup, "Trusted setup has not been run"
         assert len(proof) > 2, "Invalid proof"
 
-        transcript = transcript or FiatShamirTranscript(b"KZG", self.order)
+        transcript = transcript or FiatShamirTranscript(self.name.encode(), self.order)
         transcript.append(points_query.commitments)
 
         for point, commitments in points_query.get_commitments():
@@ -247,4 +256,4 @@ class KZG(PolynomialCommitmentScheme):
         final_poly_x3 = (f_poly_x3 + q_x4) % self.order
 
         # e(proof, g2 * tau - g2 * x3) == e(final_commitment - g1 * final_poly_eval, g2)
-        return self.verify(final_commitment, opening_proof, final_poly_x3, x3)
+        return self.verify(final_commitment, opening_proof, x3, final_poly_x3)

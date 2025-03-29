@@ -1,5 +1,5 @@
 import random
-from zksnake.commitment.polynomial import KZG, Pedersen, MultiOpeningQuery
+from zksnake.commitment.polynomial import KZG, IPA, MultiOpeningQuery
 from zksnake.polynomial import Polynomial
 
 
@@ -15,7 +15,7 @@ def test_kzg():
 
     proof, evaluation = kzg.open(poly, point)
 
-    assert kzg.verify(commitment, proof, evaluation, point)
+    assert kzg.verify(commitment, proof, point, evaluation)
 
 
 def test_multi_kzg():
@@ -31,28 +31,65 @@ def test_multi_kzg():
     y = 1234
 
     query = MultiOpeningQuery()
+
+    query.add_polynomial(poly1, kzg.commit(poly1))
+    query.add_polynomial(poly2, kzg.commit(poly2))
+    query.add_polynomial(poly3, kzg.commit(poly3))
+
     query.prover_query(poly1, x)
     query.prover_query(poly2, x)
     query.prover_query(poly2, y)
     query.prover_query(poly3, x)
     query.prover_query(poly3, y)
-    query.commit(kzg.commit)
 
     proof, verifier_query = kzg.multi_open(query)
 
     assert kzg.multi_verify(verifier_query, proof)
 
 
-def test_pedersen():
+def test_ipa_pcs():
 
-    pedersen = Pedersen(4, "BN254")
-    pedersen.setup()
+    ipa = IPA(4, "BN254")
+    ipa.setup()
 
-    poly = Polynomial([1, 3, 3, 7], pedersen.order)
-    commitment = pedersen.commit(poly)
+    poly = Polynomial([1, 2, 22, 7], ipa.order)
 
-    point = random.randint(1, pedersen.order)
+    blinding = random.randint(1, ipa.order)
+    commitment = ipa.commit(poly, blinding)
 
-    proof, evaluation = pedersen.open(poly, point)
+    point = random.randint(1, ipa.order)
 
-    assert pedersen.verify(commitment, proof, evaluation, point)
+    proof, evaluation = ipa.open(poly, point, commitment, blinding)
+
+    assert ipa.verify(commitment, proof, point, evaluation)
+
+
+def test_multi_ipa_pcs():
+
+    ipa = IPA(4, "BN254")
+    ipa.setup()
+
+    poly1 = Polynomial([1, 3, 3, 7], ipa.order)
+    poly2 = Polynomial([1, 2, 3, 4], ipa.order)
+    poly3 = Polynomial([1, 2, 3, 0], ipa.order)
+
+    blind = random.randint(1, ipa.order)
+
+    x = 123
+    y = 1234
+
+    query = MultiOpeningQuery()
+
+    query.add_polynomial(poly1, ipa.commit(poly1, blind), blind)
+    query.add_polynomial(poly2, ipa.commit(poly2, blind), blind)
+    query.add_polynomial(poly3, ipa.commit(poly3, blind), blind)
+
+    query.prover_query(poly1, x)
+    query.prover_query(poly2, x)
+    query.prover_query(poly2, y)
+    query.prover_query(poly3, x)
+    query.prover_query(poly3, y)
+
+    proof, verifier_query = ipa.multi_open(query)
+
+    assert ipa.multi_verify(verifier_query, proof)

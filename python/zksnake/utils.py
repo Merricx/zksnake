@@ -18,7 +18,7 @@ def get_n_jobs():
         return 1
 
 
-def split_list(data, n):
+def split_list(data: bytes, n: int):
     """Split data into n chunks"""
     return [data[i : i + n] for i in range(0, len(data), n)]
 

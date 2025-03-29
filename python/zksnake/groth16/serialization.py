@@ -66,14 +66,14 @@ class ProvingKey:
         self.kdelta_1 = k_delta_G1
 
     @classmethod
-    def from_bytes(cls, s: bytes, crv="BN254"):
+    def from_bytes(cls, b: bytes, crv="BN254"):
         """Construct ProvingKey from bytes"""
         E = EllipticCurve(crv)
 
         n = CurvePointSize[crv].value
 
-        fixed_blocks = s[: n * 7]
-        dynamic_blocks = s[n * 7 :]
+        fixed_blocks = b[: n * 7]
+        dynamic_blocks = b[n * 7 :]
         s = split_list(fixed_blocks, n)
 
         assert len(s) >= 7, "Invalid proving key length"

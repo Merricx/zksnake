@@ -1,5 +1,7 @@
-from typing import Any, Dict
-from ...polynomial import lagrange_interpolation
+from abc import abstractmethod
+from collections import defaultdict
+from typing import Any, Dict, Optional
+from ...polynomial import lagrange_interpolation, Polynomial
 from ...transcript import FiatShamirTranscript
 
 
@@ -10,6 +12,7 @@ class MultiOpeningQuery:
         self.commitments = []
         self.opening_points = {}
         self.evaluations = {}
+        self.blindings = []
 
     def prover_query(self, polynomial, point):
         if polynomial not in self.polynomials:
@@ -44,13 +47,22 @@ class MultiOpeningQuery:
         index = self.polynomials.index(polynomial)
         return self.commitments[index]
 
+    def get_blinding(self, commitment):
+        index = self.commitments.index(commitment)
+        return self.blindings[index]
+
     def get_evaluation(self, commitment, point):
         index = self.commitments.index(commitment)
         return self.evaluations[point][index]
 
-    def commit(self, commit_func):
-        for polynomial in self.polynomials:
-            self.commitments += [commit_func(polynomial)]
+    def add_polynomial(self, polynomial, commitment, blinding=None):
+        if polynomial not in self.polynomials:
+            self.polynomials += [polynomial]
+            self.commitments += [commitment]
+            if blinding:
+                self.blindings += [blinding]
+            else:
+                self.blindings += [1]
 
     def get_polynomials(self):
         item = self.polynomials
@@ -71,6 +83,8 @@ class PolynomialCommitmentScheme:
         self.degree = max_degree
         self.group = group
         self.order = None
+        self.name = ""
+        self.is_setup = False
 
     def list_to_poly(self, values):
         assert len(values) <= self.degree
@@ -78,15 +92,31 @@ class PolynomialCommitmentScheme:
 
         return lagrange_interpolation(x_s, values, self.order)
 
+    @abstractmethod
+    def zero_commitment(self):
+        raise NotImplementedError()
+
+    @abstractmethod
     def setup(self):
         raise NotImplementedError()
 
+    @abstractmethod
     def commit(self, polynomial):
         raise NotImplementedError()
 
-    def open(self, polynomial, point, transcript=None):
+    @abstractmethod
+    def open(self, polynomial, point, commitment=None, transcript=None):
         raise NotImplementedError()
 
+    @abstractmethod
+    def prove(self, polynomial, point, transcript=None):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def verify(self, commitment, proof, point, evaluation, transcript=None):
+        raise NotImplementedError()
+
+    @abstractmethod
     def multi_open(
         self,
         points_query: MultiOpeningQuery,
@@ -94,13 +124,12 @@ class PolynomialCommitmentScheme:
     ):
         raise NotImplementedError()
 
-    def verify(self, commitment, proof, opening, point, transcript=None):
-        raise NotImplementedError()
-
+    @abstractmethod
     def multi_verify(
         self,
         points_query: MultiOpeningQuery,
-        proof,
-        transcript=None,
+        proof: list,
+        transcript: FiatShamirTranscript = None,
     ):
+
         raise NotImplementedError()
