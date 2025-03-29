@@ -73,16 +73,18 @@ def test_multi_ipa_pcs():
     poly2 = Polynomial([1, 2, 3, 4], ipa.order)
     poly3 = Polynomial([1, 2, 3, 0], ipa.order)
 
-    blind = random.randint(1, ipa.order)
+    blind1 = random.randint(1, ipa.order)
+    blind2 = random.randint(1, ipa.order)
+    blind3 = random.randint(1, ipa.order)
 
     x = 123
     y = 1234
 
     query = MultiOpeningQuery()
 
-    query.add_polynomial(poly1, ipa.commit(poly1, blind), blind)
-    query.add_polynomial(poly2, ipa.commit(poly2, blind), blind)
-    query.add_polynomial(poly3, ipa.commit(poly3, blind), blind)
+    query.add_polynomial(poly1, ipa.commit(poly1, blind1), blind1)
+    query.add_polynomial(poly2, ipa.commit(poly2, blind2), blind2)
+    query.add_polynomial(poly3, ipa.commit(poly3, blind3), blind3)
 
     query.prover_query(poly1, x)
     query.prover_query(poly2, x)

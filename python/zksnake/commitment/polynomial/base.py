@@ -1,7 +1,5 @@
-from abc import abstractmethod
-from collections import defaultdict
-from typing import Any, Dict, Optional
-from ...polynomial import lagrange_interpolation, Polynomial
+from abc import ABC, abstractmethod
+from ...polynomial import lagrange_interpolation
 from ...transcript import FiatShamirTranscript
 
 
@@ -77,7 +75,7 @@ class MultiOpeningQuery:
             yield point, commitments
 
 
-class PolynomialCommitmentScheme:
+class PolynomialCommitmentScheme(ABC):
 
     def __init__(self, max_degree, group):
         self.degree = max_degree
@@ -105,11 +103,7 @@ class PolynomialCommitmentScheme:
         raise NotImplementedError()
 
     @abstractmethod
-    def open(self, polynomial, point, commitment=None, transcript=None):
-        raise NotImplementedError()
-
-    @abstractmethod
-    def prove(self, polynomial, point, transcript=None):
+    def open(self, polynomial, point):
         raise NotImplementedError()
 
     @abstractmethod

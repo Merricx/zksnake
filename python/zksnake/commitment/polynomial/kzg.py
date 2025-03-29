@@ -50,70 +50,7 @@ class KZG(PolynomialCommitmentScheme):
 
         return proof, evaluation
 
-    def multi_open(self, points_query, transcript=None):
-        """
-        Implementation based on Multipoint opening argument
-        (https://zcash.github.io/halo2/design/proving-system/multipoint-opening.html)
-        """
-
-        assert self.is_setup, "Trusted setup has not been run"
-
-        transcript = transcript or FiatShamirTranscript(self.name.encode(), self.order)
-        transcript.append(points_query.commitments)
-
-        proof = []
-        verifier_query = MultiOpeningQuery()
-        for point, polys in points_query.get_polynomials():
-            for poly in polys:
-                evaluation = poly(point)
-                comm = points_query.to_commitment(poly)
-                verifier_query.verifier_query(comm, point, evaluation)
-
-                transcript.append(evaluation)
-
-        x1 = transcript.get_challenge_scalar()
-        x2 = transcript.get_challenge_scalar()
-
-        # group polynomials according to their evaluation points
-        q_polys, r_polys, points_list = self._group_evaluation(points_query, x1)
-
-        f_polys = []
-        for i, points in enumerate(points_list):
-            divisor = Polynomial([1], self.order)
-            for point in points:
-                divisor *= Polynomial([-point % self.order, 1], self.order)
-
-            quotient, remainder = (q_polys[i] - r_polys[i]) / divisor
-            assert remainder.is_zero()
-
-            f_polys.append(quotient)
-
-        f_poly = Polynomial([0], self.order)
-        for i, poly in enumerate(f_polys):
-            f_poly += pow(x2, i, self.order) * poly
-
-        f_commitment = self.commit(f_poly)
-
-        proof.append(f_commitment)
-        transcript.append(f_commitment)
-        x3 = transcript.get_challenge_scalar()
-
-        q_polys_x3 = [q(x3) for q in q_polys]
-
-        proof.extend(q_polys_x3)
-        transcript.append(q_polys_x3)
-        x4 = transcript.get_challenge_scalar()
-
-        final_poly = f_poly
-        for i, poly in enumerate(q_polys):
-            final_poly += pow(x4, i + 1, self.order) * poly
-
-        opening_proof, _ = self.open(final_poly, x3)
-        proof.append(opening_proof)
-
-        return proof, verifier_query
-
-    def verify(self, commitment, proof, point, evaluation):
+    def verify(self, commitment, proof, point, evaluation, transcript=None):
 
         assert self.is_setup, "Trusted setup has not been run"
 
@@ -189,6 +126,69 @@ class KZG(PolynomialCommitmentScheme):
             points_list.append(list(points))
 
         return q_polys, r_polys, points_list
+
+    def multi_open(self, points_query, transcript=None):
+        """
+        Implementation based on Multipoint opening argument
+        (https://zcash.github.io/halo2/design/proving-system/multipoint-opening.html)
+        """
+
+        assert self.is_setup, "Trusted setup has not been run"
+
+        transcript = transcript or FiatShamirTranscript(self.name.encode(), self.order)
+        transcript.append(points_query.commitments)
+
+        proof = []
+        verifier_query = MultiOpeningQuery()
+        for point, polys in points_query.get_polynomials():
+            for poly in polys:
+                evaluation = poly(point)
+                comm = points_query.to_commitment(poly)
+                verifier_query.verifier_query(comm, point, evaluation)
+
+                transcript.append(evaluation)
+
+        x1 = transcript.get_challenge_scalar()
+        x2 = transcript.get_challenge_scalar()
+
+        # group polynomials according to their evaluation points
+        q_polys, r_polys, points_list = self._group_evaluation(points_query, x1)
+
+        f_polys = []
+        for i, points in enumerate(points_list):
+            divisor = Polynomial([1], self.order)
+            for point in points:
+                divisor *= Polynomial([-point % self.order, 1], self.order)
+
+            quotient, remainder = (q_polys[i] - r_polys[i]) / divisor
+            assert remainder.is_zero()
+
+            f_polys.append(quotient)
+
+        f_poly = Polynomial([0], self.order)
+        for i, poly in enumerate(f_polys):
+            f_poly += pow(x2, i, self.order) * poly
+
+        f_commitment = self.commit(f_poly)
+
+        proof.append(f_commitment)
+        transcript.append(f_commitment)
+        x3 = transcript.get_challenge_scalar()
+
+        q_polys_x3 = [q(x3) for q in q_polys]
+
+        proof.extend(q_polys_x3)
+        transcript.append(q_polys_x3)
+        x4 = transcript.get_challenge_scalar()
+
+        final_poly = f_poly
+        for i, poly in enumerate(q_polys):
+            final_poly += pow(x4, i + 1, self.order) * poly
+
+        opening_proof, _ = self.open(final_poly, x3)
+        proof.append(opening_proof)
+
+        return proof, verifier_query
 
     def multi_verify(
         self,

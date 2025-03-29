@@ -43,6 +43,7 @@ class IPA(PolynomialCommitmentScheme):
     def zero_commitment(self):
         return self.E.curve.PointG1.identity()
 
+    # pylint: disable-next=arguments-differ
     def commit(self, polynomial, blinding: int):
 
         assert self.is_setup, "Trusted setup has not been run"
@@ -56,6 +57,7 @@ class IPA(PolynomialCommitmentScheme):
 
         return self.E.multiexp(self.G + [self.H], coeff + [blinding])
 
+    # pylint: disable-next=arguments-differ
     def open(
         self,
         polynomial,
