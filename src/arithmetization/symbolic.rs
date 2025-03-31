@@ -752,7 +752,7 @@ impl ConstraintSystem {
                     let is_subset = args.iter().all(|item| evaluated.contains(item));
 
                     if is_subset {
-                        let scope = PyDict::new_bound(py);
+                        let scope = PyDict::new(py);
 
                         for arg in args {
                             let value = self
@@ -762,7 +762,7 @@ impl ConstraintSystem {
                             scope.set_item(arg.to_string(), value)?;
                         }
 
-                        let result = func.call_bound(py, (), Some(&scope))?;
+                        let result = func.call(py, (), Some(&scope))?;
 
                         if let Ok(py_int) = result.downcast_bound::<PyInt>(py) {
                             let final_int = BigUint::parse_bytes(py_int.to_string().as_bytes(), 10)

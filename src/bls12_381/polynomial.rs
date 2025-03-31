@@ -129,27 +129,27 @@ impl Polynomial {
         }
     }
 
-    pub fn coeffs<'py>(&self, py: Python<'py>) -> PyResult<PyObject> {
+    pub fn coeffs<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         match &self.poly {
             PolynomialKind::Univariate(poly) => {
                 let mut r: Vec<BigUint> = vec![];
                 for c in poly.coeffs.iter() {
                     r.push(c.to_owned().into());
                 }
-                Ok(PyList::new_bound(py, r).into())
+                Ok(PyList::new(py, r)?.into_any())
             }
             PolynomialKind::Multivariate(poly) => {
-                let result = PyDict::new_bound(py);
+                let result = PyDict::new(py);
                 for (c, term) in poly.terms.iter() {
                     let mut terms: Vec<usize> = vec![0; poly.num_vars];
                     term.iter().for_each(|(v, power)| {
                         terms[*v] = *power;
                     });
-                    let key = PyTuple::new_bound(py, terms);
+                    let key = PyTuple::new(py, terms)?;
                     result.set_item::<&Bound<'py, PyTuple>, BigUint>(&key, c.to_owned().into())?;
                 }
 
-                Ok(result.into())
+                Ok(result.into_any())
             }
         }
     }

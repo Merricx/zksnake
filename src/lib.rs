@@ -4,7 +4,7 @@ mod bn254;
 use pyo3::prelude::*;
 
 fn register_bn254_module<'py>(py: Python, parent_module: &Bound<'py, PyModule>) -> PyResult<()> {
-    let ecc_module = PyModule::new_bound(py, "ec_bn254")?;
+    let ecc_module = PyModule::new(py, "ec_bn254")?;
     ecc_module.add_class::<bn254::curve::PointG1>()?;
     ecc_module.add_class::<bn254::curve::PointG2>()?;
     ecc_module.add_function(wrap_pyfunction!(bn254::curve::g1, &ecc_module)?)?;
@@ -36,7 +36,7 @@ fn register_bls12_381_module<'py>(
     py: Python,
     parent_module: &Bound<'py, PyModule>,
 ) -> PyResult<()> {
-    let ecc_module = PyModule::new_bound(py, "ec_bls12_381")?;
+    let ecc_module = PyModule::new(py, "ec_bls12_381")?;
     ecc_module.add_class::<bls12_381::curve::PointG1>()?;
     ecc_module.add_class::<bls12_381::curve::PointG2>()?;
     ecc_module.add_function(wrap_pyfunction!(bls12_381::curve::g1, &ecc_module)?)?;
@@ -71,7 +71,7 @@ fn register_polynomial_module<'py>(
     py: Python,
     parent_module: &Bound<'py, PyModule>,
 ) -> PyResult<()> {
-    let poly_bn254_module = PyModule::new_bound(py, "polynomial_bn254")?;
+    let poly_bn254_module = PyModule::new(py, "polynomial_bn254")?;
     poly_bn254_module.add_class::<bn254::polynomial::Polynomial>()?;
     poly_bn254_module.add_class::<bn254::mle::MultilinearPolynomial>()?;
     poly_bn254_module.add_function(wrap_pyfunction!(
@@ -115,7 +115,7 @@ fn register_polynomial_module<'py>(
         &poly_bn254_module
     )?)?;
 
-    let poly_bls12_381_module = PyModule::new_bound(py, "polynomial_bls12_381")?;
+    let poly_bls12_381_module = PyModule::new(py, "polynomial_bls12_381")?;
     poly_bls12_381_module.add_class::<bls12_381::polynomial::Polynomial>()?;
     poly_bls12_381_module.add_class::<bls12_381::mle::MultilinearPolynomial>()?;
     poly_bls12_381_module.add_function(wrap_pyfunction!(
@@ -166,7 +166,7 @@ fn register_polynomial_module<'py>(
 }
 
 fn register_circuit_module<'py>(py: Python, parent_module: &Bound<'py, PyModule>) -> PyResult<()> {
-    let circuit_module = PyModule::new_bound(py, "circuit")?;
+    let circuit_module = PyModule::new(py, "circuit")?;
     circuit_module.add_class::<arithmetization::symbolic::Field>()?;
     circuit_module.add_class::<arithmetization::symbolic::ConstraintSystem>()?;
     parent_module.add_submodule(&circuit_module)?;
