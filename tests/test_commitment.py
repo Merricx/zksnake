@@ -1,3 +1,4 @@
+import pytest
 import random
 from zksnake.commitment.polynomial import KZG, IPA, MultiOpeningQuery
 from zksnake.polynomial import Polynomial
