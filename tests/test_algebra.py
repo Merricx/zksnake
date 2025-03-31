@@ -1,5 +1,6 @@
 import pytest
-from zksnake.polynomial import *
+from zksnake.constant import BN254_SCALAR_FIELD, BLS12_381_SCALAR_FIELD
+from zksnake.polynomial import Polynomial
 
 
 def test_univariate_polynomial():
