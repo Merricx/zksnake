@@ -53,7 +53,7 @@ jobs:
         shell: bash
         run: |
           set -e
-          pip install zksnake --find-links dist --force-reinstall
+          pip install zksnake --find-links dist --force-reinstall --no-index
           pip install pytest pylint
           pylint --disable=R,C,fixme,import-error python
           pytest
@@ -78,7 +78,7 @@ jobs:
           run: |
             set -e
             source /venv/bin/activate
-            pip3 install zksnake --find-links dist --force-reinstall
+            pip3 install zksnake --find-links dist --force-reinstall --no-index
             python3 -m pylint --disable=R,C,fixme,import-error python
             python3 -m pytest
 
@@ -113,7 +113,7 @@ jobs:
         shell: bash
         run: |
           set -e
-          pip install zksnake --find-links dist --force-reinstall
+          pip install zksnake --find-links dist --force-reinstall --no-index
           pip install pytest pylint
           pylint --disable=R,C,fixme,import-error python
           pytest
