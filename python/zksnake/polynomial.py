@@ -14,7 +14,7 @@ POLY_OBJECT = {
 }
 
 
-def PolynomialRing(
+def Polynomial(
     coeffs: Union[Sequence[int], Dict[Tuple[int], int]], p, domain_size=None
 ):
     """
@@ -55,7 +55,7 @@ def PolynomialRing(
     else:
         raise TypeError("Coefficients must be in list or dict")
 
-    return poly.PolynomialRing(num_vars, coeff_terms, domain_size)
+    return poly.Polynomial(num_vars, coeff_terms, domain_size)
 
 
 def MultilinearPolynomial(num_vars: int, sparse_evaluations: Tuple[int, int], p: int):
@@ -69,22 +69,22 @@ def MultilinearPolynomial(num_vars: int, sparse_evaluations: Tuple[int, int], p:
     return poly.MultilinearPolynomial(num_vars, sparse_evaluations)
 
 
-def get_nth_root_of_unity(domain, i, p) -> int:
+def get_evaluation_point(domain, i, p) -> int:
     """
-    get `i`th root of unity over evaluation domain of size `domain`
+    get `i`th element over evaluation domain of size `domain`
     """
     if i == 0:
         return 1
     poly = POLY_OBJECT[p]
-    return poly.get_nth_root_of_unity(domain, i)
+    return poly.get_evaluation_point(domain, i)
 
 
-def get_all_root_of_unity(domain, p) -> list:
+def get_all_evaluation_points(domain, p) -> list:
     """
     get all elements of evaluation domain of size `domain`
     """
     poly = POLY_OBJECT[p]
-    return poly.get_all_root_of_unity(domain)
+    return poly.get_all_evaluation_points(domain)
 
 
 def fft(coeffs, p, size=None):
@@ -160,7 +160,7 @@ def mul_over_fft(domain, a, b, p, return_poly=True):
     ab_fft = mul_over_evaluation_domain(len(a_fft), a_fft, b_fft, p)
 
     if return_poly:
-        return PolynomialRing(ifft(ab_fft, p), p, domain)
+        return Polynomial(ifft(ab_fft, p), p, domain)
 
     return ab_fft
 
@@ -205,7 +205,7 @@ def barycentric_eval(domain, sparse_eval: dict, x, p):
     """
     Evaluate a polynomial at a given point x using sparse evaluation form.
     """
-    omega = get_nth_root_of_unity(domain, 1, p)
+    omega = get_evaluation_point(domain, 1, p)
 
     sum_i = 0
     for i in sparse_eval:
@@ -221,9 +221,9 @@ def lagrange_interpolation(x, y, p):
     For very large points, use iFFT instead.
     """
     M = len(x)
-    poly = PolynomialRing([0], p)
+    poly = Polynomial([0], p)
     for j in range(M):
-        pt = PolynomialRing([y[j]], p)
+        pt = Polynomial([y[j]], p)
         for k in range(M):
             if k == j:
                 continue
@@ -232,6 +232,6 @@ def lagrange_interpolation(x, y, p):
             res = []
             for c in divided_poly:
                 res.append(c * pow(fac, -1, p) % p)
-            pt *= PolynomialRing(res, p)
+            pt *= Polynomial(res, p)
         poly += pt
     return poly

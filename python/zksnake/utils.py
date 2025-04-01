@@ -15,10 +15,10 @@ def get_n_jobs():
     if check_env:
         return int(check_env)
     else:
-        return -1
+        return 1
 
 
-def split_list(data, n):
+def split_list(data: bytes, n: int):
     """Split data into n chunks"""
     return [data[i : i + n] for i in range(0, len(data), n)]
 
@@ -30,6 +30,13 @@ def next_power_of_two(n: int):
 
 def is_power_of_two(n):
     return (n & (n - 1)) == 0
+
+
+def inner_product(a, b, p):
+    """
+    Compute inner product `<a, b>` over modulus `p`
+    """
+    return sum(a * b for a, b in zip(a, b)) % p
 
 
 def batch_modinv(a: list, m: int):

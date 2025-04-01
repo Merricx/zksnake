@@ -1,3 +1,5 @@
+use std::hash::{DefaultHasher, Hash, Hasher};
+
 use ark_bls12_381::{
     g1::Config, Bls12_381, Fq, Fr, G1Affine, G1Projective, G2Affine, G2Projective,
 };
@@ -66,6 +68,12 @@ impl PointG1 {
 
     fn __repr__(&self) -> String {
         self.__str__()
+    }
+
+    fn __hash__(&self) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        Hash::hash(&self.point, &mut hasher);
+        hasher.finish()
     }
 
     pub fn __add__(&self, other: Self) -> PyResult<Self> {
@@ -246,6 +254,12 @@ impl PointG2 {
 
     fn __repr__(&self) -> String {
         self.__str__()
+    }
+
+    fn __hash__(&self) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        Hash::hash(&self.point, &mut hasher);
+        hasher.finish()
     }
 
     pub fn __add__(&self, other: Self) -> PyResult<Self> {

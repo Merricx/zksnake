@@ -13,11 +13,11 @@ def test_ipa_bn254():
     b = [1, 2, 3, 4]
 
     ipa = InnerProductArgument(8, "BN254")
-    proof, comm = ipa.prove(a, b)
+    proof, comm, z = ipa.prove(a, b)
 
     proof = proof.to_bytes()
 
-    assert ipa.verify(InnerProductProof.from_bytes(proof), comm)
+    assert ipa.verify(InnerProductProof.from_bytes(proof), comm, z)
 
 
 def test_ipa_bls12_381():
@@ -26,11 +26,11 @@ def test_ipa_bls12_381():
     b = [1, 2, 3, 4]
 
     ipa = InnerProductArgument(8, "BLS12_381")
-    proof, comm = ipa.prove(a, b)
+    proof, comm, z = ipa.prove(a, b)
 
     proof = proof.to_bytes()
 
-    assert ipa.verify(InnerProductProof.from_bytes(proof, "BLS12_381"), comm)
+    assert ipa.verify(InnerProductProof.from_bytes(proof, "BLS12_381"), comm, z)
 
 
 def test_range_proof_bn254():

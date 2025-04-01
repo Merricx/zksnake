@@ -4,7 +4,7 @@ use ark_poly::{
     multivariate::{SparsePolynomial, SparseTerm, Term},
     polynomial::univariate::DensePolynomial,
     univariate, DenseMVPolynomial, DenseUVPolynomial, EvaluationDomain, GeneralEvaluationDomain,
-    Polynomial,
+    Polynomial as Poly,
 };
 use num_bigint::BigUint;
 use pyo3::{
@@ -16,7 +16,7 @@ use rayon::prelude::*;
 
 #[pyclass]
 #[derive(Clone, Debug, PartialEq)]
-pub struct PolynomialRing {
+pub struct Polynomial {
     poly: PolynomialKind,
     domain: GeneralEvaluationDomain<Fr>,
 }
@@ -28,7 +28,7 @@ enum PolynomialKind {
 }
 
 #[pymethods]
-impl PolynomialRing {
+impl Polynomial {
     #[new]
     pub fn new(
         num_vars: usize,
@@ -46,7 +46,7 @@ impl PolynomialRing {
             ));
 
             let domain = EvaluationDomain::new(size).unwrap();
-            Ok(PolynomialRing { poly, domain })
+            Ok(Polynomial { poly, domain })
         } else {
             let mut fp_coeffs = vec![];
             for (coeff, _) in coeffs.clone() {
@@ -55,7 +55,7 @@ impl PolynomialRing {
             let poly =
                 PolynomialKind::Univariate(DensePolynomial::from_coefficients_vec(fp_coeffs));
             let domain = EvaluationDomain::new(size).unwrap();
-            Ok(PolynomialRing { poly, domain })
+            Ok(Polynomial { poly, domain })
         }
     }
 
@@ -129,27 +129,27 @@ impl PolynomialRing {
         }
     }
 
-    pub fn coeffs<'py>(&self, py: Python<'py>) -> PyResult<PyObject> {
+    pub fn coeffs<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         match &self.poly {
             PolynomialKind::Univariate(poly) => {
                 let mut r: Vec<BigUint> = vec![];
                 for c in poly.coeffs.iter() {
                     r.push(c.to_owned().into());
                 }
-                Ok(PyList::new_bound(py, r).into())
+                Ok(PyList::new(py, r)?.into_any())
             }
             PolynomialKind::Multivariate(poly) => {
-                let result = PyDict::new_bound(py);
+                let result = PyDict::new(py);
                 for (c, term) in poly.terms.iter() {
                     let mut terms: Vec<usize> = vec![0; poly.num_vars];
                     term.iter().for_each(|(v, power)| {
                         terms[*v] = *power;
                     });
-                    let key = PyTuple::new_bound(py, terms);
+                    let key = PyTuple::new(py, terms)?;
                     result.set_item::<&Bound<'py, PyTuple>, BigUint>(&key, c.to_owned().into())?;
                 }
 
-                Ok(result.into())
+                Ok(result.into_any())
             }
         }
     }
@@ -169,7 +169,7 @@ impl PolynomialRing {
                     let adder: Fr = other_int.into();
                     coeffs[0] = coeffs[0] + adder;
 
-                    Ok(PolynomialRing {
+                    Ok(Polynomial {
                         poly: PolynomialKind::Univariate(DensePolynomial::from_coefficients_vec(
                             coeffs.to_vec(),
                         )),
@@ -193,7 +193,7 @@ impl PolynomialRing {
                         terms.push((adder, SparseTerm::new(vec![])));
                     }
 
-                    Ok(PolynomialRing {
+                    Ok(Polynomial {
                         poly: PolynomialKind::Multivariate(
                             SparsePolynomial::from_coefficients_vec(poly.num_vars, terms.to_vec()),
                         ),
@@ -201,18 +201,18 @@ impl PolynomialRing {
                     })
                 }
             }
-        } else if let Ok(other_poly) = other.extract::<PolynomialRing>() {
+        } else if let Ok(other_poly) = other.extract::<Polynomial>() {
             match (&self.poly, &other_poly.poly) {
                 (PolynomialKind::Univariate(poly), PolynomialKind::Univariate(other)) => {
                     let result = poly + other;
-                    Ok(PolynomialRing {
+                    Ok(Polynomial {
                         poly: PolynomialKind::Univariate(result),
                         domain: self.domain,
                     })
                 }
                 (PolynomialKind::Multivariate(poly), PolynomialKind::Multivariate(other)) => {
                     let result = poly + other;
-                    Ok(PolynomialRing {
+                    Ok(Polynomial {
                         poly: PolynomialKind::Multivariate(result),
                         domain: self.domain,
                     })
@@ -236,11 +236,11 @@ impl PolynomialRing {
 
     pub fn __neg__(&self) -> PyResult<Self> {
         match &self.poly {
-            PolynomialKind::Univariate(poly) => Ok(PolynomialRing {
+            PolynomialKind::Univariate(poly) => Ok(Polynomial {
                 poly: PolynomialKind::Univariate(-poly.clone()),
                 domain: self.domain,
             }),
-            PolynomialKind::Multivariate(poly) => Ok(PolynomialRing {
+            PolynomialKind::Multivariate(poly) => Ok(Polynomial {
                 poly: PolynomialKind::Multivariate(-poly.clone()),
                 domain: self.domain,
             }),
@@ -255,7 +255,7 @@ impl PolynomialRing {
                     let substractor: Fr = other_int.into();
                     coeffs[0] = coeffs[0] - substractor;
 
-                    Ok(PolynomialRing {
+                    Ok(Polynomial {
                         poly: PolynomialKind::Univariate(DensePolynomial::from_coefficients_vec(
                             coeffs.to_vec(),
                         )),
@@ -279,7 +279,7 @@ impl PolynomialRing {
                         terms.push((-substractor, SparseTerm::new(vec![])));
                     }
 
-                    Ok(PolynomialRing {
+                    Ok(Polynomial {
                         poly: PolynomialKind::Multivariate(
                             SparsePolynomial::from_coefficients_vec(poly.num_vars, terms.to_vec()),
                         ),
@@ -287,18 +287,18 @@ impl PolynomialRing {
                     })
                 }
             }
-        } else if let Ok(other_poly) = other.extract::<PolynomialRing>() {
+        } else if let Ok(other_poly) = other.extract::<Polynomial>() {
             match (&self.poly, &other_poly.poly) {
                 (PolynomialKind::Univariate(poly), PolynomialKind::Univariate(other)) => {
                     let result = poly - other;
-                    Ok(PolynomialRing {
+                    Ok(Polynomial {
                         poly: PolynomialKind::Univariate(result),
                         domain: self.domain,
                     })
                 }
                 (PolynomialKind::Multivariate(poly), PolynomialKind::Multivariate(other)) => {
                     let result = poly - other;
-                    Ok(PolynomialRing {
+                    Ok(Polynomial {
                         poly: PolynomialKind::Multivariate(result),
                         domain: self.domain,
                     })
@@ -325,7 +325,7 @@ impl PolynomialRing {
 
                     let new_coeffs: Vec<Fr> = coeffs.par_iter().map(|&e| e * mult).collect();
 
-                    Ok(PolynomialRing {
+                    Ok(Polynomial {
                         poly: PolynomialKind::Univariate(DensePolynomial::from_coefficients_vec(
                             new_coeffs.to_vec(),
                         )),
@@ -341,7 +341,7 @@ impl PolynomialRing {
                         .map(|(coeff, term)| (coeff * &mult, term.clone()))
                         .collect();
 
-                    Ok(PolynomialRing {
+                    Ok(Polynomial {
                         poly: PolynomialKind::Multivariate(
                             SparsePolynomial::from_coefficients_vec(poly.num_vars, new_terms),
                         ),
@@ -349,17 +349,17 @@ impl PolynomialRing {
                     })
                 }
             }
-        } else if let Ok(other_poly) = other.extract::<PolynomialRing>() {
+        } else if let Ok(other_poly) = other.extract::<Polynomial>() {
             match (&self.poly, &other_poly.poly) {
                 (PolynomialKind::Univariate(poly), PolynomialKind::Univariate(other)) => {
-                    Ok(PolynomialRing {
+                    Ok(Polynomial {
                         poly: PolynomialKind::Univariate(DensePolynomial::naive_mul(&poly, &other)),
                         domain: self.domain,
                     })
                 }
                 (PolynomialKind::Multivariate(poly), PolynomialKind::Multivariate(other)) => {
                     if poly.is_zero() || other.is_zero() {
-                        Ok(PolynomialRing {
+                        Ok(Polynomial {
                             poly: PolynomialKind::Multivariate(SparsePolynomial::zero()),
                             domain: self.domain,
                         })
@@ -378,7 +378,7 @@ impl PolynomialRing {
                             result_terms.as_slice(),
                         );
 
-                        Ok(PolynomialRing {
+                        Ok(Polynomial {
                             poly: PolynomialKind::Multivariate(result),
                             domain: self.domain,
                         })
@@ -401,7 +401,7 @@ impl PolynomialRing {
         self.__mul__(other)
     }
 
-    pub fn __truediv__(&self, other: Self) -> PyResult<[PolynomialRing; 2]> {
+    pub fn __truediv__(&self, other: Self) -> PyResult<[Polynomial; 2]> {
         match (&self.poly, &other.poly) {
             (PolynomialKind::Univariate(poly), PolynomialKind::Univariate(other)) => {
                 let result = univariate::DenseOrSparsePolynomial::divide_with_q_and_r(
@@ -414,11 +414,11 @@ impl PolynomialRing {
                         let q_coeffs = quotient.coeffs.len();
                         let r_coeffs = remainder.coeffs.len();
                         Ok((
-                            PolynomialRing {
+                            Polynomial {
                                 poly: PolynomialKind::Univariate(quotient),
                                 domain: EvaluationDomain::new(q_coeffs).unwrap(),
                             },
-                            PolynomialRing {
+                            Polynomial {
                                 poly: PolynomialKind::Univariate(remainder),
                                 domain: EvaluationDomain::new(r_coeffs).unwrap(),
                             },
@@ -444,7 +444,7 @@ impl PolynomialRing {
         }
     }
 
-    pub fn multiply_by_vanishing_poly(&self) -> PyResult<PolynomialRing> {
+    pub fn multiply_by_vanishing_poly(&self) -> PyResult<Polynomial> {
         match &self.poly {
             PolynomialKind::Univariate(poly) => {
                 let result = PolynomialKind::Univariate(DensePolynomial::mul_by_vanishing_poly(
@@ -452,7 +452,7 @@ impl PolynomialRing {
                     self.domain,
                 ));
 
-                Ok(PolynomialRing {
+                Ok(Polynomial {
                     poly: result,
                     domain: self.domain,
                 })
@@ -463,17 +463,17 @@ impl PolynomialRing {
         }
     }
 
-    pub fn divide_by_vanishing_poly(&self) -> PyResult<[PolynomialRing; 2]> {
+    pub fn divide_by_vanishing_poly(&self) -> PyResult<[Polynomial; 2]> {
         match &self.poly {
             PolynomialKind::Univariate(poly) => {
                 let result = DensePolynomial::divide_by_vanishing_poly(&poly, self.domain);
                 match result {
                     Some((quotient, remainder)) => Ok((
-                        PolynomialRing {
+                        Polynomial {
                             poly: PolynomialKind::Univariate(quotient),
                             domain: self.domain,
                         },
-                        PolynomialRing {
+                        Polynomial {
                             poly: PolynomialKind::Univariate(remainder),
                             domain: self.domain,
                         },
@@ -516,14 +516,14 @@ impl PolynomialRing {
 }
 
 #[pyfunction]
-pub fn get_nth_root_of_unity(domain: usize, i: usize) -> PyResult<BigUint> {
+pub fn get_evaluation_point(domain: usize, i: usize) -> PyResult<BigUint> {
     let domain: GeneralEvaluationDomain<Fr> = EvaluationDomain::new(domain).unwrap();
 
     Ok(EvaluationDomain::element(&domain, i).into())
 }
 
 #[pyfunction]
-pub fn get_all_root_of_unity(domain: usize) -> PyResult<Vec<BigUint>> {
+pub fn get_all_evaluation_points(domain: usize) -> PyResult<Vec<BigUint>> {
     let domain: GeneralEvaluationDomain<Fr> = EvaluationDomain::new(domain).unwrap();
 
     Ok(EvaluationDomain::elements(&domain)

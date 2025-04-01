@@ -1,4 +1,4 @@
-from ...utils import next_power_of_two, split_list
+from ...utils import inner_product, next_power_of_two, split_list
 from ...transcript import FiatShamirTranscript, hash_to_curve
 from ...ecc import CurvePointSize, EllipticCurve
 
@@ -59,10 +59,7 @@ class InnerProductArgument:
         self.E = EllipticCurve(curve)
         self.G = hash_to_curve(seed, b"G", curve, self.n)
         self.H = hash_to_curve(seed, b"H", curve, self.n)
-        self.Q = Q or hash_to_curve(seed, b"Q", curve, 1)
-
-    def __inner_product(self, a, b):
-        return sum(a * b for a, b in zip(a, b)) % self.E.order
+        self.Q = Q
 
     def __split_half(self, data: list):
         if len(data) > 2:
@@ -88,10 +85,14 @@ class InnerProductArgument:
         for h in self.H:
             transcript.append(h)
 
-        ab = self.__inner_product(a, b)
+        ab = inner_product(a, b, self.E.order)
 
-        # vector commitment of Cp = <a,G> + <b,H> + <a,b> * Q
-        Cp = self.E.multiexp(self.G, a) + self.E.multiexp(self.H, b) + ab * self.Q
+        commitment = self.E.multiexp(self.G + self.H, a + b)
+        if self.Q:
+            Q = self.Q
+        else:
+            transcript.append(commitment)
+            Q = hash_to_curve(transcript.get_challenge(), b"Q", self.E.name)
 
         L_list = []
         R_list = []
@@ -112,12 +113,12 @@ class InnerProductArgument:
             L = (
                 self.E.multiexp(G_hi, a_low)
                 + self.E.multiexp(H_low, b_hi)
-                + self.__inner_product(a_low, b_hi) * self.Q
+                + inner_product(a_low, b_hi, self.E.order) * Q
             )
             R = (
                 self.E.multiexp(G_low, a_hi)
                 + self.E.multiexp(H_hi, b_low)
-                + self.__inner_product(a_hi, b_low) * self.Q
+                + inner_product(a_hi, b_low, self.E.order) * Q
             )
 
             L_list.append(L)
@@ -146,9 +147,15 @@ class InnerProductArgument:
         a = a[0]
         b = b[0]
 
-        return InnerProductProof(a, b, L_list, R_list), Cp
+        return InnerProductProof(a, b, L_list, R_list), commitment, ab
 
-    def verify(self, proof: InnerProductProof, commitment, transcript=None):
+    def verify(
+        self,
+        proof: InnerProductProof,
+        commitment,
+        inner_product_result,
+        transcript=None,
+    ):
 
         assert len(proof.L) < 32, "Argument size is too big"
 
@@ -160,6 +167,9 @@ class InnerProductArgument:
             transcript.append(g)
         for h in self.H:
             transcript.append(h)
+
+        transcript.append(commitment)
+        Q = hash_to_curve(transcript.get_challenge(), b"Q", self.E.name)
 
         k = len(proof.L)
         challenges = []
@@ -191,11 +201,13 @@ class InnerProductArgument:
         for j in range(k):
             sum_LR += proof.L[j] * challenges[j] + proof.R[j] * challenges_inv[j]
 
+        lhs = commitment + inner_product_result * Q
+
         rhs = (
             self.E.multiexp(self.G, a_s)
             + self.E.multiexp(self.H, b_s_inv)
-            + proof.a * proof.b * self.Q
+            + proof.a * proof.b * Q
             - sum_LR
         )
 
-        return commitment == rhs
+        return lhs == rhs

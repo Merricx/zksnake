@@ -2,7 +2,7 @@ from ..utils import next_power_of_two
 from ..constant import BN254_SCALAR_FIELD
 from ..arithmetization.r1cs import R1CS
 from ..polynomial import (
-    PolynomialRing,
+    Polynomial,
     ifft,
     mul_over_fft,
 )
@@ -55,16 +55,15 @@ class QAP:
         c = self.c.dot(witness)
 
         # polynomial interpolation via IFFT
-        u = PolynomialRing(ifft(a, self.p), self.p)
-        v = PolynomialRing(ifft(b, self.p), self.p)
-        w = PolynomialRing(ifft(c, self.p), self.p)
+        u = Polynomial(ifft(a, self.p), self.p)
+        v = Polynomial(ifft(b, self.p), self.p)
+        w = Polynomial(ifft(c, self.p), self.p)
 
         # UV = IFFT( FFT(U) * FFT(V) )
         uv = mul_over_fft(self.a.n_row, u, v, self.p)
 
         # H = (U * V - W) / Z
-        # subtraction swap is needed to keep the evaluation domain of the polynomial intact
-        hz = -(w - uv)
+        hz = uv - w
         h, remainder = hz.divide_by_vanishing_poly()
         if not remainder.is_zero():
             raise ValueError("(U * V - W) did not divided by Z to zero")

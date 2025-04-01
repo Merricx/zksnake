@@ -3,8 +3,8 @@ from ..arithmetization import LayeredCircuit
 from ..constant import BN254_SCALAR_FIELD
 from ..polynomial import (
     MultilinearPolynomial,
-    PolynomialRing,
-    get_all_root_of_unity,
+    Polynomial,
+    get_all_evaluation_points,
     ifft,
 )
 from ..transcript import FiatShamirTranscript
@@ -72,14 +72,14 @@ class GkrPolynomial(SumcheckPolynomial):
     def to_univariate(self):
 
         evals = []
-        roots = get_all_root_of_unity(3, self.p)
+        roots = get_all_evaluation_points(3, self.p)
         for i in roots:
             s = sum(self.partial_evaluate([i]).to_evaluations()) % self.p
             evals.append(s)
 
         coeffs = ifft(evals, self.p)
 
-        return PolynomialRing(coeffs, self.p)
+        return Polynomial(coeffs, self.p)
 
     def first_round(self):
         g1 = self.to_univariate()
@@ -203,13 +203,13 @@ class GKR:
 
         def recursive_restrict(evals, b, k, idx):
             if idx == len(b):
-                return PolynomialRing([evals[0]], self.order)
+                return Polynomial([evals[0]], self.order)
 
             mid = len(evals) // 2
             poly_low = recursive_restrict(evals[:mid], b, k, idx + 1)
             poly_hi = recursive_restrict(evals[mid:], b, k, idx + 1)
 
-            t = PolynomialRing([b[idx], k[idx]], self.order)
+            t = Polynomial([b[idx], k[idx]], self.order)
             return poly_low + (poly_hi - poly_low) * t
 
         return recursive_restrict(w_evals, b, k, 0)
@@ -251,7 +251,7 @@ class GKR:
             c = challenges[n_next:]
 
             l = [
-                PolynomialRing([b_val, (c_val - b_val) % self.order], self.order)
+                Polynomial([b_val, (c_val - b_val) % self.order], self.order)
                 for b_val, c_val in zip(b, c)
             ]
             q = self._restrict_to_line(f.w_b, b[::-1], c[::-1])
@@ -319,7 +319,7 @@ class GKR:
 
             # last sumcheck round
             l = [
-                PolynomialRing([b_val, (c_val - b_val) % self.order], self.order)
+                Polynomial([b_val, (c_val - b_val) % self.order], self.order)
                 for b_val, c_val in zip(b, c)
             ]
             q, z1, z2 = round_proof[-1]
