@@ -39,32 +39,39 @@ class FiatShamirTranscript:
 
     def append(self, data):
 
+        data_bytes = b""
         if isinstance(data, bytes):
-            self.hasher.update(data)
+            data_bytes = data
         elif isinstance(data, str):
-            self.hasher.update(data.encode())
+            data_bytes = data.encode()
         elif isinstance(data, int):
-            data = int.to_bytes(data, data.bit_length(), "big")
-            self.hasher.update(data)
+            data_bytes = int.to_bytes(data, data.bit_length(), "big")
         elif data and isinstance(data, list) and isinstance(data[0], int):
             for d in data:
                 d = int.to_bytes(d, d.bit_length(), "big")
-                self.hasher.update(d)
+                data_bytes += d
         elif ispointG1(data) or ispointG2(data):
-            self.hasher.update(bytes(data.to_bytes()))
+            data_bytes = bytes(data.to_bytes())
         elif (
             data
             and isinstance(data, list)
             and (ispointG1(data[0]) or ispointG2(data[0]))
         ):
             for d in data:
-                self.hasher.update(bytes(d.to_bytes()))
+                data_bytes += d.to_bytes()
         else:
             raise TypeError(f"Type of {type(data)} is not supported as transcript")
+
+        self.hasher.update(data_bytes)
+        self.state.append(data_bytes)
+
+    def get_hasher_state(self) -> bytes:
+        return b"".join(self.state)
 
     def get_challenge(self) -> bytes:
         digest = self.hasher.digest()
         self.hasher = hashlib.new(self.alg, digest)
+        self.state = [digest]
         return digest
 
     def get_challenge_scalar(self) -> int:

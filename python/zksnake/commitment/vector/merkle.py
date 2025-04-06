@@ -1,17 +1,19 @@
 import hashlib
 from .base import VectorCommitmentScheme
 
+
 class Merkle(VectorCommitmentScheme):
 
-    def __init__(self, alg='blake2b'):
+    def __init__(self, alg="blake2b", digest_size=32):
         super().__init__()
         self.alg = alg
+        self.digest_size = digest_size
 
     def setup(self):
         pass
 
     def _hash(self, data):
-        return hashlib.new(self.alg, data).digest()
+        return hashlib.new(self.alg, data, digest_size=self.digest_size).digest()
 
     def _build_tree(self, nodes):
         tree = [nodes]
