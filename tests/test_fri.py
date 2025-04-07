@@ -19,12 +19,12 @@ def test_fri_low():
 
 def test_fri_high():
 
-    fri = FRI(128, BN254_SCALAR_FIELD, folding_factor=8, last_layer_degree_bound=15)
+    fri = FRI(2048, BN254_SCALAR_FIELD, folding_factor=4, last_layer_degree_bound=1)
 
     # pre-seeded to avoid long Proof of Work
     random.seed("test")
     commitment, proof = fri.prove(
-        [random.randint(1, BN254_SCALAR_FIELD - 1) for _ in range(128)]
+        [random.randint(1, BN254_SCALAR_FIELD - 1) for _ in range(2048)]
     )
 
     assert fri.verify(commitment, proof)

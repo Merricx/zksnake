@@ -16,6 +16,9 @@ class Merkle(VectorCommitmentScheme):
         return hashlib.new(self.alg, data, digest_size=self.digest_size).digest()
 
     def _build_tree(self, nodes):
+        if len(nodes) % 2 != 0:
+            nodes += [b""]
+
         tree = [nodes]
         while len(nodes) > 1:
             new_level = []

@@ -13,7 +13,7 @@ class FRI:
         max_degree,
         field,
         folding_factor=2,
-        last_layer_degree_bound=3,
+        last_layer_degree_bound=1,
         pow_bits=20,
         hash_alg="blake2b",
     ):
@@ -25,10 +25,7 @@ class FRI:
         self.merkle_tree = Merkle(hash_alg)
 
         assert is_power_of_two(folding_factor)
-        assert (
-            last_layer_degree_bound >= 1
-            and last_layer_degree_bound + 1 >= folding_factor
-        )
+        assert last_layer_degree_bound >= 1
         assert 20 <= pow_bits <= 50
 
         self.folding_factor = folding_factor
@@ -45,6 +42,7 @@ class FRI:
     def _fold(self, codeword: list[int], challenge: int):
 
         next_domain = len(codeword) // self.folding_factor
+
         folded = []
         for i in range(next_domain):
             acc = 0
@@ -67,6 +65,7 @@ class FRI:
         # w     -w      w^2    -w^2        w^3    -w^3
         codeword_bytes = []
         next_domain = len(codeword) // self.folding_factor
+
         for i in range(next_domain):
             leave = b""
             for j in range(self.folding_factor):
@@ -166,7 +165,10 @@ class FRI:
             target = current_layer[s]
 
             current_layer_proof = self.merkle_tree.open(current_layer, s)
-            current_domain //= self.folding_factor
+
+            if current_domain >= self.folding_factor:
+                current_domain //= self.folding_factor
+
             s %= current_domain
 
             opening_proof.append((current_layer_proof, target))
@@ -177,7 +179,7 @@ class FRI:
 
         assert len(codeword) <= self.max_degree + 1
         # pad the codeword
-        codeword = codeword + [0 for _ in range(self.max_degree - len(codeword) - 1)]
+        codeword = codeword + [0 for _ in range(self.max_degree + 1 - len(codeword))]
 
         transcript = transcript or FiatShamirTranscript(b"FRI", self.order)
         self._init_transcript(transcript)
@@ -231,7 +233,7 @@ class FRI:
 
             if i != len(proof) - 1:
                 current_domain //= self.folding_factor
-                index = index % current_domain
+                index %= current_domain
 
         assert prev_layer_eval == last_poly(
             get_evaluation_point(current_domain, index, self.order)
