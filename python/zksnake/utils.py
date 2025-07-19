@@ -75,4 +75,4 @@ class Timer:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.end_time = time.time()
         elapsed_time = self.end_time - self.start_time
-        print(f"{self.name}: {elapsed_time:.2f} seconds")
+        print(f"{self.name}: {elapsed_time:.5f} seconds")

@@ -204,15 +204,17 @@ class IPA(PolynomialCommitmentScheme):
 
             C = u_inv * L_list[i] + C + u * R_list[i]
 
-        # TODO: this can be optimized by avoiding poly multiplication
-        g = Polynomial([1], self.order)
+        g_coeffs = [1]
         for i in range(m):
-            coeff = [1] + [0] * 2**i
-            coeff[-1] = u_list[m - i - 1]
-            g *= Polynomial(coeff, self.order)
+            exp = 2**i
+            new_coeffs = g_coeffs + [0] * exp
+            for j in range(len(g_coeffs)):
+                new_coeffs[j + exp] += (g_coeffs[j] * u_list[m - i - 1]) % self.order
 
-        G = self.E.multiexp(self.G, g.coeffs())
-        b = inner_product(b, g.coeffs(), self.order)
+            g_coeffs = new_coeffs
+
+        G = self.E.multiexp(self.G, g_coeffs)
+        b = inner_product(b, g_coeffs, self.order)
 
         return C == self.E.multiexp([G, h_prime], [c, c * b % self.order])
 

@@ -7,6 +7,13 @@ from ..utils import is_power_of_two, next_power_of_two
 
 
 class FRI:
+    """
+    FRI protocol (Fast Reed-Solomon Interactive Oracle Proofs of Proximity)
+    (https://eccc.weizmann.ac.il/report/2017/134/)
+
+    with the proof optimizations based on ethSTARK documentation
+    (https://eprint.iacr.org/2021/582, Section 3.11)
+    """
 
     def __init__(
         self,
@@ -32,7 +39,7 @@ class FRI:
         self.last_layer_degree_bound = last_layer_degree_bound
         self.pow_bits = pow_bits
 
-    def _init_transcript(self, transcript: FiatShamirTranscript):
+    def init_transcript(self, transcript: FiatShamirTranscript):
         transcript.append(self.n)
         transcript.append(self.bit_length)
         transcript.append(self.folding_factor)
@@ -182,7 +189,7 @@ class FRI:
         codeword = codeword + [0 for _ in range(self.max_degree + 1 - len(codeword))]
 
         transcript = transcript or FiatShamirTranscript(b"FRI", self.order)
-        self._init_transcript(transcript)
+        self.init_transcript(transcript)
 
         commitment, folded_codewords = self.commit(codeword, transcript)
 
@@ -193,7 +200,7 @@ class FRI:
     def verify(self, commitment, proof, transcript=None):
 
         transcript = transcript or FiatShamirTranscript(b"FRI", self.order)
-        self._init_transcript(transcript)
+        self.init_transcript(transcript)
 
         merkle_roots = commitment[:-1]
         last_poly = Polynomial(commitment[-1], self.order)
