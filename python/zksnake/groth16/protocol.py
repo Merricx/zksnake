@@ -173,7 +173,10 @@ class Groth16:
             public_witness
         ), "Length of IC and public_witness must be equal"
 
-        sum_gamma_witness = self.E.multiexp(self.verifying_key.ic, public_witness)
+        sum_gamma_witness = self.verifying_key.ic[0]
+        sum_gamma_witness += self.E.multiexp(
+            self.verifying_key.ic[1:], public_witness[1:]
+        )
 
         # e(A, B) == e(alpha, beta) + e(sum_gamma_witness, gamma) + e(C, delta)
         return self.E.pairing(proof.A, proof.B) == self.E.multi_pairing(
