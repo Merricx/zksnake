@@ -52,7 +52,7 @@ class Plonk:
             self.G2_tau = self.E.G2() * tau
         else:
             assert (
-                len(self.G1_tau) < self.constraints.length + 6
+                len(self.G1_tau) >= self.constraints.length + 6
             ), "Constraints are too big for the given g1_tau"
             self.G1_tau = g1_tau
             self.G2_tau = g2_tau
@@ -202,8 +202,8 @@ class Plonk:
         transcript.append(tau_sigma2)
         transcript.append(tau_sigma3)
 
-        for _, v in public_witness.items():
-            transcript.append(v)
+        for k in sorted(public_witness.keys()):
+            transcript.append(public_witness[k])
 
         #########################################################################################
         # ROUND 1
@@ -505,8 +505,8 @@ class Plonk:
         transcript.append(tau_sigma2)
         transcript.append(tau_sigma3)
 
-        for _, v in public_input.items():
-            transcript.append(v)
+        for k in sorted(public_input.keys()):
+            transcript.append(public_input[k])
 
         transcript.append(proof.tau_a)
         transcript.append(proof.tau_b)
