@@ -24,10 +24,10 @@ class FRI:
         pow_bits=20,
         hash_alg="blake2b",
     ):
-        self.n = next_power_of_two(max_degree)
+        self.n = next_power_of_two(max_degree + 1)
         self.max_degree = max_degree
         self.order = field
-        self.bit_length = 32
+        self.elem_size = 32
         self.hash_alg = hash_alg
         self.merkle_tree = Merkle(hash_alg)
 
@@ -41,7 +41,7 @@ class FRI:
 
     def init_transcript(self, transcript: FiatShamirTranscript):
         transcript.append(self.n)
-        transcript.append(self.bit_length)
+        transcript.append(self.elem_size)
         transcript.append(self.folding_factor)
         transcript.append(self.last_layer_degree_bound)
         transcript.append(self.pow_bits)
@@ -77,7 +77,7 @@ class FRI:
             leave = b""
             for j in range(self.folding_factor):
                 index = (i + j * next_domain) % len(codeword)
-                leave += codeword[index].to_bytes(self.bit_length)
+                leave += codeword[index].to_bytes(self.elem_size, "big")
 
             codeword_bytes += [leave]
 
@@ -85,14 +85,14 @@ class FRI:
 
     def _grinding(self, challenge: bytes):
 
-        target = 1 << (self.bit_length * 8 - self.pow_bits)
+        target = 1 << (self.elem_size * 8 - self.pow_bits)
         nonce = 0
 
         while True:
             value = hashlib.new(
                 self.hash_alg,
                 str(nonce).encode() + challenge,
-                digest_size=self.bit_length,
+                digest_size=self.elem_size,
             ).digest()
             hash_int = int.from_bytes(value, byteorder="big")
 
@@ -103,9 +103,9 @@ class FRI:
 
     def _verify_pow(self, nonce: int, challenge: bytes):
 
-        target = 1 << (self.bit_length * 8 - self.pow_bits)
+        target = 1 << (self.elem_size * 8 - self.pow_bits)
         value = hashlib.new(
-            self.hash_alg, str(nonce).encode() + challenge, digest_size=self.bit_length
+            self.hash_alg, str(nonce).encode() + challenge, digest_size=self.elem_size
         ).digest()
         hash_int = int.from_bytes(value, byteorder="big")
 
@@ -115,7 +115,7 @@ class FRI:
 
         opening_proof, evaluation_bytes = proof
 
-        assert len(evaluation_bytes) == self.folding_factor * self.bit_length
+        assert len(evaluation_bytes) == self.folding_factor * self.elem_size
 
         assert self.merkle_tree.verify(
             merkle_root, opening_proof, index, evaluation_bytes
@@ -123,8 +123,8 @@ class FRI:
 
         coset_evaluations = []
         for _ in range(self.folding_factor):
-            evaluation = int.from_bytes(evaluation_bytes[: self.bit_length], "big")
-            evaluation_bytes = evaluation_bytes[self.bit_length :]
+            evaluation = int.from_bytes(evaluation_bytes[: self.elem_size], "big")
+            evaluation_bytes = evaluation_bytes[self.elem_size :]
             coset_evaluations.append(evaluation)
 
         return coset_evaluations
@@ -172,13 +172,12 @@ class FRI:
             target = current_layer[s]
 
             current_layer_proof = self.merkle_tree.open(current_layer, s)
+            opening_proof.append((current_layer_proof, target))
 
             if current_domain >= self.folding_factor:
                 current_domain //= self.folding_factor
 
             s %= current_domain
-
-            opening_proof.append((current_layer_proof, target))
 
         return opening_proof
 
@@ -186,7 +185,7 @@ class FRI:
 
         assert len(codeword) <= self.max_degree + 1
         # pad the codeword
-        codeword = codeword + [0 for _ in range(self.max_degree + 1 - len(codeword))]
+        codeword = codeword + [0] * (self.n - len(codeword))
 
         transcript = transcript or FiatShamirTranscript(b"FRI", self.order)
         self.init_transcript(transcript)
@@ -205,7 +204,11 @@ class FRI:
         merkle_roots = commitment[:-1]
         last_poly = Polynomial(commitment[-1], self.order)
 
-        assert last_poly.degree() <= self.last_layer_degree_bound
+        if len(proof) - 1 != len(merkle_roots):
+            raise ValueError("FRI proof length does not match commitment")
+
+        if last_poly.degree() > self.last_layer_degree_bound:
+            raise ValueError("Last FRI layer polynomial exceeds allowed degree bound")
 
         alphas = []
         for root in merkle_roots:
@@ -216,12 +219,16 @@ class FRI:
 
         nonce = proof[0]
         grinding_challenge = transcript.get_challenge()
-        assert self._verify_pow(nonce, grinding_challenge)
+        if not self._verify_pow(nonce, grinding_challenge):
+            raise ValueError("Invalid FRI proof-of-work nonce")
 
         transcript.append(nonce)
         current_domain = self.n // self.folding_factor
         index = transcript.get_challenge_scalar() % current_domain
+        initial_index = index
+        initial_evaluation = None
         prev_layer_eval = 0
+        expected_slot = None
 
         for i in range(1, len(proof)):
 
@@ -229,21 +236,45 @@ class FRI:
                 merkle_roots[i - 1], proof[i], index
             )
 
-            if i > 1:
-                assert prev_layer_eval in coset_evaluations
+            if len(coset_evaluations) != self.folding_factor:
+                raise ValueError("Invalid number of coset evaluations in FRI proof")
 
-            prev_layer_eval = 0
-            for j, evaluation in enumerate(coset_evaluations):
-                prev_layer_eval = (
-                    prev_layer_eval + pow(alphas[i - 1], j, self.order) * evaluation
-                ) % self.order
+            if i == 1 and coset_evaluations:
+                initial_evaluation = coset_evaluations[0]
+
+            if expected_slot is not None:
+                if expected_slot >= len(coset_evaluations):
+                    raise ValueError(
+                        f"Invalid coset index {expected_slot} for layer {i}"
+                    )
+                if coset_evaluations[expected_slot] != prev_layer_eval:
+                    raise ValueError(
+                        "Mismatch between folded evaluation and committed coset"
+                    )
+
+            alpha = alphas[i - 1] % self.order
+            apow = 1
+            acc = 0
+            for evaluation in coset_evaluations:
+                acc = (acc + evaluation * apow) % self.order
+                apow = (apow * alpha) % self.order
+            prev_layer_eval = acc
 
             if i != len(proof) - 1:
-                current_domain //= self.folding_factor
+                child_domain = current_domain // self.folding_factor
+                if child_domain == 0:
+                    raise ValueError("FRI domain collapsed to zero")
+                expected_slot = index // child_domain
+                current_domain = child_domain
                 index %= current_domain
+            else:
+                expected_slot = None
 
-        assert prev_layer_eval == last_poly(
-            get_evaluation_point(current_domain, index, self.order)
-        )
+        expected = last_poly(get_evaluation_point(current_domain, index, self.order))
+        if prev_layer_eval != expected:
+            raise ValueError("Final FRI consistency check failed")
 
-        return True
+        if initial_evaluation is None:
+            initial_evaluation = expected
+
+        return initial_evaluation, initial_index
