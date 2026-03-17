@@ -3,13 +3,12 @@ import hashlib
 from ...commitment.vector import Merkle
 from ...polynomial import (
     Polynomial,
-    get_all_evaluation_points,
     get_evaluation_point,
-    fft,
-    ifft,
+    coset_fft,
+    coset_ifft,
 )
 from ...transcript import FiatShamirTranscript
-from ...utils import is_power_of_two, next_power_of_two
+from ...utils import is_power_of_two
 
 
 class FRI:
@@ -25,6 +24,7 @@ class FRI:
         self,
         max_degree,
         field,
+        offset=1,
         blowup_factor=8,
         folding_factor=2,
         last_layer_degree_bound=1,
@@ -36,12 +36,17 @@ class FRI:
         self.max_degree = max_degree
         self.order = field
         self.elem_size = 32
+        offset %= field
+        if offset == 0:
+            raise ValueError("FRI offset must be a non-zero field element")
+        self.offset = offset
         self.hash_alg = hash_alg
         self.merkle_tree = Merkle(hash_alg)
 
         assert is_power_of_two(max_degree + 1)
         assert is_power_of_two(blowup_factor) and blowup_factor >= 2
         assert is_power_of_two(folding_factor)
+        assert offset > 0
         assert last_layer_degree_bound >= 0
         assert 20 <= pow_bits <= 50
         assert num_queries >= 1
@@ -58,6 +63,7 @@ class FRI:
     def init_transcript(self, transcript: FiatShamirTranscript):
         transcript.append(self.domain)
         transcript.append(self.elem_size)
+        transcript.append(self.offset)
         transcript.append(self.folding_factor)
         transcript.append(self.last_layer_degree_bound)
         transcript.append(self.pow_bits)
@@ -81,19 +87,57 @@ class FRI:
         """
         return self.num_queries * (self.blowup_factor.bit_length() - 1) + self.pow_bits
 
-    def _fold(self, codeword: list[int], challenge: int):
+    def _compute_fold_value(self, coset_evaluations, challenge, x):
+        """
+        Compute the correct FRI fold for a single coset.
 
-        next_domain = len(codeword) // self.folding_factor
+        Given coset evaluations [f(x), f(x·ζ), f(x·ζ²), ...] where ζ is the
+        primitive folding_factor-th root of unity, decomposes f as:
+
+            f(x) = Σ_{l=0}^{k-1} x^l · f_l(x^k)
+
+        and returns:
+
+            Σ_l alpha^l · f_l(x^k)
+
+        using an inverse DFT over the coset to recover each f_l.
+        """
+        k = self.folding_factor
+        p = self.order
+        k_inv = pow(k, -1, p)
+        zeta = get_evaluation_point(k, 1, p)
+        x_inv = pow(x, -1, p)
+        ax_inv = challenge * x_inv % p
+
+        acc = 0
+        ax_inv_pow = 1
+        for l in range(k):
+            # d_l = k^{-1} · Σ_j c_j · ζ^{-jl}  (inverse DFT coefficient)
+            d_l = 0
+            zeta_neg_l = pow(zeta, (-l) % k, p)
+            zeta_neg_jl = 1
+            for j in range(k):
+                d_l = (d_l + coset_evaluations[j] * zeta_neg_jl) % p
+                zeta_neg_jl = zeta_neg_jl * zeta_neg_l % p
+            d_l = d_l * k_inv % p
+
+            # fold = Σ_l (alpha/x)^l · d_l  where d_l = x^l · f_l(x^k)
+            acc = (acc + ax_inv_pow * d_l) % p
+            ax_inv_pow = ax_inv_pow * ax_inv % p
+
+        return acc
+
+    def _fold(self, codeword: list[int], challenge: int, domain_offset: int):
+
+        n = len(codeword)
+        k = self.folding_factor
+        m = n // k
 
         folded = []
-        for i in range(next_domain):
-            acc = 0
-            for j in range(self.folding_factor):
-                index = (i + j * next_domain) % len(codeword)
-                acc = (
-                    acc + codeword[index] * pow(challenge, j, self.order)
-                ) % self.order
-            folded.append(acc)
+        for i in range(m):
+            x = domain_offset * get_evaluation_point(n, i, self.order) % self.order
+            coset_vals = [codeword[(i + j * m) % n] for j in range(k)]
+            folded.append(self._compute_fold_value(coset_vals, challenge, x))
 
         return folded
 
@@ -181,6 +225,7 @@ class FRI:
 
         commitment = []
         folded_codewords = []
+        current_offset = self.offset
 
         while len(codeword) > self.last_layer_degree_bound + 1:
 
@@ -191,10 +236,11 @@ class FRI:
             alpha = transcript.get_challenge_scalar()
 
             commitment.append(root)
-            codeword = self._fold(codeword, alpha)
+            codeword = self._fold(codeword, alpha, current_offset)
+            current_offset = pow(current_offset, self.folding_factor, self.order)
 
         # in last layer, send polynomial in the clear
-        last_poly_coeff = ifft(codeword, self.order)
+        last_poly_coeff = coset_ifft(codeword, current_offset, self.order)
 
         transcript.append(last_poly_coeff)
         commitment.append(last_poly_coeff)
@@ -246,7 +292,7 @@ class FRI:
         transcript = transcript or FiatShamirTranscript(self.name, self.order)
         self.init_transcript(transcript)
 
-        codeword = fft(polynomial.coeffs(), self.order, self.domain)
+        codeword = coset_fft(polynomial.coeffs(), self.offset, self.order, self.domain)
 
         commitment, folded_codewords = self.commit(codeword, transcript)
 
@@ -277,12 +323,14 @@ class FRI:
                 if len(query_proof) != len(merkle_roots):
                     raise ValueError("FRI proof length does not match commitment")
 
-        if last_poly.degree() > self.last_layer_degree_bound:
+        num_rounds = len(merkle_roots)
+        expected_degree = self.max_degree
+        for _ in range(num_rounds):
+            expected_degree //= self.folding_factor
+        if last_poly.degree() > expected_degree:
             raise ValueError("Last FRI layer polynomial exceeds allowed degree bound")
 
-        expected_final_domain = self.domain // (
-            self.folding_factor ** len(merkle_roots)
-        )
+        expected_final_domain = self.domain // (self.folding_factor**num_rounds)
         if len(last_poly_coeffs) != expected_final_domain:
             raise ValueError("Last FRI layer size does not match expected domain")
 
@@ -306,6 +354,7 @@ class FRI:
             initial_evaluation = None
             prev_layer_eval = 0
             expected_slot = None
+            layer_offset = self.offset
 
             for i in range(1, len(query_proof) + 1):
 
@@ -327,12 +376,15 @@ class FRI:
                         )
 
                 alpha = alphas[i - 1] % self.order
-                apow = 1
-                acc = 0
-                for evaluation in coset_evaluations:
-                    acc = (acc + evaluation * apow) % self.order
-                    apow = (apow * alpha) % self.order
-                prev_layer_eval = acc
+                codeword_size = current_domain * self.folding_factor
+                x = (
+                    layer_offset
+                    * get_evaluation_point(codeword_size, index, self.order)
+                    % self.order
+                )
+                prev_layer_eval = self._compute_fold_value(coset_evaluations, alpha, x)
+
+                layer_offset = pow(layer_offset, self.folding_factor, self.order)
 
                 if i != len(query_proof):
                     child_domain = current_domain // self.folding_factor
@@ -347,9 +399,12 @@ class FRI:
                 else:
                     expected_slot = None
 
-            expected = last_poly(
-                get_evaluation_point(current_domain, index, self.order)
+            eval_point = (
+                layer_offset
+                * get_evaluation_point(current_domain, index, self.order)
+                % self.order
             )
+            expected = last_poly(eval_point)
             if prev_layer_eval != expected:
                 raise ValueError("Final FRI consistency check failed")
 
