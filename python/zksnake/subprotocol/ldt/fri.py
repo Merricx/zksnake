@@ -1,6 +1,6 @@
 import hashlib
 
-from ...commitment.vector import Merkle
+from ...commitment.vector import MerkleTree
 from ...polynomial import (
     Polynomial,
     get_evaluation_point,
@@ -41,7 +41,7 @@ class FRI:
             raise ValueError("FRI offset must be a non-zero field element")
         self.offset = offset
         self.hash_alg = hash_alg
-        self.merkle_tree = Merkle(hash_alg)
+        self.merkle_tree = MerkleTree(hash_alg)
 
         assert is_power_of_two(max_degree + 1)
         assert is_power_of_two(blowup_factor) and blowup_factor >= 2
@@ -210,6 +210,112 @@ class FRI:
 
         return coset_evaluations
 
+    def _verify_commitment_phase(self, commitment, transcript):
+        """
+        Validate FRI commitment structure, check degree bounds,
+        and replay the commit phase in the transcript.
+
+        Returns (merkle_roots, last_poly, alphas).
+        """
+        merkle_roots = commitment[:-1]
+        last_poly_coeffs = commitment[-1]
+        last_poly = Polynomial(last_poly_coeffs, self.order)
+
+        num_rounds = len(merkle_roots)
+        expected_degree = self.max_degree
+        for _ in range(num_rounds):
+            expected_degree //= self.folding_factor
+        if last_poly.degree() > expected_degree:
+            raise ValueError("Last FRI layer polynomial exceeds allowed degree bound")
+
+        expected_final_domain = self.domain // (self.folding_factor**num_rounds)
+        if len(last_poly_coeffs) != expected_final_domain:
+            raise ValueError("Last FRI layer size does not match expected domain")
+
+        alphas = []
+        for root in merkle_roots:
+            transcript.append(root)
+            alphas.append(transcript.get_challenge_scalar())
+        transcript.append(last_poly_coeffs)
+
+        return merkle_roots, last_poly, alphas
+
+    def _verify_pow_phase(self, nonce, transcript):
+        """Verify proof-of-work and update transcript."""
+        grinding_challenge = transcript.get_challenge()
+        if not self._verify_pow(nonce, grinding_challenge):
+            raise ValueError("Invalid FRI proof-of-work nonce")
+        transcript.append(nonce)
+
+    def _verify_query_phase(self, query_proof, index, merkle_roots, alphas, last_poly):
+        """
+        Verify a single query's FRI layer chain and final polynomial
+        consistency check.
+
+        Returns the first layer's coset evaluations, or None if
+        there are no Merkle rounds.
+        """
+        num_rounds = len(merkle_roots)
+        current_domain = self.domain // self.folding_factor
+        prev_layer_eval = 0
+        expected_slot = None
+        layer_offset = self.offset
+        first_layer_evals = None
+
+        for i in range(num_rounds):
+            coset_evaluations = self._get_fri_layer_evaluation(
+                merkle_roots[i], query_proof[i], index
+            )
+
+            if len(coset_evaluations) != self.folding_factor:
+                raise ValueError("Invalid number of coset evaluations in FRI proof")
+
+            if i == 0:
+                first_layer_evals = coset_evaluations
+
+            if expected_slot is not None:
+                if expected_slot >= len(coset_evaluations):
+                    raise ValueError(
+                        f"Invalid coset index {expected_slot} for layer {i + 1}"
+                    )
+                if coset_evaluations[expected_slot] != prev_layer_eval:
+                    raise ValueError(
+                        "Mismatch between folded evaluation and committed coset"
+                    )
+
+            alpha = alphas[i] % self.order
+            codeword_size = current_domain * self.folding_factor
+            x = (
+                layer_offset
+                * get_evaluation_point(codeword_size, index, self.order)
+                % self.order
+            )
+            prev_layer_eval = self._compute_fold_value(coset_evaluations, alpha, x)
+
+            layer_offset = pow(layer_offset, self.folding_factor, self.order)
+
+            if i != num_rounds - 1:
+                child_domain = current_domain // self.folding_factor
+                if child_domain == 0:
+                    raise ValueError("FRI domain collapsed to zero")
+                expected_slot = index // child_domain
+                current_domain = child_domain
+                index %= current_domain
+            else:
+                expected_slot = None
+
+        if num_rounds > 0:
+            eval_point = (
+                layer_offset
+                * get_evaluation_point(current_domain, index, self.order)
+                % self.order
+            )
+            expected = last_poly(eval_point)
+            if prev_layer_eval != expected:
+                raise ValueError("Final FRI consistency check failed")
+
+        return first_layer_evals
+
     def commit(self, codeword: list[int], transcript: FiatShamirTranscript = None):
 
         transcript = transcript or FiatShamirTranscript(self.name, self.order)
@@ -247,7 +353,7 @@ class FRI:
 
         return commitment, folded_codewords
 
-    def query(self, codewords, transcript: FiatShamirTranscript):
+    def query(self, codewords, transcript: FiatShamirTranscript, extra_codewords=None):
 
         grinding_challenge = transcript.get_challenge()
         proof_of_work = self._grinding(grinding_challenge)
@@ -256,10 +362,19 @@ class FRI:
 
         opening_proof = [proof_of_work]
         query_openings = []
+        extra_openings = [] if extra_codewords is not None else None
 
         for _ in range(self.num_queries):
             current_domain = self.domain // self.folding_factor
             s = transcript.get_challenge_scalar() % current_domain
+
+            # open extra codewords at the first-layer query index
+            if extra_codewords is not None:
+                per_query_extra = []
+                for extra_cw in extra_codewords:
+                    extra_proof = self.merkle_tree.open(extra_cw, s)
+                    per_query_extra.append((extra_proof, extra_cw[s]))
+                extra_openings.append(per_query_extra)
 
             per_query_opening = []
             # correlated spot check
@@ -283,6 +398,8 @@ class FRI:
         else:
             opening_proof.append(query_openings)
 
+        if extra_codewords is not None:
+            return opening_proof, extra_openings
         return opening_proof
 
     def prove(self, polynomial, transcript: FiatShamirTranscript = None):
@@ -305,9 +422,9 @@ class FRI:
         transcript = transcript or FiatShamirTranscript(self.name, self.order)
         self.init_transcript(transcript)
 
-        merkle_roots = commitment[:-1]
-        last_poly_coeffs = commitment[-1]
-        last_poly = Polynomial(last_poly_coeffs, self.order)
+        merkle_roots, last_poly, alphas = self._verify_commitment_phase(
+            commitment, transcript
+        )
 
         if self.num_queries == 1:
             if len(proof) - 1 != len(merkle_roots):
@@ -323,92 +440,14 @@ class FRI:
                 if len(query_proof) != len(merkle_roots):
                     raise ValueError("FRI proof length does not match commitment")
 
-        num_rounds = len(merkle_roots)
-        expected_degree = self.max_degree
-        for _ in range(num_rounds):
-            expected_degree //= self.folding_factor
-        if last_poly.degree() > expected_degree:
-            raise ValueError("Last FRI layer polynomial exceeds allowed degree bound")
+        self._verify_pow_phase(proof[0], transcript)
 
-        expected_final_domain = self.domain // (self.folding_factor**num_rounds)
-        if len(last_poly_coeffs) != expected_final_domain:
-            raise ValueError("Last FRI layer size does not match expected domain")
-
-        alphas = []
-        for root in merkle_roots:
-            transcript.append(root)
-            alphas.append(transcript.get_challenge_scalar())
-
-        transcript.append(last_poly_coeffs)
-
-        nonce = proof[0]
-        grinding_challenge = transcript.get_challenge()
-        if not self._verify_pow(nonce, grinding_challenge):
-            raise ValueError("Invalid FRI proof-of-work nonce")
-
-        transcript.append(nonce)
-
-        for _, query_proof in enumerate(query_proofs):
-            current_domain = self.domain // self.folding_factor
-            index = transcript.get_challenge_scalar() % current_domain
-            initial_evaluation = None
-            prev_layer_eval = 0
-            expected_slot = None
-            layer_offset = self.offset
-
-            for i in range(1, len(query_proof) + 1):
-
-                coset_evaluations = self._get_fri_layer_evaluation(
-                    merkle_roots[i - 1], query_proof[i - 1], index
-                )
-
-                if len(coset_evaluations) != self.folding_factor:
-                    raise ValueError("Invalid number of coset evaluations in FRI proof")
-
-                if expected_slot is not None:
-                    if expected_slot >= len(coset_evaluations):
-                        raise ValueError(
-                            f"Invalid coset index {expected_slot} for layer {i}"
-                        )
-                    if coset_evaluations[expected_slot] != prev_layer_eval:
-                        raise ValueError(
-                            "Mismatch between folded evaluation and committed coset"
-                        )
-
-                alpha = alphas[i - 1] % self.order
-                codeword_size = current_domain * self.folding_factor
-                x = (
-                    layer_offset
-                    * get_evaluation_point(codeword_size, index, self.order)
-                    % self.order
-                )
-                prev_layer_eval = self._compute_fold_value(coset_evaluations, alpha, x)
-
-                layer_offset = pow(layer_offset, self.folding_factor, self.order)
-
-                if i != len(query_proof):
-                    child_domain = current_domain // self.folding_factor
-                    if child_domain == 0:
-                        raise ValueError("FRI domain collapsed to zero")
-                    expected_slot = index // child_domain
-                    if i == 1:
-                        initial_evaluation = coset_evaluations[expected_slot]
-
-                    current_domain = child_domain
-                    index %= current_domain
-                else:
-                    expected_slot = None
-
-            eval_point = (
-                layer_offset
-                * get_evaluation_point(current_domain, index, self.order)
-                % self.order
+        for query_proof in query_proofs:
+            index = transcript.get_challenge_scalar() % (
+                self.domain // self.folding_factor
             )
-            expected = last_poly(eval_point)
-            if prev_layer_eval != expected:
-                raise ValueError("Final FRI consistency check failed")
-
-            if initial_evaluation is None:
-                initial_evaluation = expected
+            self._verify_query_phase(
+                query_proof, index, merkle_roots, alphas, last_poly
+            )
 
         return True

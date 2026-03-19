@@ -545,14 +545,14 @@ pub fn fft(coeffs: Vec<BigUint>, size: usize) -> PyResult<Vec<BigUint>> {
 }
 
 #[pyfunction]
-pub fn coset_fft(coeffs: Vec<BigUint>, size: usize) -> PyResult<Vec<BigUint>> {
+pub fn coset_fft(coeffs: Vec<BigUint>, offset: BigUint, size: usize) -> PyResult<Vec<BigUint>> {
     let mut domain_coeff = vec![];
     for c in &coeffs {
         domain_coeff.push(Fr::from(c.to_owned()));
     }
     let domain: GeneralEvaluationDomain<Fr> = EvaluationDomain::new(size).unwrap();
-    let generator = EvaluationDomain::group_gen(&domain);
-    let coset_domain = EvaluationDomain::get_coset(&domain, generator).unwrap();
+    let g = Fr::from(offset);
+    let coset_domain = EvaluationDomain::get_coset(&domain, g).unwrap();
     let evals = EvaluationDomain::fft(&coset_domain, &domain_coeff);
 
     Ok(evals.par_iter().map(|x| x.to_owned().into()).collect())
@@ -571,14 +571,14 @@ pub fn ifft(evals: Vec<BigUint>, size: usize) -> PyResult<Vec<BigUint>> {
 }
 
 #[pyfunction]
-pub fn coset_ifft(evals: Vec<BigUint>, size: usize) -> PyResult<Vec<BigUint>> {
+pub fn coset_ifft(evals: Vec<BigUint>, offset: BigUint, size: usize) -> PyResult<Vec<BigUint>> {
     let mut domain_evals = vec![];
     for c in &evals {
         domain_evals.push(Fr::from(c.to_owned()));
     }
     let domain: GeneralEvaluationDomain<Fr> = EvaluationDomain::new(size).unwrap();
-    let generator = EvaluationDomain::group_gen(&domain);
-    let coset_domain = EvaluationDomain::get_coset(&domain, generator).unwrap();
+    let g = Fr::from(offset);
+    let coset_domain = EvaluationDomain::get_coset(&domain, g).unwrap();
     let coeffs = EvaluationDomain::ifft(&coset_domain, &domain_evals);
 
     Ok(coeffs.par_iter().map(|x| x.to_owned().into()).collect())

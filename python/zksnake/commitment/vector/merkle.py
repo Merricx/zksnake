@@ -2,7 +2,7 @@ import hashlib
 from .base import VectorCommitmentScheme
 
 
-class Merkle(VectorCommitmentScheme):
+class MerkleTree(VectorCommitmentScheme):
 
     def __init__(self, alg="blake2b", digest_size=32):
         super().__init__()

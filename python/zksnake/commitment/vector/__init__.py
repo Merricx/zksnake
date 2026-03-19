@@ -1,1 +1,1 @@
-from .merkle import Merkle
+from .merkle import MerkleTree

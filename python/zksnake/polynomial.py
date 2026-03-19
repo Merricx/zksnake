@@ -96,13 +96,13 @@ def fft(coeffs, p, size=None):
     return poly.fft(coeffs, size)
 
 
-def coset_fft(coeffs, p, size=None):
+def coset_fft(coeffs, offset, p, size=None):
     """
-    Perform FFT over Coset from given `coeffs`
+    Perform FFT over Coset from given `coeffs` and `offset`
     """
     poly = POLY_OBJECT[p]
     size = size or len(coeffs)
-    return poly.coset_fft(coeffs, size)
+    return poly.coset_fft(coeffs, offset, size)
 
 
 def ifft(evals, p, size=None):
@@ -114,13 +114,13 @@ def ifft(evals, p, size=None):
     return poly.ifft(evals, size)
 
 
-def coset_ifft(coeffs, p, size=None):
+def coset_ifft(coeffs, offset, p, size=None):
     """
-    Perform inverse FFT over Coset from given `coeffs`
+    Perform inverse FFT over Coset from given `coeffs` and `offset`
     """
     poly = POLY_OBJECT[p]
     size = size or len(coeffs)
-    return poly.coset_ifft(coeffs, size)
+    return poly.coset_ifft(coeffs, offset, size)
 
 
 def _pad_coeffs(a, b):
