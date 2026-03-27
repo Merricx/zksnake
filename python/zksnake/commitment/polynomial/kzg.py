@@ -139,13 +139,10 @@ class KZG(PolynomialCommitmentScheme):
         transcript.append(points_query.commitments)
 
         proof = []
-        verifier_query = MultiOpeningQuery()
-        for point, polys in points_query.get_polynomials():
-            for poly in polys:
-                evaluation = poly(point)
-                comm = points_query.to_commitment(poly)
-                verifier_query.verifier_query(comm, point, evaluation)
-
+        verifier_query = points_query.to_verifier_query()
+        for point, commitments in verifier_query.get_commitments():
+            for commitment in commitments:
+                evaluation = verifier_query.get_evaluation(commitment, point)
                 transcript.append(evaluation)
 
         x1 = transcript.get_challenge_scalar()

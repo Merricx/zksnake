@@ -45,10 +45,12 @@ class FiatShamirTranscript:
         elif isinstance(data, str):
             data_bytes = data.encode()
         elif isinstance(data, int):
-            data_bytes = int.to_bytes(data, data.bit_length(), "big")
+            byte_len = (self.field.bit_length() + 7) // 8
+            data_bytes = int.to_bytes(data % self.field, byte_len, "big")
         elif data and isinstance(data, list) and isinstance(data[0], int):
+            byte_len = (self.field.bit_length() + 7) // 8
             for d in data:
-                d = int.to_bytes(d, d.bit_length(), "big")
+                d = int.to_bytes(d % self.field, byte_len, "big")
                 data_bytes += d
         elif ispointG1(data) or ispointG2(data):
             data_bytes = bytes(data.to_bytes())
